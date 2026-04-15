@@ -1,0 +1,1399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AVIATORKEYZ — Premium VST3 Plugin UI</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Orbitron:wght@400;500;700;900&family=Inter:wght@200;300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --platinum:    #E8E9EC;
+    --silver-lt:   #D4D6DA;
+    --silver-mid:  #B8BABD;
+    --silver-dk:   #8A8C8F;
+    --chrome:      #C8CDD4;
+    --dark-bg:     #1A1B1E;
+    --panel-bg:    #22242A;
+    --inset-bg:    #161719;
+    --amber:       #F0A020;
+    --amber-glow:  rgba(240,160,32,0.35);
+    --amber-soft:  rgba(240,160,32,0.12);
+    --gold:        #C8A84B;
+    --gold-lt:     #E0C870;
+    --white-pearl: #F5F6F8;
+    --text-label:  #9EA2AA;
+    --text-bright: #D8DBE2;
+    --glass-shine: rgba(255,255,255,0.07);
+    --knob-face:   #2A2C32;
+    --knob-rim:    #4A4D54;
+    --meter-green: #3AE080;
+    --meter-amber: #F0A020;
+    --meter-red:   #E04040;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: #12131A;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Rajdhani', sans-serif;
+    overflow: hidden;
+  }
+
+  /* ═══════════════════════════════════════════
+     PLUGIN SHELL
+  ═══════════════════════════════════════════ */
+  .plugin-shell {
+    width: 920px;
+    background: linear-gradient(170deg, #2C2E36 0%, #1E2028 40%, #16181F 100%);
+    border-radius: 14px;
+    border: 1px solid #3A3C44;
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.04),
+      0 2px 4px rgba(0,0,0,0.6),
+      0 8px 32px rgba(0,0,0,0.7),
+      0 32px 80px rgba(0,0,0,0.5),
+      inset 0 1px 0 rgba(255,255,255,0.08);
+    overflow: hidden;
+    position: relative;
+    user-select: none;
+  }
+
+  /* Top brushed-metal accent line */
+  .plugin-shell::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg,
+      transparent 0%, var(--amber) 30%, var(--gold-lt) 50%, var(--amber) 70%, transparent 100%);
+    z-index: 10;
+  }
+
+  /* ═══════════════════════════════════════════
+     NAVIGATION BAR
+  ═══════════════════════════════════════════ */
+  .nav-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    height: 52px;
+    background: linear-gradient(180deg, #2A2C34 0%, #1E2028 100%);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    position: relative;
+    gap: 8px;
+  }
+
+  .nav-bar::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--amber-glow), transparent);
+  }
+
+  .nav-section-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .nav-tab {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    color: var(--silver-dk);
+    padding: 8px 18px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+    background: transparent;
+    white-space: nowrap;
+  }
+
+  .nav-tab:hover {
+    color: var(--text-bright);
+    background: rgba(255,255,255,0.04);
+    border-color: rgba(255,255,255,0.06);
+  }
+
+  .nav-tab.active {
+    color: var(--amber);
+    background: rgba(240,160,32,0.08);
+    border-color: rgba(240,160,32,0.2);
+    text-shadow: 0 0 12px var(--amber-glow);
+  }
+
+  /* Central Medallion */
+  .nav-medallion {
+    width: 88px;
+    height: 88px;
+    position: relative;
+    flex-shrink: 0;
+    margin-top: 18px;
+    z-index: 20;
+  }
+
+  .medallion-outer {
+    width: 88px; height: 88px;
+    border-radius: 50%;
+    background: conic-gradient(
+      from 0deg,
+      #3C3E46 0deg, #5A5D66 45deg, #2A2C32 90deg,
+      #4A4D56 135deg, #6A6D76 180deg, #3A3C44 225deg,
+      #5A5C64 270deg, #4A4C54 315deg, #3C3E46 360deg
+    );
+    box-shadow:
+      0 4px 16px rgba(0,0,0,0.7),
+      0 0 0 2px rgba(240,160,32,0.3),
+      0 0 0 4px rgba(0,0,0,0.5),
+      0 0 20px rgba(240,160,32,0.15),
+      inset 0 2px 4px rgba(255,255,255,0.12),
+      inset 0 -2px 4px rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .medallion-inner {
+    width: 68px; height: 68px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #3A3E48, #12141A 70%);
+    border: 1px solid rgba(255,255,255,0.08);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+  }
+
+  /* Skyline scene inside medallion */
+  .medallion-sky {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 60%, rgba(240,160,32,0.25) 0%, rgba(80,60,20,0.2) 40%, transparent 70%),
+                linear-gradient(180deg, #080C18 0%, #0C1428 30%, #1A1020 60%, #0A0808 100%);
+  }
+
+  .medallion-aircraft {
+    position: relative;
+    z-index: 2;
+    font-size: 22px;
+    filter: drop-shadow(0 0 6px rgba(240,160,32,0.8));
+    transform: rotate(-15deg);
+  }
+
+  /* Amber ring glow */
+  .medallion-outer::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    background: transparent;
+    box-shadow: 0 0 20px rgba(240,160,32,0.2);
+    pointer-events: none;
+  }
+
+  /* Preset Browser */
+  .preset-browser {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .preset-nav-btn {
+    width: 22px; height: 22px;
+    border-radius: 4px;
+    background: linear-gradient(180deg, #32343C, #24262E);
+    border: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--silver-dk);
+    font-size: 9px;
+    transition: all 0.15s;
+  }
+
+  .preset-nav-btn:hover { color: var(--amber); border-color: rgba(240,160,32,0.3); }
+
+  .preset-display {
+    padding: 5px 12px;
+    background: linear-gradient(180deg, #1A1C22, #14161C);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 5px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    color: var(--amber);
+    text-transform: uppercase;
+    min-width: 130px;
+    text-align: center;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.4), 0 0 8px rgba(240,160,32,0.08);
+  }
+
+  .preset-save-btn {
+    padding: 5px 14px;
+    background: linear-gradient(180deg, #2A2C34, #1E2028);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 5px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--silver-dk);
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.15s;
+  }
+
+  .preset-save-btn:hover { color: var(--amber); border-color: rgba(240,160,32,0.3); }
+
+  /* ═══════════════════════════════════════════
+     SKY PANORAMA BANNER
+  ═══════════════════════════════════════════ */
+  .sky-banner {
+    height: 52px;
+    background:
+      radial-gradient(ellipse at 20% 100%, rgba(240,160,32,0.18) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 100%, rgba(240,120,20,0.12) 0%, transparent 45%),
+      linear-gradient(180deg, #0A0E1A 0%, #0E1428 40%, #1A1830 70%, #0C0A14 100%);
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid rgba(240,160,32,0.1);
+  }
+
+  .sky-stars {
+    position: absolute;
+    inset: 0;
+  }
+
+  .sky-star {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.8);
+    animation: twinkle 3s infinite alternate;
+  }
+
+  @keyframes twinkle {
+    from { opacity: 0.3; }
+    to   { opacity: 0.9; }
+  }
+
+  .sky-horizon {
+    position: absolute;
+    bottom: 0; left: 0; right: 0; height: 14px;
+    background: linear-gradient(180deg, transparent, rgba(240,160,32,0.08));
+    border-top: 1px solid rgba(240,160,32,0.15);
+  }
+
+  .sky-cityline {
+    position: absolute;
+    bottom: 6px;
+    left: 0; right: 0;
+    height: 20px;
+    opacity: 0.25;
+    background-image:
+      repeating-linear-gradient(90deg,
+        transparent 0px, transparent 8px,
+        rgba(240,160,32,0.6) 8px, rgba(240,160,32,0.6) 10px,
+        transparent 10px, transparent 20px,
+        rgba(200,140,40,0.4) 20px, rgba(200,140,40,0.4) 22px,
+        transparent 22px, transparent 30px);
+  }
+
+  /* ═══════════════════════════════════════════
+     MAIN PANEL
+  ═══════════════════════════════════════════ */
+  .main-panel {
+    display: grid;
+    grid-template-columns: 160px 1fr 160px;
+    gap: 0;
+    padding: 20px 16px 16px;
+    background: linear-gradient(180deg, #1E2028 0%, #1A1C22 100%);
+    position: relative;
+  }
+
+  /* Brushed metal texture overlay */
+  .main-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      -45deg,
+      transparent, transparent 1px,
+      rgba(255,255,255,0.006) 1px, rgba(255,255,255,0.006) 2px
+    );
+    pointer-events: none;
+  }
+
+  /* ─── LEFT COLUMN ─── */
+  .col-left, .col-right {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 0 8px;
+  }
+
+  .section-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--silver-dk);
+    text-align: center;
+    width: 100%;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    padding-bottom: 6px;
+    margin-bottom: 4px;
+  }
+
+  /* ═══════════════════════════════════════════
+     KNOB COMPONENT
+  ═══════════════════════════════════════════ */
+  .knob-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .knob-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .knob {
+    border-radius: 50%;
+    cursor: pointer;
+    position: relative;
+    transition: filter 0.15s;
+    flex-shrink: 0;
+  }
+
+  .knob:hover { filter: brightness(1.1); }
+  .knob:active { transform: scale(0.97); }
+
+  /* Large knob */
+  .knob-lg {
+    width: 68px; height: 68px;
+    background:
+      radial-gradient(circle at 38% 28%, #4A4E5A 0%, #2A2D34 45%, #1A1C22 100%);
+    box-shadow:
+      0 4px 12px rgba(0,0,0,0.6),
+      0 1px 3px rgba(0,0,0,0.8),
+      0 0 0 1px rgba(255,255,255,0.04),
+      inset 0 1px 2px rgba(255,255,255,0.10),
+      inset 0 -2px 4px rgba(0,0,0,0.4);
+    border: 2px solid #3A3D46;
+  }
+
+  /* Medium knob */
+  .knob-md {
+    width: 50px; height: 50px;
+    background:
+      radial-gradient(circle at 38% 28%, #424650 0%, #26292F 50%, #181A1F 100%);
+    box-shadow:
+      0 3px 8px rgba(0,0,0,0.55),
+      0 0 0 1px rgba(255,255,255,0.04),
+      inset 0 1px 2px rgba(255,255,255,0.09),
+      inset 0 -1px 3px rgba(0,0,0,0.4);
+    border: 1.5px solid #343740;
+  }
+
+  /* Small knob */
+  .knob-sm {
+    width: 38px; height: 38px;
+    background:
+      radial-gradient(circle at 38% 28%, #3A3D46 0%, #22252B 50%, #161820 100%);
+    box-shadow:
+      0 2px 6px rgba(0,0,0,0.5),
+      0 0 0 1px rgba(255,255,255,0.04),
+      inset 0 1px 1px rgba(255,255,255,0.08),
+      inset 0 -1px 2px rgba(0,0,0,0.4);
+    border: 1px solid #2E3038;
+  }
+
+  /* Knob indicator dot/line */
+  .knob::after {
+    content: '';
+    position: absolute;
+    top: 12%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-radius: 2px;
+    background: var(--amber);
+    box-shadow: 0 0 6px var(--amber), 0 0 2px var(--amber);
+  }
+
+  .knob-lg::after  { width: 3px; height: 10px; top: 10%; }
+  .knob-md::after  { width: 2.5px; height: 7px; top: 11%; }
+  .knob-sm::after  { width: 2px; height: 5px; top: 12%; }
+
+  /* Arc ring behind knob */
+  .knob-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    pointer-events: none;
+  }
+
+  .knob-ring-lg {
+    width: 80px; height: 80px;
+    background: transparent;
+    border: 2px solid rgba(240,160,32,0.0);
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.04),
+      0 0 12px rgba(240,160,32,0.12);
+  }
+
+  .knob-label {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-label);
+    text-align: center;
+    margin-top: 2px;
+  }
+
+  .knob-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 8px;
+    font-weight: 500;
+    color: var(--amber);
+    text-align: center;
+    letter-spacing: 0.5px;
+  }
+
+  /* ═══════════════════════════════════════════
+     CENTER COLUMN
+  ═══════════════════════════════════════════ */
+  .col-center {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 0 12px;
+  }
+
+  /* ── Display Panel ── */
+  .display-panel {
+    background: linear-gradient(180deg, #0D0F14 0%, #111318 100%);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    height: 130px;
+    box-shadow:
+      inset 0 2px 8px rgba(0,0,0,0.6),
+      0 1px 0 rgba(255,255,255,0.04);
+  }
+
+  /* Glass reflection */
+  .display-panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 10%; right: 30%;
+    height: 40%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 10;
+    border-radius: 0 0 50% 50%;
+  }
+
+  .display-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .display-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 7px;
+    letter-spacing: 2px;
+    color: var(--silver-dk);
+    text-transform: uppercase;
+  }
+
+  .display-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 8px;
+    color: var(--amber);
+    letter-spacing: 1px;
+  }
+
+  .display-canvas-wrap {
+    padding: 6px 8px 0;
+    position: relative;
+    height: 100px;
+  }
+
+  /* EQ Curve Canvas */
+  canvas#eq-canvas {
+    width: 100%;
+    height: 80px;
+    display: block;
+  }
+
+  /* Level Meter on right of display */
+  .level-meter-bar {
+    position: absolute;
+    right: 10px;
+    top: 8px;
+    bottom: 4px;
+    width: 8px;
+    background: rgba(0,0,0,0.4);
+    border-radius: 3px;
+    border: 1px solid rgba(255,255,255,0.05);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 1px;
+    padding: 2px;
+  }
+
+  .meter-seg {
+    width: 100%;
+    height: 5px;
+    border-radius: 1px;
+    transition: opacity 0.05s;
+  }
+
+  /* ── Mode Buttons ── */
+  .mode-buttons {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+  }
+
+  .mode-btn {
+    padding: 6px 14px;
+    border-radius: 5px;
+    border: 1px solid rgba(255,255,255,0.06);
+    background: linear-gradient(180deg, #28292E, #1E1F24);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--silver-dk);
+    cursor: pointer;
+    transition: all 0.15s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+
+  .mode-btn:hover {
+    color: var(--text-bright);
+    border-color: rgba(255,255,255,0.12);
+  }
+
+  .mode-btn.active {
+    background: linear-gradient(180deg, rgba(240,160,32,0.18), rgba(240,160,32,0.08));
+    border-color: rgba(240,160,32,0.35);
+    color: var(--amber);
+    box-shadow: 0 0 10px rgba(240,160,32,0.15), inset 0 1px 0 rgba(255,255,255,0.05);
+    text-shadow: 0 0 8px var(--amber-glow);
+  }
+
+  /* ── Bottom Knob Row ── */
+  .knob-row {
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-end;
+    padding: 4px 0;
+  }
+
+  /* ═══════════════════════════════════════════
+     METER STRIPS (INPUT / OUTPUT)
+  ═══════════════════════════════════════════ */
+  .meter-strip-wrap {
+    width: 100%;
+  }
+
+  .meter-strip {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .meter-strip-label {
+    font-size: 7.5px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--silver-dk);
+    text-align: center;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+
+  .meter-channel {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    height: 4px;
+  }
+
+  .meter-ch-label {
+    font-size: 6px;
+    color: var(--silver-dk);
+    width: 6px;
+    flex-shrink: 0;
+    font-family: 'Orbitron', sans-serif;
+  }
+
+  .meter-track {
+    flex: 1;
+    height: 4px;
+    background: rgba(0,0,0,0.5);
+    border-radius: 2px;
+    border: 1px solid rgba(255,255,255,0.04);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .meter-fill {
+    height: 100%;
+    border-radius: 2px;
+    position: relative;
+  }
+
+  .meter-fill-l {
+    background: linear-gradient(90deg, #3AE080 0%, #3AE080 65%, #F0A020 85%, #E04040 100%);
+    width: 72%;
+    animation: meter-l 2.1s ease-in-out infinite alternate;
+  }
+
+  .meter-fill-r {
+    background: linear-gradient(90deg, #3AE080 0%, #3AE080 65%, #F0A020 85%, #E04040 100%);
+    width: 58%;
+    animation: meter-r 1.8s ease-in-out infinite alternate;
+  }
+
+  @keyframes meter-l {
+    0%   { width: 55%; }
+    30%  { width: 78%; }
+    60%  { width: 62%; }
+    80%  { width: 85%; }
+    100% { width: 70%; }
+  }
+
+  @keyframes meter-r {
+    0%   { width: 48%; }
+    25%  { width: 70%; }
+    55%  { width: 58%; }
+    75%  { width: 76%; }
+    100% { width: 65%; }
+  }
+
+  /* ═══════════════════════════════════════════
+     DIVIDER
+  ═══════════════════════════════════════════ */
+  .v-divider {
+    width: 1px;
+    background: linear-gradient(180deg, transparent, rgba(255,255,255,0.06) 20%, rgba(240,160,32,0.15) 50%, rgba(255,255,255,0.06) 80%, transparent);
+    margin: 4px 0;
+    align-self: stretch;
+  }
+
+  /* ═══════════════════════════════════════════
+     PRESET BAR (Bottom)
+  ═══════════════════════════════════════════ */
+  .preset-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 20px;
+    background: linear-gradient(180deg, #1A1C22, #151720);
+    border-top: 1px solid rgba(255,255,255,0.05);
+    position: relative;
+  }
+
+  .preset-bar::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(240,160,32,0.2), transparent);
+  }
+
+  .preset-bar-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .preset-icon {
+    width: 14px; height: 14px;
+    border-radius: 3px;
+    background: linear-gradient(135deg, #3A3D46, #22242A);
+    border: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 7px;
+    color: var(--silver-dk);
+    cursor: pointer;
+  }
+
+  .preset-arrows {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .p-arrow {
+    width: 18px; height: 18px;
+    border-radius: 3px;
+    background: linear-gradient(180deg, #2E3038, #22242A);
+    border: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--silver-dk);
+    font-size: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .p-arrow:hover { color: var(--amber); border-color: rgba(240,160,32,0.3); }
+
+  .preset-name-display {
+    padding: 4px 24px;
+    background: linear-gradient(180deg, #111318, #0D0F14);
+    border: 1px solid rgba(240,160,32,0.15);
+    border-radius: 4px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    color: var(--amber);
+    text-transform: uppercase;
+    text-align: center;
+    box-shadow: 0 0 12px rgba(240,160,32,0.08), inset 0 1px 3px rgba(0,0,0,0.4);
+    min-width: 200px;
+  }
+
+  .save-btn {
+    padding: 5px 16px;
+    background: linear-gradient(180deg, #2C2E36, #22242A);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 4px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    color: var(--silver-dk);
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.15s;
+  }
+
+  .save-btn:hover {
+    color: var(--amber);
+    border-color: rgba(240,160,32,0.3);
+    box-shadow: 0 0 8px rgba(240,160,32,0.12);
+  }
+
+  /* ═══════════════════════════════════════════
+     BOTTOM METERS STRIP
+  ═══════════════════════════════════════════ */
+  .bottom-meters {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: #111318;
+    border-top: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .meter-side {
+    padding: 6px 16px;
+    background: linear-gradient(180deg, #151720, #111318);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .meter-side-label {
+    font-size: 7px;
+    letter-spacing: 3px;
+    font-weight: 700;
+    color: var(--silver-dk);
+    text-transform: uppercase;
+    font-family: 'Rajdhani', sans-serif;
+  }
+
+  .meter-big-track {
+    height: 6px;
+    background: rgba(0,0,0,0.5);
+    border-radius: 3px;
+    border: 1px solid rgba(255,255,255,0.04);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .meter-big-fill {
+    height: 100%;
+    border-radius: 3px;
+  }
+
+  .input-fill {
+    background: linear-gradient(90deg, #3AE080 0%, #3AE080 70%, #F0A020 90%, #E04040 100%);
+    width: 60%;
+    animation: meter-l 2.1s ease-in-out infinite alternate;
+  }
+
+  .output-fill {
+    background: linear-gradient(90deg, #3AE080 0%, #3AE080 70%, #F0A020 90%, #E04040 100%);
+    width: 55%;
+    animation: meter-r 1.8s ease-in-out infinite alternate;
+  }
+
+  /* ═══════════════════════════════════════════
+     REALISM TOUCHES
+  ═══════════════════════════════════════════ */
+  .screw {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 30%, #4A4D56, #1E2028);
+    border: 1px solid rgba(255,255,255,0.06);
+    position: absolute;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
+  }
+
+  .screw::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 20%; right: 20%;
+    height: 1px;
+    background: rgba(255,255,255,0.12);
+    transform: translateY(-50%) rotate(45deg);
+  }
+
+  .screw-tl { top: 8px; left: 8px; }
+  .screw-tr { top: 8px; right: 8px; }
+  .screw-bl { bottom: 8px; left: 8px; }
+  .screw-br { bottom: 8px; right: 8px; }
+
+  /* Logo mark */
+  .logo-mark {
+    position: absolute;
+    bottom: 10px;
+    right: 16px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 7px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    color: rgba(240,160,32,0.25);
+    text-transform: uppercase;
+    pointer-events: none;
+  }
+
+  /* LED indicators */
+  .led {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    box-shadow: 0 0 4px currentColor;
+  }
+
+  .led-green  { background: #3AE080; color: #3AE080; animation: led-pulse 1.8s infinite; }
+  .led-amber  { background: var(--amber); color: var(--amber); }
+  .led-off    { background: #282A30; color: transparent; }
+
+  @keyframes led-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.5; }
+  }
+
+  /* Separator line */
+  .h-sep {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+    margin: 0 -8px;
+  }
+
+  /* HPF / HPT label style */
+  .sub-label {
+    font-size: 7.5px;
+    color: rgba(158,162,170,0.6);
+    letter-spacing: 1.5px;
+    text-align: center;
+    font-weight: 600;
+    margin-top: -4px;
+  }
+
+  /* Frequency scale below EQ */
+  .freq-scale {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 4px;
+    margin-top: 1px;
+  }
+
+  .freq-tick {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 5.5px;
+    color: rgba(100,105,115,0.6);
+    letter-spacing: 0.3px;
+  }
+
+</style>
+</head>
+<body>
+
+<div class="plugin-shell">
+
+  <!-- Corner screws -->
+  <div class="screw screw-tl"></div>
+  <div class="screw screw-tr"></div>
+  <div class="screw screw-bl"></div>
+  <div class="screw screw-br"></div>
+
+  <!-- ══ NAVIGATION BAR ══ -->
+  <div class="nav-bar">
+    <!-- Left tabs -->
+    <div class="nav-section-group">
+      <div class="nav-tab active">Input</div>
+      <div class="nav-tab">Tone / Air</div>
+    </div>
+
+    <!-- Central Medallion -->
+    <div class="nav-medallion">
+      <div class="medallion-outer">
+        <div class="medallion-inner">
+          <div class="medallion-sky"></div>
+          <div class="medallion-aircraft">✈</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right tabs -->
+    <div class="nav-section-group">
+      <div class="nav-tab">Space / Output</div>
+      <!-- Preset mini-browser -->
+      <div class="preset-browser">
+        <div class="led led-green" style="margin-left:8px;"></div>
+        <div class="preset-display">PLATINUM MIX</div>
+        <div class="preset-nav-btn">▾</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SKY BANNER ══ -->
+  <div class="sky-banner">
+    <div class="sky-stars" id="stars"></div>
+    <div class="sky-horizon"></div>
+    <div class="sky-cityline"></div>
+  </div>
+
+  <!-- ══ MAIN PANEL ══ -->
+  <div class="main-panel">
+
+    <!-- LEFT COLUMN -->
+    <div class="col-left">
+      <div class="section-title">Input</div>
+
+      <!-- Input Gain -->
+      <div class="knob-group">
+        <div class="knob-wrap">
+          <div class="knob-ring knob-ring-lg"></div>
+          <div class="knob knob-lg" id="knob-input-gain" data-value="0" style="transform: rotate(-30deg)"></div>
+        </div>
+        <div class="knob-label">Gain</div>
+        <div class="knob-value">0.0 dB</div>
+      </div>
+
+      <div class="h-sep"></div>
+      <div class="meter-strip-wrap">
+        <div class="meter-strip">
+          <div class="meter-strip-label">Level</div>
+          <div class="meter-channel">
+            <div class="meter-ch-label">L</div>
+            <div class="meter-track"><div class="meter-fill meter-fill-l"></div></div>
+          </div>
+          <div class="meter-channel">
+            <div class="meter-ch-label">R</div>
+            <div class="meter-track"><div class="meter-fill meter-fill-r"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="h-sep"></div>
+
+      <!-- HPF -->
+      <div class="knob-group">
+        <div class="knob-wrap">
+          <div class="knob knob-md" style="transform: rotate(-60deg)"></div>
+        </div>
+        <div class="knob-label">HPF</div>
+        <div class="knob-value">40 Hz</div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+        <div class="led led-green"></div>
+        <div style="font-size:7px;letter-spacing:1.5px;color:var(--silver-dk);font-weight:700;text-transform:uppercase;">Active</div>
+      </div>
+    </div>
+
+    <!-- v-divider -->
+    <div class="v-divider" style="width:1px;"></div>
+
+    <!-- CENTER COLUMN -->
+    <div class="col-center">
+
+      <!-- Display Panel -->
+      <div class="display-panel">
+        <div class="display-header">
+          <div class="display-label">EQ · Spectrum Analyzer</div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div class="led led-green"></div>
+            <div class="display-value">-3.2 dB</div>
+          </div>
+        </div>
+        <div class="display-canvas-wrap">
+          <canvas id="eq-canvas"></canvas>
+          <div class="level-meter-bar" id="v-meter"></div>
+        </div>
+        <div class="freq-scale">
+          <span class="freq-tick">20</span>
+          <span class="freq-tick">50</span>
+          <span class="freq-tick">100</span>
+          <span class="freq-tick">200</span>
+          <span class="freq-tick">500</span>
+          <span class="freq-tick">1k</span>
+          <span class="freq-tick">2k</span>
+          <span class="freq-tick">5k</span>
+          <span class="freq-tick">10k</span>
+          <span class="freq-tick">20k</span>
+        </div>
+      </div>
+
+      <!-- Mode Buttons -->
+      <div class="mode-buttons">
+        <div class="mode-btn active">Transients</div>
+        <div class="mode-btn">Width</div>
+        <div class="mode-btn">Echo</div>
+        <div class="mode-btn">Saturation</div>
+      </div>
+
+      <!-- Tone Knob Row -->
+      <div class="knob-row">
+        <div class="knob-group">
+          <div class="knob knob-sm" style="transform: rotate(-90deg)"></div>
+          <div class="knob-label">Bass</div>
+          <div class="knob-value">+1.5</div>
+        </div>
+        <div class="knob-group">
+          <div class="knob knob-sm" style="transform: rotate(-20deg)"></div>
+          <div class="knob-label">Mid</div>
+          <div class="knob-value">-0.8</div>
+        </div>
+        <div class="knob-group">
+          <div class="knob knob-sm" style="transform: rotate(30deg)"></div>
+          <div class="knob-label">Air</div>
+          <div class="knob-value">+2.4</div>
+        </div>
+        <div class="knob-group">
+          <div class="knob knob-sm" style="transform: rotate(-45deg)"></div>
+          <div class="knob-label">HPT</div>
+          <div class="knob-value">12 kHz</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- v-divider -->
+    <div class="v-divider"></div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="col-right">
+      <div class="section-title">Output</div>
+
+      <!-- Output Gain -->
+      <div class="knob-group">
+        <div class="knob-wrap">
+          <div class="knob-ring knob-ring-lg"></div>
+          <div class="knob knob-lg" id="knob-out-gain" style="transform: rotate(10deg)"></div>
+        </div>
+        <div class="knob-label">Gain</div>
+        <div class="knob-value">+1.5 dB</div>
+      </div>
+
+      <div class="h-sep"></div>
+      <div class="meter-strip-wrap">
+        <div class="meter-strip">
+          <div class="meter-strip-label">Level</div>
+          <div class="meter-channel">
+            <div class="meter-ch-label">L</div>
+            <div class="meter-track"><div class="meter-fill" style="background:linear-gradient(90deg,#3AE080 0%,#3AE080 65%,#F0A020 85%,#E04040 100%);width:65%;animation:meter-l 1.9s ease-in-out infinite alternate;"></div></div>
+          </div>
+          <div class="meter-channel">
+            <div class="meter-ch-label">R</div>
+            <div class="meter-track"><div class="meter-fill" style="background:linear-gradient(90deg,#3AE080 0%,#3AE080 65%,#F0A020 85%,#E04040 100%);width:52%;animation:meter-r 2.2s ease-in-out infinite alternate;"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="h-sep"></div>
+
+      <!-- Air -->
+      <div class="knob-group">
+        <div class="knob knob-md" style="transform: rotate(45deg)"></div>
+        <div class="knob-label">Air</div>
+        <div class="knob-value">62 %</div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+        <div class="led led-amber"></div>
+        <div style="font-size:7px;letter-spacing:1.5px;color:var(--silver-dk);font-weight:700;text-transform:uppercase;">Clip Safe</div>
+      </div>
+    </div>
+
+  </div><!-- /main-panel -->
+
+  <!-- ══ PRESET BAR ══ -->
+  <div class="preset-bar">
+    <div class="preset-bar-section">
+      <div class="preset-icon">≡</div>
+      <div class="preset-icon" style="width:16px;height:16px;">⊞</div>
+    </div>
+
+    <div class="preset-bar-section">
+      <div class="p-arrow">◀</div>
+      <div class="preset-name-display">PLATINUM MIX — Preset</div>
+      <div class="p-arrow">▶</div>
+    </div>
+
+    <div class="preset-bar-section">
+      <div class="save-btn">Save</div>
+    </div>
+  </div>
+
+  <!-- ══ BOTTOM METERS ══ -->
+  <div class="bottom-meters">
+    <div class="meter-side">
+      <div class="meter-side-label">Input</div>
+      <div class="meter-big-track"><div class="meter-big-fill input-fill"></div></div>
+    </div>
+    <div class="meter-side" style="border-left:1px solid rgba(255,255,255,0.04);">
+      <div class="meter-side-label">Output</div>
+      <div class="meter-big-track"><div class="meter-big-fill output-fill"></div></div>
+    </div>
+  </div>
+
+  <!-- Logo watermark -->
+  <div class="logo-mark">AVIATORKEYZ · VST3</div>
+
+</div><!-- /plugin-shell -->
+
+<script>
+/* ── Star field ── */
+const starsEl = document.getElementById('stars');
+for (let i = 0; i < 40; i++) {
+  const s = document.createElement('div');
+  s.className = 'sky-star';
+  const size = Math.random() * 1.5 + 0.5;
+  s.style.cssText = `
+    width:${size}px;height:${size}px;
+    top:${Math.random()*90}%;left:${Math.random()*100}%;
+    opacity:${Math.random()*0.6+0.2};
+    animation-delay:${Math.random()*3}s;
+    animation-duration:${Math.random()*2+2}s;
+  `;
+  starsEl.appendChild(s);
+}
+
+/* ── EQ Canvas ── */
+const canvas = document.getElementById('eq-canvas');
+const ctx = canvas.getContext('2d');
+canvas.width  = canvas.offsetWidth  * window.devicePixelRatio || 540;
+canvas.height = canvas.offsetHeight * window.devicePixelRatio || 80;
+canvas.style.width  = '100%';
+canvas.style.height = '80px';
+ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+const W = canvas.offsetWidth || 540, H = 80;
+
+// EQ nodes [x_norm, y_norm, type]
+const nodes = [
+  [0.05, 0.8],  // HPF
+  [0.18, 0.55],
+  [0.32, 0.38],
+  [0.50, 0.30],
+  [0.65, 0.35],
+  [0.80, 0.28],
+  [0.93, 0.45],
+];
+
+function drawEQ() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 0.5;
+  for (let i = 1; i < 4; i++) {
+    const y = (i / 4) * H;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+  for (let i = 1; i < 10; i++) {
+    const x = (i / 10) * W;
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+
+  // 0dB center line
+  ctx.strokeStyle = 'rgba(240,160,32,0.12)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(0, H * 0.5); ctx.lineTo(W, H * 0.5); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Build curve path
+  const pts = nodes.map(n => [n[0] * W, n[1] * H]);
+
+  // Filled gradient under curve
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, 'rgba(240,160,32,0.22)');
+  grad.addColorStop(0.6, 'rgba(240,120,20,0.08)');
+  grad.addColorStop(1, 'rgba(240,160,32,0.0)');
+
+  ctx.beginPath();
+  ctx.moveTo(0, H);
+  ctx.lineTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) {
+    const cpx = (pts[i-1][0] + pts[i][0]) / 2;
+    ctx.bezierCurveTo(cpx, pts[i-1][1], cpx, pts[i][1], pts[i][0], pts[i][1]);
+  }
+  ctx.lineTo(W, H * 0.5);
+  ctx.lineTo(W, H);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Curve stroke
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) {
+    const cpx = (pts[i-1][0] + pts[i][0]) / 2;
+    ctx.bezierCurveTo(cpx, pts[i-1][1], cpx, pts[i][1], pts[i][0], pts[i][1]);
+  }
+  ctx.strokeStyle = '#F0A020';
+  ctx.lineWidth = 1.5;
+  ctx.shadowColor = 'rgba(240,160,32,0.6)';
+  ctx.shadowBlur = 6;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Node handles
+  pts.forEach(([x, y]) => {
+    ctx.beginPath();
+    ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#F0A020';
+    ctx.shadowColor = 'rgba(240,160,32,0.9)';
+    ctx.shadowBlur = 8;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+  });
+
+  // Spectrum bars (background)
+  const bars = 48;
+  for (let i = 0; i < bars; i++) {
+    const x = (i / bars) * W + 2;
+    const bw = W / bars - 1.5;
+    // Shape bar height with a curve
+    const norm = i / bars;
+    const h = (0.3 + 0.5 * Math.sin(norm * Math.PI) + 0.15 * Math.random()) * H * 0.35;
+    const barGrad = ctx.createLinearGradient(0, H - h, 0, H);
+    barGrad.addColorStop(0, 'rgba(200,130,40,0.25)');
+    barGrad.addColorStop(1, 'rgba(200,130,40,0.04)');
+    ctx.fillStyle = barGrad;
+    ctx.fillRect(x, H - h, bw, h);
+  }
+}
+
+drawEQ();
+
+// Animate EQ gently
+let t = 0;
+function animateEQ() {
+  t += 0.008;
+  nodes.forEach((n, i) => {
+    n[1] = n[1] + Math.sin(t + i * 0.7) * 0.003;
+    n[1] = Math.max(0.15, Math.min(0.85, n[1]));
+  });
+  ctx.clearRect(0, 0, W * 2, H * 2);
+  drawEQ();
+  requestAnimationFrame(animateEQ);
+}
+animateEQ();
+
+/* ── Vertical Meter ── */
+const vMeter = document.getElementById('v-meter');
+const segCount = 12;
+for (let i = 0; i < segCount; i++) {
+  const s = document.createElement('div');
+  s.className = 'meter-seg';
+  const frac = i / segCount;
+  s.style.background = frac < 0.6 ? '#3AE080'
+                      : frac < 0.85 ? '#F0A020'
+                      : '#E04040';
+  s.style.opacity = '0.15';
+  vMeter.appendChild(s);
+}
+
+let level = 0.65;
+function animateMeter() {
+  level = Math.max(0.1, Math.min(1, level + (Math.random() - 0.47) * 0.12));
+  const segs = vMeter.querySelectorAll('.meter-seg');
+  segs.forEach((s, i) => {
+    s.style.opacity = (i / segCount) < level ? '0.9' : '0.1';
+  });
+  setTimeout(animateMeter, 80);
+}
+animateMeter();
+
+/* ── Knob drag ── */
+document.querySelectorAll('.knob').forEach(knob => {
+  let startY = 0, startAngle = 0;
+  knob.addEventListener('mousedown', e => {
+    startY = e.clientY;
+    startAngle = parseFloat(knob.style.transform?.replace(/[^-\d.]/g,'') || 0);
+    const onMove = mv => {
+      const delta = (startY - mv.clientY) * 1.4;
+      const angle = Math.max(-135, Math.min(135, startAngle + delta));
+      knob.style.transform = `rotate(${angle}deg)`;
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    e.preventDefault();
+  });
+});
+
+/* ── Mode buttons toggle ── */
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+/* ── Nav tabs ── */
+document.querySelectorAll('.nav-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+  });
+});
+</script>
+</body>
+</html>

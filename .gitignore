@@ -1,0 +1,44 @@
+# Build outputs
+build/
+out/
+*.vst3
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+_deps/
+
+# IDE files
+.vs/
+.vscode/
+
+# Xcode (user-specific; safe if project lives under build/ too)
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcuserstate
+*.suo
+*.user
+*.vcxproj.user
+*.xcworkspace/
+*.xcuserdata/
+.idea/
+*.iml
+
+# macOS
+.DS_Store
+__MACOSX/
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# JUCE generated
+JuceLibraryCode/
+
+# Temporary files
+*.tmp
+*.log
+*.bak

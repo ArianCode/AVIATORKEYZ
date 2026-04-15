@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AVIATORKEYZ — Instrument</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Mono:wght@300;400&display=swap');
+
+/* ─────────────────────────────────────────────
+   DESIGN TOKENS
+───────────────────────────────────────────── */
+:root {
+  --bg:            #08080c;
+  --surface:       #0c0c11;
+  --card:          #111117;
+  --raised:        #16161e;
+  --elevated:      #1c1c26;
+
+  --border:        rgba(255,255,255,0.05);
+  --border-mid:    rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.11);
+
+  --gold:          #c4a96b;
+  --gold-warm:     #d4b87a;
+  --gold-dim:      rgba(196,169,107,0.28);
+  --gold-glow:     rgba(196,169,107,0.07);
+  --gold-glow-mid: rgba(196,169,107,0.14);
+
+  --text-1:  #edeae2;
+  --text-2:  #7a7688;
+  --text-3:  #3e3c4a;
+  --text-4:  #252330;
+
+  --green:   #4ade80;
+  --radius:  12px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+
+body {
+  background: #04040a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+}
+
+/* ─────────────────────────────────────────────
+   PLUGIN SHELL
+───────────────────────────────────────────── */
+.plugin {
+  width: 860px;
+  background: var(--bg);
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.07);
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.9),
+    0 40px 100px rgba(0,0,0,0.88),
+    0  0   60px rgba(196,169,107,0.025);
+  user-select: none;
+}
+
+/* ─────────────────────────────────────────────
+   HEADER
+───────────────────────────────────────────── */
+.header {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 26px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+
+/* very thin gold line below header */
+.header::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 26px; right: 26px;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent, rgba(196,169,107,0.18), transparent
+  );
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.brand-wordmark {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 5px;
+  color: var(--text-1);
+  text-transform: uppercase;
+}
+
+.brand-sub {
+  font-size: 8px;
+  font-weight: 400;
+  letter-spacing: 2.5px;
+  color: var(--text-3);
+  text-transform: uppercase;
+}
+
+.header-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.preset-arrow {
+  width: 24px; height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-mid);
+  border-radius: 5px;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--card);
+}
+.preset-arrow:hover {
+  border-color: var(--gold-dim);
+  color: var(--gold);
+}
+.preset-arrow svg { width: 8px; height: 8px; fill: currentColor; }
+
+.header-preset-name {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  color: var(--text-1);
+  text-transform: uppercase;
+  min-width: 160px;
+  text-align: center;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.preset-count {
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.browse-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 13px;
+  border: 1px solid var(--border-mid);
+  border-radius: 100px;
+  background: var(--raised);
+  color: var(--text-2);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.browse-pill:hover {
+  border-color: var(--gold-dim);
+  color: var(--gold);
+  background: rgba(196,169,107,0.05);
+}
+.browse-pill svg { width: 10px; height: 10px; flex-shrink: 0; }
+
+/* ─────────────────────────────────────────────
+   CATEGORY BROWSER
+───────────────────────────────────────────── */
+.category-bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 20px;
+  height: 40px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.category-bar::-webkit-scrollbar { display: none; }
+
+.cat {
+  padding: 0 13px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 1.8px;
+  color: var(--text-3);
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.16s;
+  position: relative;
+  border-bottom: 1px solid transparent;
+  margin-bottom: -1px;
+}
+.cat:hover { color: var(--text-2); }
+.cat.active {
+  color: var(--gold);
+  border-bottom-color: var(--gold);
+}
+
+/* category dividers */
+.cat-sep {
+  width: 1px;
+  height: 12px;
+  background: var(--border);
+  flex-shrink: 0;
+  margin: 0 2px;
+}
+
+/* ─────────────────────────────────────────────
+   ARTWORK PANEL
+───────────────────────────────────────────── */
+.artwork-panel {
+  position: relative;
+  height: 220px;
+  overflow: hidden;
+  background: #06060f;
+}
+
+canvas#artCanvas {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%; height: 100%;
+  display: block;
+}
+
+/* gradient vignette */
+.artwork-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background:
+    radial-gradient(ellipse at 50% 0%, transparent 30%, rgba(6,6,15,0.4) 100%),
+    linear-gradient(180deg,
+      rgba(6,6,15,0.15) 0%,
+      transparent 25%,
+      transparent 55%,
+      rgba(6,6,15,0.65) 80%,
+      rgba(6,6,15,0.95) 100%
+    );
+  pointer-events: none;
+}
+
+.preset-overlay {
+  position: absolute;
+  bottom: 0; left: 0; right: 46%;
+  padding: 0 28px 20px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.preset-tag {
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 3px;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-bottom: 5px;
+  opacity: 0.75;
+}
+
+.preset-hero {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 44px;
+  font-weight: 300;
+  letter-spacing: 1px;
+  color: var(--text-1);
+  line-height: 1;
+  text-shadow: 0 2px 24px rgba(0,0,0,0.6);
+}
+
+.preset-sub {
+  margin-top: 5px;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 1.5px;
+  color: rgba(237,234,226,0.35);
+  text-transform: uppercase;
+}
+
+/* Nav arrows on artwork */
+.art-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 11;
+  pointer-events: all;
+}
+.art-nav-btn {
+  width: 30px; height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(8,8,14,0.65);
+  color: rgba(237,234,226,0.3);
+  cursor: pointer;
+  transition: all 0.18s;
+  backdrop-filter: blur(6px);
+}
+.art-nav-btn:hover {
+  border-color: var(--gold-dim);
+  color: var(--gold);
+  background: rgba(8,8,14,0.8);
+}
+.art-nav-btn svg { width: 10px; height: 10px; fill: currentColor; }
+.art-nav.prev { left: 16px; }
+.art-nav.next { right: 16px; }
+
+/* ─────────────────────────────────────────────
+   MACRO CONTROLS — HERO SECTION
+───────────────────────────────────────────── */
+.macro-section {
+  padding: 22px 28px 18px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.macro-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.section-eyebrow {
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 3px;
+  color: var(--text-4);
+  text-transform: uppercase;
+}
+
+.macro-grid {
+  display: grid;
+  grid-template-columns: 96px 1fr 1fr 1fr;
+  gap: 0;
+  align-items: end;
+}
+
+/* vertical dividers between macro columns */
+.macro-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 0 24px;
+  border-right: 1px solid var(--border);
+}
+.macro-col:first-child { padding-left: 0; }
+.macro-col:last-child  { border-right: none; padding-right: 0; }
+
+.macro-name {
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 2.5px;
+  color: var(--text-2);
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.macro-value-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 8px;
+  color: var(--text-3);
+  letter-spacing: 0.5px;
+  text-align: center;
+  height: 12px;
+  line-height: 12px;
+}
+
+/* ── REVERSE toggle ── */
+.reverse-btn {
+  width: 64px;
+  height: 38px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: var(--card);
+  border: 1px solid var(--border-mid);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03),
+              0 2px 6px rgba(0,0,0,0.4);
+  position: relative;
+  overflow: hidden;
+}
+.reverse-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg,
+    rgba(255,255,255,0.02) 0%,
+    transparent 60%
+  );
+  border-radius: 8px;
+}
+.reverse-btn.active {
+  background: rgba(196,169,107,0.09);
+  border-color: rgba(196,169,107,0.32);
+  box-shadow: 0 0 14px rgba(196,169,107,0.1),
+              inset 0 0 8px rgba(196,169,107,0.04),
+              0 2px 6px rgba(0,0,0,0.4);
+}
+
+.reverse-icon-wrap {
+  color: var(--text-3);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.reverse-btn.active .reverse-icon-wrap {
+  color: var(--gold);
+  filter: drop-shadow(0 0 5px rgba(196,169,107,0.45));
+}
+.reverse-icon-wrap svg { width: 18px; height: 18px; }
+
+.reverse-state-text {
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-4);
+  transition: color 0.2s;
+}
+.reverse-btn.active .reverse-state-text { color: var(--gold); }
+
+/* ── MACRO KNOB ── */
+.mknob-wrap {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  cursor: pointer;
+}
+.mknob-wrap svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ─────────────────────────────────────────────
+   SECONDARY: AMP / SPACE / OUTPUT
+───────────────────────────────────────────── */
+.secondary {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  background: var(--surface);
+  height: 88px;
+}
+
+.sec-panel {
+  padding: 14px 22px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.sec-panel:last-child { border-right: none; }
+
+.sec-title {
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: 3.5px;
+  text-transform: uppercase;
+  color: var(--text-4);
+}
+
+.sec-sliders {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.sec-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sec-row-label {
+  font-size: 7px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-3);
+  min-width: 22px;
+}
+
+.fader {
+  flex: 1;
+  height: 2px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 2px;
+  position: relative;
+  cursor: pointer;
+}
+
+.fader-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg,
+    rgba(196,169,107,0.25),
+    var(--gold)
+  );
+}
+
+.fader-thumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(50%, -50%);
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--elevated);
+  border: 1px solid rgba(196,169,107,0.45);
+  box-shadow: 0 0 4px rgba(196,169,107,0.15), 0 1px 3px rgba(0,0,0,0.5);
+  cursor: pointer;
+}
+
+.sec-row-val {
+  font-family: 'DM Mono', monospace;
+  font-size: 7px;
+  color: var(--text-3);
+  min-width: 20px;
+  text-align: right;
+  letter-spacing: 0.3px;
+}
+
+/* ─────────────────────────────────────────────
+   FOOTER
+───────────────────────────────────────────── */
+.footer {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 26px;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+}
+
+.footer-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.status-dot {
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 4px rgba(74,222,128,0.5);
+}
+.status-text {
+  font-size: 7px;
+  letter-spacing: 1px;
+  color: var(--text-3);
+  text-transform: uppercase;
+}
+
+.footer-meta {
+  font-size: 7px;
+  letter-spacing: 1px;
+  color: var(--text-4);
+  text-transform: uppercase;
+}
+
+.footer-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.footer-link {
+  font-size: 7px;
+  letter-spacing: 1px;
+  color: var(--text-4);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.footer-link:hover { color: var(--text-3); }
+
+/* ─────────────────────────────────────────────
+   UTILITY
+───────────────────────────────────────────── */
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Knob arc: these are inline SVG attributes, styled via JS */
+</style>
+</head>
+<body>
+
+<div class="plugin">
+
+  <!-- ══ HEADER ══ -->
+  <div class="header">
+    <div class="brand">
+      <div class="brand-wordmark">AviatorKeyz</div>
+      <div class="brand-sub">Instrument</div>
+    </div>
+
+    <!-- centered preset nav -->
+    <div class="header-center">
+      <div class="preset-arrow" id="hdrPrev">
+        <svg viewBox="0 0 8 8"><polygon points="6,1 2,4 6,7"/></svg>
+      </div>
+      <div class="header-preset-name" id="hdrName">NIGHT FLIGHT 01</div>
+      <div class="preset-arrow" id="hdrNext">
+        <svg viewBox="0 0 8 8"><polygon points="2,1 6,4 2,7"/></svg>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <div class="preset-count">124 Presets</div>
+      <div class="browse-pill">
+        <svg viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0.5" y="1.5" width="9" height="1" rx="0.5" fill="currentColor"/>
+          <rect x="0.5" y="4.5" width="9" height="1" rx="0.5" fill="currentColor"/>
+          <rect x="0.5" y="7.5" width="9" height="1" rx="0.5" fill="currentColor"/>
+        </svg>
+        Browse
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ CATEGORY BROWSER ══ -->
+  <div class="category-bar" id="catBar">
+    <div class="cat" data-cat="All">All</div>
+    <div class="cat-sep"></div>
+    <div class="cat active" data-cat="Pads">Pads</div>
+    <div class="cat-sep"></div>
+    <div class="cat" data-cat="Strings">Strings</div>
+    <div class="cat-sep"></div>
+    <div class="cat" data-cat="Brass">Brass</div>
+    <div class="cat-sep"></div>
+    <div class="cat" data-cat="Ensembles">Ensembles</div>
+    <div class="cat-sep"></div>
+    <div class="cat" data-cat="Leads">Leads</div>
+    <div class="cat-sep"></div>
+    <div class="cat" data-cat="Chords">Chords</div>
+    <div class="cat-sep"></div>
+    <div class="cat" data-cat="Synths">Synths</div>
+    <div class="cat-sep"></div>
+    <div class="cat" data-cat="Arps">Arps</div>
+    <div class="cat-sep"></div>
+    <div class="cat" data-cat="Vocals">Vocals</div>
+    <div class="cat-sep"></div>
+    <div class="cat" data-cat="Bells">Bells</div>
+  </div>
+
+  <!-- ══ ARTWORK PANEL ══ -->
+  <div class="artwork-panel">
+    <canvas id="artCanvas"></canvas>
+    <div class="artwork-vignette"></div>
+
+    <!-- nav arrows -->
+    <div class="art-nav prev">
+      <div class="art-nav-btn" id="artPrev">
+        <svg viewBox="0 0 10 10"><polygon points="7,1 3,5 7,9"/></svg>
+      </div>
+    </div>
+    <div class="art-nav next">
+      <div class="art-nav-btn" id="artNext">
+        <svg viewBox="0 0 10 10"><polygon points="3,1 7,5 3,9"/></svg>
+      </div>
+    </div>
+
+    <!-- preset info overlay -->
+    <div class="preset-overlay">
+      <div class="preset-tag" id="overlayTag">Pads · Atmospheric</div>
+      <div class="preset-hero" id="overlayName">Night Flight</div>
+      <div class="preset-sub" id="overlaySub">Evolving · Long Tail · Slow Attack</div>
+    </div>
+  </div>
+
+  <!-- ══ MACRO CONTROLS ══ -->
+  <div class="macro-section">
+    <div class="macro-label-row">
+      <div class="section-eyebrow">Character</div>
+      <div class="section-eyebrow" style="color:var(--text-4)">Macro Controls</div>
+    </div>
+
+    <div class="macro-grid">
+
+      <!-- REVERSE -->
+      <div class="macro-col">
+        <div class="macro-name">Reverse</div>
+        <div class="reverse-btn" id="reverseBtn">
+          <div class="reverse-icon-wrap">
+            <!-- reverse waveform icon -->
+            <svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M14 9H4M4 9L7.5 5.5M4 9L7.5 12.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M9 3.5C11.2 3.5 13.5 5.5 13.5 9C13.5 12.5 11.2 14.5 9 14.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-dasharray="2 1.5"/>
+            </svg>
+          </div>
+          <div class="reverse-state-text" id="revState">OFF</div>
+        </div>
+        <div class="macro-value-label" id="revLabel">—</div>
+      </div>
+
+      <!-- GLIDE -->
+      <div class="macro-col">
+        <div class="macro-name">Glide</div>
+        <div class="mknob-wrap" id="knob-glide" data-value="0.32" data-min="0" data-max="1">
+          <!-- built by JS -->
+        </div>
+        <div class="macro-value-label" id="val-glide">0.32 s</div>
+      </div>
+
+      <!-- SMEAR -->
+      <div class="macro-col">
+        <div class="macro-name">Smear</div>
+        <div class="mknob-wrap" id="knob-smear" data-value="0.58" data-min="0" data-max="1">
+        </div>
+        <div class="macro-value-label" id="val-smear">58%</div>
+      </div>
+
+      <!-- TONE -->
+      <div class="macro-col">
+        <div class="macro-name">Tone</div>
+        <div class="mknob-wrap" id="knob-tone" data-value="0.72" data-min="0" data-max="1">
+        </div>
+        <div class="macro-value-label" id="val-tone">+3.2 dB</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ SECONDARY PANELS ══ -->
+  <div class="secondary">
+
+    <!-- AMP -->
+    <div class="sec-panel">
+      <div class="sec-title">Amp</div>
+      <div class="sec-sliders">
+        <div class="sec-row">
+          <div class="sec-row-label">Atk</div>
+          <div class="fader">
+            <div class="fader-fill" style="width:22%"></div>
+            <div class="fader-thumb" style="right:78%"></div>
+          </div>
+          <div class="sec-row-val">22 ms</div>
+        </div>
+        <div class="sec-row">
+          <div class="sec-row-label">Rel</div>
+          <div class="fader">
+            <div class="fader-fill" style="width:55%"></div>
+            <div class="fader-thumb" style="right:45%"></div>
+          </div>
+          <div class="sec-row-val">1.2 s</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SPACE -->
+    <div class="sec-panel">
+      <div class="sec-title">Space</div>
+      <div class="sec-sliders">
+        <div class="sec-row">
+          <div class="sec-row-label">Room</div>
+          <div class="fader">
+            <div class="fader-fill" style="width:42%"></div>
+            <div class="fader-thumb" style="right:58%"></div>
+          </div>
+          <div class="sec-row-val">42%</div>
+        </div>
+        <div class="sec-row">
+          <div class="sec-row-label">Width</div>
+          <div class="fader">
+            <div class="fader-fill" style="width:68%"></div>
+            <div class="fader-thumb" style="right:32%"></div>
+          </div>
+          <div class="sec-row-val">68%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OUTPUT -->
+    <div class="sec-panel">
+      <div class="sec-title">Output</div>
+      <div class="sec-sliders">
+        <div class="sec-row">
+          <div class="sec-row-label">Level</div>
+          <div class="fader">
+            <div class="fader-fill" style="width:80%"></div>
+            <div class="fader-thumb" style="right:20%"></div>
+          </div>
+          <div class="sec-row-val">–1.5</div>
+        </div>
+        <div class="sec-row">
+          <div class="sec-row-label">Pan</div>
+          <div class="fader" id="faderPan">
+            <div class="fader-fill" style="width:50%;margin-left:0%;background:linear-gradient(90deg,rgba(196,169,107,0.15),rgba(196,169,107,0.4))"></div>
+            <div class="fader-thumb" style="right:50%"></div>
+          </div>
+          <div class="sec-row-val">C</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══ FOOTER ══ -->
+  <div class="footer">
+    <div class="footer-left">
+      <div class="status-indicator">
+        <div class="status-dot"></div>
+        <div class="status-text">Active</div>
+      </div>
+      <div class="footer-meta">44.1 kHz · 256 smp</div>
+    </div>
+    <div class="footer-right">
+      <div class="footer-link">Settings</div>
+      <div class="footer-link" style="color:var(--text-3)">·</div>
+      <div class="footer-link">About</div>
+      <div class="footer-link" style="color:var(--text-3)">·</div>
+      <div class="footer-meta">v 1.0.0</div>
+    </div>
+  </div>
+
+</div><!-- /plugin -->
+
+<script>
+'use strict';
+
+// ─────────────────────────────────────────────
+// PRESET DATA
+// ─────────────────────────────────────────────
+const PRESETS = [
+  { name: 'Night Flight',    display: 'NIGHT FLIGHT 01', tag: 'Pads · Atmospheric',  sub: 'Evolving · Long Tail · Slow Attack',       cat: 'Pads'     },
+  { name: 'Cruise Altitude', display: 'CRUISE ALTITUDE', tag: 'Pads · Ethereal',     sub: 'Dense · Shimmering · Held Resonance',      cat: 'Pads'     },
+  { name: 'Contrail',        display: 'CONTRAIL',        tag: 'Strings · Soft',      sub: 'Legato · Warm · Sustained',                cat: 'Strings'  },
+  { name: 'Approach',        display: 'APPROACH',        tag: 'Brass · Distant',     sub: 'Section · Slow · Layered',                 cat: 'Brass'    },
+  { name: 'Holding Pattern', display: 'HOLDING PATTERN', tag: 'Arps · Rhythmic',     sub: 'Stepped · Syncopated · Drifting',          cat: 'Arps'     },
+  { name: 'Horizon',         display: 'HORIZON',         tag: 'Leads · Expressive',  sub: 'Breathy · Monophonic · Dynamic',           cat: 'Leads'    },
+  { name: 'Ascent',          display: 'ASCENT',          tag: 'Synths · Rising',     sub: 'Filtered · Bright · Evolving',             cat: 'Synths'   },
+  { name: 'Dusk Choir',      display: 'DUSK CHOIR',      tag: 'Vocals · Airy',       sub: 'Ensemble · Lush · Stacked',               cat: 'Vocals'   },
+  { name: 'Tower Bell',      display: 'TOWER BELL',      tag: 'Bells · Clear',       sub: 'Crystalline · Long Decay · Natural',       cat: 'Bells'    },
+  { name: 'Cloud Break',     display: 'CLOUD BREAK',     tag: 'Ensembles · Full',    sub: 'Orchestral · Thick · Wide',               cat: 'Ensembles'},
+  { name: 'Chord Haze',      display: 'CHORD HAZE',      tag: 'Chords · Soft',       sub: 'Sustained · Warm · Floating',             cat: 'Chords'   },
+];
+
+let currentPresetIdx = 0;
+
+// ─────────────────────────────────────────────
+// ARTWORK CANVAS — Cinematic Night Flight
+// ─────────────────────────────────────────────
+const artCanvas = document.getElementById('artCanvas');
+const actx = artCanvas.getContext('2d');
+
+function resizeArtCanvas() {
+  const r = artCanvas.parentElement.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  artCanvas.width  = Math.round(r.width * dpr);
+  artCanvas.height = Math.round(r.height * dpr);
+  artCanvas.style.width  = r.width  + 'px';
+  artCanvas.style.height = r.height + 'px';
+  actx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+resizeArtCanvas();
+window.addEventListener('resize', resizeArtCanvas);
+
+const STAR_COUNT = 165;
+const stars = Array.from({ length: STAR_COUNT }, () => ({
+  x: Math.random(),
+  y: Math.random() * 0.6,
+  r: 0.35 + Math.random() * 1.15,
+  aBase: 0.18 + Math.random() * 0.55,
+  twinkle: Math.random() * Math.PI * 2,
+  twinkleSpeed: 0.008 + Math.random() * 0.018,
+  drift: (Math.random() - 0.5) * 0.00003,
+  warm: Math.random() < 0.16,
+}));
+
+const hazeBands = Array.from({ length: 5 }, () => ({
+  x: 0.18 + Math.random() * 0.72,
+  y: 0.18 + Math.random() * 0.4,
+  rx: 120 + Math.random() * 180,
+  ry: 24 + Math.random() * 36,
+  a: 0.012 + Math.random() * 0.025,
+  drift: (Math.random() - 0.5) * 0.00002,
+}));
+
+const cityLights = Array.from({ length: 96 }, () => ({
+  x: 0.18 + Math.random() * 0.74,
+  y: 0.74 + Math.random() * 0.16,
+  r: 0.8 + Math.random() * 3.6,
+  a: 0.05 + Math.random() * 0.18,
+  pulse: Math.random() * Math.PI * 2,
+  pulseSpeed: 0.006 + Math.random() * 0.014,
+  warm: Math.random() < 0.78,
+}));
+
+let artT = 0;
+let transitionAlpha = 0;
+
+/* Photo source: replace with data:image/jpeg;base64,... for a fully offline asset */
+const REALISTIC_JET_SRC = 'https://images.unsplash.com/photo-1583416755770-29b1fe74a82e?auto=format&fit=crop&w=1800&q=82';
+const jetPhoto = new Image();
+jetPhoto.src = REALISTIC_JET_SRC;
+let jetPhotoReady = false;
+jetPhoto.onload = () => { jetPhotoReady = true; };
+jetPhoto.onerror = () => { jetPhotoReady = false; };
+
+function drawSoftBand(x, y, rx, ry, color) {
+  actx.save();
+  actx.translate(x, y);
+  actx.scale(1, ry / rx);
+  const grad = actx.createRadialGradient(0, 0, 0, 0, 0, rx);
+  grad.addColorStop(0, color);
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  actx.fillStyle = grad;
+  actx.beginPath();
+  actx.arc(0, 0, rx, 0, Math.PI * 2);
+  actx.fill();
+  actx.restore();
+}
+
+function drawJetPhoto(w, h) {
+  if (!jetPhotoReady || !jetPhoto.naturalWidth) return;
+
+  const targetW = Math.min(w * 0.42, 330);
+  const targetH = targetW * 0.7;
+  const tx = w * 0.742;
+  const ty = h * 0.44;
+  const angle = -0.02;
+
+  const temp = document.createElement('canvas');
+  temp.width = Math.round(targetW);
+  temp.height = Math.round(targetH);
+  const tctx = temp.getContext('2d');
+
+  tctx.save();
+  tctx.translate(targetW, 0);
+  tctx.scale(-1, 1);
+  tctx.filter = 'brightness(0.8) saturate(0.88) contrast(1.06)';
+  tctx.drawImage(jetPhoto, 0, 0, jetPhoto.naturalWidth, jetPhoto.naturalHeight, 0, 0, targetW, targetH);
+  tctx.restore();
+  tctx.filter = 'none';
+
+  tctx.globalCompositeOperation = 'destination-in';
+  const fade = tctx.createRadialGradient(
+    targetW * 0.58, targetH * 0.48, targetW * 0.08,
+    targetW * 0.58, targetH * 0.48, targetW * 0.58
+  );
+  fade.addColorStop(0, 'rgba(0,0,0,1)');
+  fade.addColorStop(0.52, 'rgba(0,0,0,0.98)');
+  fade.addColorStop(0.76, 'rgba(0,0,0,0.64)');
+  fade.addColorStop(1, 'rgba(0,0,0,0)');
+  tctx.fillStyle = fade;
+  tctx.fillRect(0, 0, targetW, targetH);
+
+  tctx.globalCompositeOperation = 'destination-in';
+  const sideFade = tctx.createLinearGradient(0, 0, targetW, 0);
+  sideFade.addColorStop(0, 'rgba(0,0,0,0)');
+  sideFade.addColorStop(0.18, 'rgba(0,0,0,0.78)');
+  sideFade.addColorStop(0.34, 'rgba(0,0,0,1)');
+  sideFade.addColorStop(0.9, 'rgba(0,0,0,1)');
+  sideFade.addColorStop(1, 'rgba(0,0,0,0)');
+  tctx.fillStyle = sideFade;
+  tctx.fillRect(0, 0, targetW, targetH);
+
+  tctx.globalCompositeOperation = 'source-over';
+  const shade = tctx.createLinearGradient(0, 0, 0, targetH);
+  shade.addColorStop(0, 'rgba(8,9,14,0.16)');
+  shade.addColorStop(0.7, 'rgba(8,9,14,0.04)');
+  shade.addColorStop(1, 'rgba(8,9,14,0.28)');
+  tctx.fillStyle = shade;
+  tctx.fillRect(0, 0, targetW, targetH);
+
+  const rim = tctx.createLinearGradient(targetW * 0.18, targetH * 0.2, targetW * 0.78, targetH * 0.42);
+  rim.addColorStop(0, 'rgba(212,184,122,0)');
+  rim.addColorStop(0.38, 'rgba(212,184,122,0.08)');
+  rim.addColorStop(0.62, 'rgba(224,216,194,0.1)');
+  rim.addColorStop(1, 'rgba(212,184,122,0)');
+  tctx.fillStyle = rim;
+  tctx.fillRect(0, 0, targetW, targetH);
+
+  const glow = tctx.createRadialGradient(targetW * 0.58, targetH * 0.36, 0, targetW * 0.58, targetH * 0.36, targetW * 0.26);
+  glow.addColorStop(0, 'rgba(212,184,122,0.09)');
+  glow.addColorStop(1, 'rgba(212,184,122,0)');
+  tctx.fillStyle = glow;
+  tctx.fillRect(0, 0, targetW, targetH);
+
+  actx.save();
+  actx.translate(tx, ty);
+  actx.rotate(angle);
+  actx.shadowColor = 'rgba(0,0,0,0.34)';
+  actx.shadowBlur = 34;
+  actx.shadowOffsetY = 8;
+  actx.globalAlpha = 0.92;
+  actx.drawImage(temp, -targetW / 2, -targetH / 2, targetW, targetH);
+  actx.restore();
+
+  const trail = actx.createLinearGradient(tx + targetW * 0.22, ty - 10, tx - targetW * 0.42, ty + 8);
+  trail.addColorStop(0, 'rgba(212,184,122,0.04)');
+  trail.addColorStop(0.35, 'rgba(140,150,176,0.03)');
+  trail.addColorStop(1, 'rgba(0,0,0,0)');
+  actx.save();
+  actx.translate(tx - targetW * 0.05, ty + 1);
+  actx.rotate(-0.06);
+  actx.fillStyle = trail;
+  actx.fillRect(-targetW * 0.46, -8, targetW * 0.62, 16);
+  actx.restore();
+}
+
+function drawArt() {
+  const w = artCanvas.parentElement.clientWidth;
+  const h = artCanvas.parentElement.clientHeight;
+  artT += 0.016;
+
+  const bgGrad = actx.createLinearGradient(0, 0, 0, h);
+  bgGrad.addColorStop(0, '#03040c');
+  bgGrad.addColorStop(0.36, '#060811');
+  bgGrad.addColorStop(0.7, '#090b12');
+  bgGrad.addColorStop(1, '#120d0b');
+  actx.fillStyle = bgGrad;
+  actx.fillRect(0, 0, w, h);
+
+  const leftSafeGrad = actx.createLinearGradient(0, 0, w * 0.45, 0);
+  leftSafeGrad.addColorStop(0, 'rgba(3,4,8,0.7)');
+  leftSafeGrad.addColorStop(0.55, 'rgba(3,4,8,0.2)');
+  leftSafeGrad.addColorStop(1, 'rgba(3,4,8,0)');
+  actx.fillStyle = leftSafeGrad;
+  actx.fillRect(0, 0, w * 0.52, h);
+
+  const horizonY = h * 0.73;
+
+  const cityGlow = actx.createRadialGradient(w * 0.7, horizonY + 12, 0, w * 0.68, horizonY + 16, w * 0.44);
+  cityGlow.addColorStop(0, 'rgba(255,184,92,0.09)');
+  cityGlow.addColorStop(0.45, 'rgba(196,146,72,0.035)');
+  cityGlow.addColorStop(1, 'rgba(0,0,0,0)');
+  actx.fillStyle = cityGlow;
+  actx.fillRect(0, 0, w, h);
+
+  const rightAura = actx.createRadialGradient(w * 0.78, h * 0.44, 0, w * 0.78, h * 0.44, w * 0.22);
+  rightAura.addColorStop(0, 'rgba(212,184,122,0.05)');
+  rightAura.addColorStop(0.4, 'rgba(118,126,150,0.035)');
+  rightAura.addColorStop(1, 'rgba(0,0,0,0)');
+  actx.fillStyle = rightAura;
+  actx.fillRect(0, 0, w, h);
+
+  hazeBands.forEach(band => {
+    band.x += band.drift;
+    if (band.x > 1.1) band.x = -0.1;
+    if (band.x < -0.1) band.x = 1.1;
+    drawSoftBand(band.x * w, band.y * h, band.rx, band.ry,
+      `rgba(110,118,150,${band.a})`);
+  });
+
+  stars.forEach(star => {
+    star.x += star.drift;
+    if (star.x > 1.01) star.x = -0.01;
+    if (star.x < -0.01) star.x = 1.01;
+    star.twinkle += star.twinkleSpeed;
+    const alpha = star.aBase * (0.72 + 0.28 * Math.sin(star.twinkle));
+    const color = star.warm
+      ? `rgba(245,218,164,${alpha})`
+      : `rgba(206,216,244,${alpha})`;
+
+    if (star.r > 0.9) {
+      const sg = actx.createRadialGradient(star.x * w, star.y * h, 0, star.x * w, star.y * h, star.r * 3.6);
+      sg.addColorStop(0, color);
+      sg.addColorStop(0.4, star.warm ? `rgba(244,201,129,${alpha * 0.22})` : `rgba(184,198,240,${alpha * 0.18})`);
+      sg.addColorStop(1, 'rgba(0,0,0,0)');
+      actx.fillStyle = sg;
+      actx.beginPath();
+      actx.arc(star.x * w, star.y * h, star.r * 3.6, 0, Math.PI * 2);
+      actx.fill();
+    }
+
+    actx.fillStyle = color;
+    actx.beginPath();
+    actx.arc(star.x * w, star.y * h, star.r, 0, Math.PI * 2);
+    actx.fill();
+  });
+
+  cityLights.forEach(light => {
+    light.pulse += light.pulseSpeed;
+    const alpha = light.a * (0.8 + 0.2 * Math.sin(light.pulse));
+    const color = light.warm
+      ? `rgba(234,178,86,${alpha})`
+      : `rgba(168,190,224,${alpha * 0.5})`;
+    const lg = actx.createRadialGradient(light.x * w, light.y * h, 0, light.x * w, light.y * h, light.r * 2.6);
+    lg.addColorStop(0, color);
+    lg.addColorStop(1, 'rgba(0,0,0,0)');
+    actx.fillStyle = lg;
+    actx.beginPath();
+    actx.arc(light.x * w, light.y * h, light.r * 2.4, 0, Math.PI * 2);
+    actx.fill();
+  });
+
+  const horizonBand = actx.createLinearGradient(0, horizonY - 8, 0, horizonY + 14);
+  horizonBand.addColorStop(0, 'rgba(0,0,0,0)');
+  horizonBand.addColorStop(0.5, 'rgba(40,30,18,0.14)');
+  horizonBand.addColorStop(1, 'rgba(0,0,0,0)');
+  actx.fillStyle = horizonBand;
+  actx.fillRect(0, horizonY - 8, w, 24);
+
+  actx.beginPath();
+  actx.moveTo(w * 0.08, horizonY);
+  actx.lineTo(w * 0.95, horizonY);
+  const horizonLine = actx.createLinearGradient(w * 0.08, horizonY, w * 0.95, horizonY);
+  horizonLine.addColorStop(0, 'rgba(196,169,107,0)');
+  horizonLine.addColorStop(0.22, 'rgba(196,169,107,0.04)');
+  horizonLine.addColorStop(0.6, 'rgba(196,169,107,0.16)');
+  horizonLine.addColorStop(1, 'rgba(196,169,107,0)');
+  actx.strokeStyle = horizonLine;
+  actx.lineWidth = 0.7;
+  actx.stroke();
+
+  const beamX = w * (0.77 + 0.012 * Math.sin(artT * 0.38));
+  const beam = actx.createLinearGradient(beamX, 0, beamX, h * 0.78);
+  beam.addColorStop(0, 'rgba(212,184,122,0)');
+  beam.addColorStop(0.4, 'rgba(212,184,122,0.03)');
+  beam.addColorStop(0.8, 'rgba(212,184,122,0.016)');
+  beam.addColorStop(1, 'rgba(212,184,122,0)');
+  actx.fillStyle = beam;
+  actx.fillRect(beamX - 32, 0, 64, h * 0.78);
+
+  drawJetPhoto(w, h);
+
+  const hazeGrad = actx.createLinearGradient(0, h * 0.22, 0, h);
+  hazeGrad.addColorStop(0, 'rgba(0,0,0,0)');
+  hazeGrad.addColorStop(0.55, 'rgba(7,8,12,0.06)');
+  hazeGrad.addColorStop(1, 'rgba(9,8,9,0.14)');
+  actx.fillStyle = hazeGrad;
+  actx.fillRect(0, 0, w, h);
+
+  if (transitionAlpha > 0) {
+    actx.fillStyle = `rgba(212,184,122,${transitionAlpha * 0.03})`;
+    actx.fillRect(0, 0, w, h);
+    transitionAlpha = Math.max(0, transitionAlpha - 0.06);
+  }
+}
+
+// ─────────────────────────────────────────────
+// KNOB BUILDER & RENDERER
+// ─────────────────────────────────────────────
+function buildKnob(el) {
+  el.innerHTML = ''; // clear
+  const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox','0 0 72 72');
+  svg.setAttribute('xmlns','http://www.w3.org/2000/svg');
+  el.appendChild(svg);
+  renderKnob(el);
+}
+
+function renderKnob(el) {
+  const val   = parseFloat(el.dataset.value || 0);
+  const svg   = el.querySelector('svg');
+  const id    = el.id;
+
+  // arc params
+  const cx = 36, cy = 36, r = 28;
+  const startDeg = 135;   // bottom-left
+  const endDeg   = 45;    // bottom-right (going clockwise, 270° sweep)
+  const sweepDeg = 270;
+
+  // value angle
+  const valDeg = startDeg + val * sweepDeg;
+
+  function polar(deg, radius) {
+    const rad = (deg - 90) * Math.PI / 180;
+    return {
+      x: cx + radius * Math.cos(rad),
+      y: cy + radius * Math.sin(rad),
+    };
+  }
+
+  function arcPath(fromDeg, toDeg, radius) {
+    const start = polar(fromDeg, radius);
+    const end   = polar(toDeg,   radius);
+    const diff  = ((toDeg - fromDeg) + 360) % 360;
+    const large = diff > 180 ? 1 : 0;
+    return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${large} 1 ${end.x} ${end.y}`;
+  }
+
+  const uid = id || ('k' + Math.random().toString(36).slice(2));
+
+  svg.innerHTML = `
+    <defs>
+      <radialGradient id="kb_${uid}" cx="42%" cy="35%">
+        <stop offset="0%"   stop-color="#242230"/>
+        <stop offset="55%"  stop-color="#14131c"/>
+        <stop offset="100%" stop-color="#0a0912"/>
+      </radialGradient>
+      <radialGradient id="ks_${uid}" cx="38%" cy="28%">
+        <stop offset="0%"   stop-color="rgba(255,255,255,0.07)"/>
+        <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+      </radialGradient>
+      <filter id="kglow_${uid}">
+        <feGaussianBlur stdDeviation="1.5" result="blur"/>
+        <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+      </filter>
+    </defs>
+
+    <!-- track ring (full sweep, dim) -->
+    <path d="${arcPath(startDeg, startDeg + sweepDeg, r)}"
+      fill="none"
+      stroke="rgba(255,255,255,0.05)"
+      stroke-width="2"
+      stroke-linecap="round"/>
+
+    <!-- value arc -->
+    ${val > 0.005 ? `
+    <path d="${arcPath(startDeg, valDeg, r)}"
+      fill="none"
+      stroke="rgba(196,169,107,0.22)"
+      stroke-width="2"
+      stroke-linecap="round"/>
+    <path d="${arcPath(startDeg, valDeg, r)}"
+      fill="none"
+      stroke="#c4a96b"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      opacity="0.85"
+      filter="url(#kglow_${uid})"/>
+    ` : ''}
+
+    <!-- body outer ring -->
+    <circle cx="${cx}" cy="${cy}" r="22"
+      fill="url(#kb_${uid})"/>
+
+    <!-- fine ridge texture (very subtle ring) -->
+    <circle cx="${cx}" cy="${cy}" r="22"
+      fill="none"
+      stroke="rgba(255,255,255,0.04)"
+      stroke-width="1"/>
+
+    <!-- inner specular -->
+    <circle cx="${cx}" cy="${cy}" r="22"
+      fill="url(#ks_${uid})"/>
+
+    <!-- indicator: small gold dot at value angle -->
+    ${(()=>{
+      const ip = polar(valDeg, 14);
+      return `<circle cx="${ip.x.toFixed(2)}" cy="${ip.y.toFixed(2)}" r="2.2"
+        fill="#c4a96b"
+        opacity="0.9"/>
+      <circle cx="${ip.x.toFixed(2)}" cy="${ip.y.toFixed(2)}" r="1.4"
+        fill="#d4b87a"/>`;
+    })()}
+
+    <!-- center cap -->
+    <circle cx="${cx}" cy="${cy}" r="8"
+      fill="#0a0912"/>
+    <circle cx="${cx}" cy="${cy}" r="8"
+      fill="none"
+      stroke="rgba(255,255,255,0.04)"
+      stroke-width="0.5"/>
+    <circle cx="33" cy="33" r="1.5"
+      fill="rgba(255,255,255,0.07)"/>
+  `;
+}
+
+// ─────────────────────────────────────────────
+// KNOB DRAG INTERACTION
+// ─────────────────────────────────────────────
+const knobIds = ['knob-glide','knob-smear','knob-tone'];
+const knobFormats = {
+  'knob-glide': v => (v * 2).toFixed(2) + ' s',
+  'knob-smear': v => Math.round(v * 100) + '%',
+  'knob-tone':  v => (v >= 0.5
+    ? '+' + ((v - 0.5) * 16).toFixed(1)
+    : ((v - 0.5) * 16).toFixed(1)) + ' dB',
+};
+const knobValueEls = {
+  'knob-glide': document.getElementById('val-glide'),
+  'knob-smear': document.getElementById('val-smear'),
+  'knob-tone':  document.getElementById('val-tone'),
+};
+
+knobIds.forEach(kId => {
+  const el = document.getElementById(kId);
+  buildKnob(el);
+
+  let dragging = false;
+  let startY = 0;
+  let startVal = 0;
+
+  el.addEventListener('mousedown', e => {
+    dragging = true;
+    startY   = e.clientY;
+    startVal = parseFloat(el.dataset.value);
+    e.preventDefault();
+    document.body.style.cursor = 'ns-resize';
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const delta = (startY - e.clientY) / 180;
+    const newVal = Math.max(0, Math.min(1, startVal + delta));
+    el.dataset.value = newVal.toFixed(4);
+    renderKnob(el);
+    if (knobValueEls[kId]) {
+      knobValueEls[kId].textContent = knobFormats[kId](newVal);
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (dragging) {
+      dragging = false;
+      document.body.style.cursor = '';
+    }
+  });
+
+  // Double-click to reset
+  el.addEventListener('dblclick', () => {
+    const defaults = { 'knob-glide': 0.32, 'knob-smear': 0.58, 'knob-tone': 0.72 };
+    el.dataset.value = defaults[kId];
+    renderKnob(el);
+    if (knobValueEls[kId]) {
+      knobValueEls[kId].textContent = knobFormats[kId](defaults[kId]);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────
+// REVERSE TOGGLE
+// ─────────────────────────────────────────────
+const reverseBtn = document.getElementById('reverseBtn');
+const revState   = document.getElementById('revState');
+const revLabel   = document.getElementById('revLabel');
+let reverseOn = false;
+
+reverseBtn.addEventListener('click', () => {
+  reverseOn = !reverseOn;
+  reverseBtn.classList.toggle('active', reverseOn);
+  revState.textContent = reverseOn ? 'ON' : 'OFF';
+  revLabel.textContent = reverseOn ? 'Active' : '—';
+});
+
+// ─────────────────────────────────────────────
+// PRESET NAVIGATION
+// ─────────────────────────────────────────────
+function loadPreset(idx) {
+  currentPresetIdx = ((idx % PRESETS.length) + PRESETS.length) % PRESETS.length;
+  const p = PRESETS[currentPresetIdx];
+
+  document.getElementById('overlayTag').textContent  = p.tag;
+  document.getElementById('overlayName').textContent = p.name;
+  document.getElementById('overlaySub').textContent  = p.sub;
+  document.getElementById('hdrName').textContent     = p.display;
+
+  // activate matching category tab
+  document.querySelectorAll('.cat').forEach(c => {
+    c.classList.toggle('active',
+      c.dataset.cat === p.cat || c.dataset.cat === 'All' && false
+    );
+    if (c.dataset.cat === p.cat) c.classList.add('active');
+  });
+
+  transitionAlpha = 1.0; // trigger artwork flash
+}
+
+document.getElementById('artPrev').addEventListener('click',  () => loadPreset(currentPresetIdx - 1));
+document.getElementById('artNext').addEventListener('click',  () => loadPreset(currentPresetIdx + 1));
+document.getElementById('hdrPrev').addEventListener('click',  () => loadPreset(currentPresetIdx - 1));
+document.getElementById('hdrNext').addEventListener('click',  () => loadPreset(currentPresetIdx + 1));
+
+// Category click
+document.getElementById('catBar').addEventListener('click', e => {
+  const cat = e.target.closest('.cat');
+  if (!cat) return;
+  document.querySelectorAll('.cat').forEach(c => c.classList.remove('active'));
+  cat.classList.add('active');
+  // find first preset matching this category
+  const target = PRESETS.findIndex(p =>
+    p.cat === cat.dataset.cat || cat.dataset.cat === 'All'
+  );
+  if (target >= 0) loadPreset(target);
+});
+
+// ─────────────────────────────────────────────
+// FADER DRAG
+// ─────────────────────────────────────────────
+document.querySelectorAll('.fader').forEach(fader => {
+  let dragging = false;
+  fader.addEventListener('mousedown', e => {
+    dragging = true;
+    updateFader(fader, e);
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    updateFader(fader, e);
+  });
+  document.addEventListener('mouseup', () => { dragging = false; });
+});
+
+function updateFader(fader, e) {
+  const rect = fader.getBoundingClientRect();
+  const pct  = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  const fill  = fader.querySelector('.fader-fill');
+  const thumb = fader.querySelector('.fader-thumb');
+  if (fill)  fill.style.width  = (pct * 100).toFixed(1) + '%';
+  if (thumb) thumb.style.right = ((1 - pct) * 100).toFixed(1) + '%';
+}
+
+// ─────────────────────────────────────────────
+// MAIN ANIMATION LOOP
+// ─────────────────────────────────────────────
+function frame() {
+  drawArt();
+  requestAnimationFrame(frame);
+}
+frame();
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+loadPreset(0);
+</script>
+</body>
+</html>

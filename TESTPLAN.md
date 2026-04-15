@@ -1,0 +1,168 @@
+# AviatorKeyz — Test Plan
+
+**Format:** Manual test cases (automated unit tests added in M2+)
+
+---
+
+## M0 — Scaffold & Build
+
+### T-M0-01: Build succeeds (Release)
+- Run `scripts\build_windows.bat`
+- Expected: no errors, `AviatorKeyz.vst3` present in build output
+
+### T-M0-02: Build succeeds (Debug)
+- Run `scripts\build_windows.bat debug`
+- Expected: debug build with `AVIATORKEYZ_DEBUG=1` defined
+
+### T-M0-03: FL Studio plugin scan
+- Copy VST3 to `C:\Program Files\Common Files\VST3\`
+- Rescan in FL Studio (Options → Manage plugins)
+- Expected: "AviatorKeyz" appears under Instruments, not Effects
+
+### T-M0-04: Plugin loads without crash
+- Drag AviatorKeyz onto FL Studio channel
+- Expected: plugin window opens, dark background + gold wordmark visible
+- Expected: no crash, no error dialog
+
+### T-M0-05: Resizing
+- Drag the plugin window to resize
+- Expected: window resizes smoothly, constrains to min (700×404) and max (1800×1040)
+
+### T-M0-06: Project save/reload
+- Open plugin, save FL Studio project, close FL, reopen project
+- Expected: plugin loads with same state (all params at defaults)
+
+---
+
+## M1 — Core Sampler Engine
+
+### T-M1-01: MIDI note triggers sample
+- Load a test sample, play MIDI note C4
+- Expected: sample plays at correct pitch
+
+### T-M1-02: Polyphony
+- Hold 8 simultaneous notes
+- Expected: all 8 play without voice stealing
+
+### T-M1-03: Voice stealing
+- Hold 65 simultaneous notes (exceeds pool of 64)
+- Expected: quietest voice stolen, no crash
+
+### T-M1-04: Note-off
+- Trigger note, release key
+- Expected: sample stops (or enters release phase)
+
+### T-M1-05: Sustain pedal
+- Press sustain, release key — notes should continue
+- Release sustain — notes stop
+
+### T-M1-06: All notes off (MIDI CC123)
+- Send CC123 — all active voices should stop
+
+### T-M1-07: Sample rate change
+- Change FL Studio project sample rate (44100 → 48000 → 96000)
+- Expected: plugin prepares correctly, no pitch shift, no crash
+
+### T-M1-08: Buffer size change
+- Change FL audio buffer size (256 → 512 → 1024 samples)
+- Expected: stable playback, no glitches
+
+---
+
+## M2 — Creative Engine
+
+### T-M2-01: Reverse — basic
+- Enable Reverse, trigger note
+- Expected: sample plays backward
+
+### T-M2-02: Reverse — MIDI timing preserved
+- Play 4-note phrase with Reverse on
+- Expected: each note's rhythmic position matches non-reversed version
+
+### T-M2-03: Glide — basic
+- Set Glide to 100 ms, play two notes
+- Expected: audible pitch slide between notes
+
+### T-M2-04: Glide — at 0 ms
+- Set Glide to 0 ms
+- Expected: instant pitch jump, no slide
+
+### T-M2-05: Smear — at 0.0
+- Set Smear to 0 — expected: no audible effect, sharp transients
+
+### T-M2-06: Smear — at 1.0
+- Set Smear to 1.0 — expected: transients blurred, washed texture
+
+### T-M2-07: Tone — neutral
+- Tone at 0.0 — expected: flat frequency response (bypass)
+
+### T-M2-08: Tone — bright
+- Tone at +1.0 — measure: high frequencies boosted relative to neutral
+
+### T-M2-09: Tone — dark
+- Tone at -1.0 — measure: high frequencies reduced, warmth added
+
+### T-M2-10: No zipper noise
+- Automate all creative controls (Reverse, Glide, Smear, Tone) during playback
+- Expected: no audible stepping or clicks
+
+---
+
+## M3 — Preset System
+
+### T-M3-01: Factory presets load
+- Open preset browser, select each category
+- Expected: factory presets listed, load without error
+
+### T-M3-02: Preset recall — all parameters
+- Load preset, verify all 9 parameter values match preset file
+
+### T-M3-03: User preset save
+- Modify parameters, save as user preset
+- Expected: file created in ~/Documents/AviatorKeyz/Presets/
+
+### T-M3-04: Project save/recall with custom preset
+- Load user preset, save FL project, close FL, reopen
+- Expected: same preset state recalled correctly
+
+### T-M3-05: Preset browser categories
+- All 10 categories visible: Leads, Brass, Ensembles, Strings, Pads, Chords, Synths, Arps, Vocals, Bells
+
+---
+
+## M4 — Premium UI
+
+### T-M4-01: Knobs render correctly
+- All 7 knobs display with gold accent, label, value tooltip on hover
+
+### T-M4-02: Waveform display
+- Load sample — waveform renders in center panel
+
+### T-M4-03: Resize — layout scales
+- Resize from minimum to maximum — all elements scale proportionally
+
+### T-M4-04: No UI artifacts under automation
+- Automate multiple params simultaneously — UI updates smoothly without flicker
+
+---
+
+## M5 — Polish & FL Studio Certification
+
+### T-M5-01: Multiple instances
+- Open 4 simultaneous instances of AviatorKeyz in FL
+- Expected: all instances work independently, no shared state conflicts
+
+### T-M5-02: Transport start/stop
+- Start/stop FL transport repeatedly — plugin responds correctly
+
+### T-M5-03: Plugin bypass
+- Enable/disable plugin bypass in FL Studio
+- Expected: signal passes cleanly when bypassed, no artifacts on toggle
+
+### T-M5-04: CPU profiling
+- 32-voice polyphony at 44.1 kHz, 256 samples buffer
+- Expected: CPU usage < 5% on modern hardware
+
+### T-M5-05: 48h soak test
+- Loop MIDI sequence for 48 hours
+- Expected: no memory leak, no crash, no drift
