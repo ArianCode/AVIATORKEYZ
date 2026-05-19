@@ -7,24 +7,22 @@
 //
 //  The visual identity of AviatorKeyz.
 //
-//  Palette (from UI reference mockup):
-//    Background:   #111111 (near-black)
-//    Surface:      #1E1E1E (elevated panels)
-//    Gold primary: #C8922A (knob accents, highlights)
-//    Gold light:   #E8B84B (hover states, active indicators)
-//    Gold dark:    #8B6219 (inset shadows, borders)
-//    Text primary: #F0E6D0 (warm off-white)
-//    Text dim:     #7A7063 (labels, secondary)
-//    Accent blue:  #4A7FA5 (waveform, optional)
+//  Palette (from DesignTokens / aviatorkeyz_ui_v3.html):
+//    Background:   #08080d (deep)
+//    Surface:      #100f17 (panel)
+//    Champagne:    #d4bc86 (knob accents, highlights)
+//    Champagne bright: #e2ce9e (hover states, active indicators)
+//    Champagne mid:    #c4aa70 (inset shadows, borders)
+//    Text primary: #edeae1 (warm off-white)
+//    Text dim:     #7b7788 (labels, secondary)
 //
 //  Custom draws:
-//    - Rotary knob: thin arc track + gold pointer + subtle glow on hover
-//    - Toggle button: pill-shaped with gold fill when active
-//    - Slider (linear): thin track with gold thumb
-//    - ComboBox: minimal dropdown with gold caret
-//    - ListBox: dark row backgrounds, gold selection highlight
-//
-//  Implemented in M4.
+//    - Rotary knob: thin arc track + champagne pointer + subtle glow on hover
+//    - Button background: pill-shaped, minimal surface or transparent
+//    - Toggle button: pill-shaped with champagne fill when active
+//    - Slider (linear): thin track with champagne thumb
+//    - ComboBox: minimal dropdown with champagne caret
+//    - ListBox: dark row backgrounds, champagne selection highlight
 // =============================================================================
 
 class LuxuryLookAndFeel : public juce::LookAndFeel_V4
@@ -34,17 +32,26 @@ public:
     ~LuxuryLookAndFeel() override;
 
     // Colour palette accessors
-    static juce::Colour backgroundColour()  noexcept { return juce::Colour (0xff111111); }
-    static juce::Colour surfaceColour()     noexcept { return juce::Colour (0xff1e1e1e); }
-    static juce::Colour goldPrimary()       noexcept { return juce::Colour (0xffc8922a); }
-    static juce::Colour goldLight()         noexcept { return juce::Colour (0xffe8b84b); }
-    static juce::Colour goldDark()          noexcept { return juce::Colour (0xff8b6219); }
-    static juce::Colour textPrimary()       noexcept { return juce::Colour (0xfff0e6d0); }
-    static juce::Colour textDim()           noexcept { return juce::Colour (0xff7a7063); }
+    static juce::Colour backgroundColour()  noexcept;
+    static juce::Colour surfaceColour()     noexcept;
+    static juce::Colour goldPrimary()       noexcept;
+    static juce::Colour goldLight()         noexcept;
+    static juce::Colour goldDark()          noexcept;
+    static juce::Colour textPrimary()       noexcept;
+    static juce::Colour textDim()           noexcept;
 
     void drawRotarySlider (juce::Graphics& g, int x, int y, int width, int height,
                            float sliderPosProportional, float rotaryStartAngle,
                            float rotaryEndAngle, juce::Slider& slider) override;
+
+    void drawButtonBackground (juce::Graphics& g, juce::Button& button,
+                               const juce::Colour& backgroundColour,
+                               bool shouldDrawButtonAsHighlighted,
+                               bool shouldDrawButtonAsDown) override;
+
+    void drawToggleButton (juce::Graphics& g, juce::ToggleButton& button,
+                           bool shouldDrawButtonAsHighlighted,
+                           bool shouldDrawButtonAsDown) override;
 
 private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LuxuryLookAndFeel)

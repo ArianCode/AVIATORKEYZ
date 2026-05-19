@@ -12,16 +12,19 @@ public:
 
     void paint (juce::Graphics& g) override;
     void resized() override;
+    void visibilityChanged() override;
+
+    void layoutMainPanel();
 
 private:
     AviatorKeyzProcessor& processorRef;
 
-    static constexpr int kDefaultWidth  = 900;
+    static constexpr int kDefaultWidth  = 860;
+    static constexpr int kDefaultHeight = 608;
     static constexpr int kMinWidth      = 700;
-    static constexpr int kDefaultHeight = 520;
-    static constexpr int kMinHeight     = 404;
-    static constexpr int kMaxWidth      = 1800;
-    static constexpr int kMaxHeight     = 1040;
+    static constexpr int kMinHeight     = 495;  // 700 * 608/860
+    static constexpr int kMaxWidth      = 1720; // 2x design
+    static constexpr int kMaxHeight     = 1216;
 
     std::unique_ptr<MainPanel> mainPanel;
 

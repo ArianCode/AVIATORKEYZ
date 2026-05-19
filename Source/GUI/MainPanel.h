@@ -1,10 +1,10 @@
 #pragma once
 
-#include "HeaderBar.h"
-#include "KnobComponent.h"
+#include "DesignTokens.h"
+#include "PluginShell.h"
 #include "PresetBrowser.h"
-#include "WaveformDisplay.h"
 #include <juce_gui_basics/juce_gui_basics.h>
+#include <memory>
 
 class AviatorKeyzProcessor;
 
@@ -17,33 +17,22 @@ public:
     void paint (juce::Graphics& g) override;
     void resized() override;
 
+    static int getDesignWidth()  { return DesignTokens::kDesignWidth; }
+    static int getDesignHeight() { return DesignTokens::kDesignHeight; }
+
 private:
-    void syncHeaderFromPresetManager();
+    void refreshPresetUI();
+    void navigatePreset (int delta);
+    void selectCategory (const juce::String& category);
+    void showLibraryPopup();
+    PresetDisplayInfo makeDisplayInfo() const;
 
     AviatorKeyzProcessor& processor;
 
     std::unique_ptr<juce::LookAndFeel> luxuryLookAndFeel;
+    PluginShell                          pluginShell;
 
-    HeaderBar       headerBar;
-    PresetBrowser   presetBrowser;
-    WaveformDisplay waveformDisplay;
-
-    KnobComponent knobInputGain;
-    KnobComponent knobOutputGain;
-    KnobComponent knobGlide;
-    KnobComponent knobSmear;
-    KnobComponent knobTone;
-    KnobComponent knobReverbAmt;
-    KnobComponent knobReverbSize;
-    KnobComponent knobWidth;
-    KnobComponent knobAttack;
-    KnobComponent knobRelease;
-    KnobComponent knobPan;
-
-    juce::ToggleButton reverseButton;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> reverseAttachment;
-
-    juce::TextButton saveUserPresetButton { "Save user preset…" };
+    juce::Component::SafePointer<juce::CallOutBox> libraryCallout;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainPanel)
 };

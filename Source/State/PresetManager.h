@@ -47,12 +47,26 @@ public:
     juce::String getCurrentCategory() const;
     juce::String getCurrentSampleId() const;
 
+    int  getTotalPresetCount() const;
+    int  getCurrentPresetIndex() const;
+    bool loadPresetByFlatIndex (int index);
+    bool loadAdjacentPreset (int delta);
+
     /** category, preset name, sampleId — message thread only */
     std::function<void (const juce::String& category,
                         const juce::String& name,
                         const juce::String& sampleId)> onPresetLoaded;
 
 private:
+    struct FlatPreset
+    {
+        juce::String category;
+        juce::String name;
+    };
+
+    juce::Array<FlatPreset> buildFlatPresetList() const;
+    int findCurrentFlatIndex (const juce::Array<FlatPreset>& list) const;
+
     juce::AudioProcessorValueTreeState& apvts;
     juce::String currentPresetName;
     juce::String currentCategory;

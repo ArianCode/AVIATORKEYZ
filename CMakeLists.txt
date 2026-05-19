@@ -110,7 +110,16 @@ target_sources(AviatorKeyz
         # GUI layer (stubs — filled in during M3/M4)
         Source/GUI/LuxuryLookAndFeel.cpp
         Source/GUI/MainPanel.cpp
+        Source/GUI/PluginShell.cpp
         Source/GUI/HeaderBar.cpp
+        Source/GUI/CategoryBar.cpp
+        Source/GUI/ArtworkPanel.cpp
+        Source/GUI/FooterBar.cpp
+        Source/GUI/MacroSection.cpp
+        Source/GUI/SecondaryPanel.cpp
+        Source/GUI/PrecisionKnob.cpp
+        Source/GUI/HorizontalFader.cpp
+        Source/GUI/ReverseToggle.cpp
         Source/GUI/KnobComponent.cpp
         Source/GUI/WaveformDisplay.cpp
         Source/GUI/PresetBrowser.cpp

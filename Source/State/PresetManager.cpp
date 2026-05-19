@@ -139,6 +139,57 @@ juce::String PresetManager::getCurrentPresetName() const { return currentPresetN
 juce::String PresetManager::getCurrentCategory() const { return currentCategory; }
 juce::String PresetManager::getCurrentSampleId() const { return currentSampleId; }
 
+juce::Array<PresetManager::FlatPreset> PresetManager::buildFlatPresetList() const
+{
+    juce::Array<FlatPreset> list;
+
+    for (const auto& category : getAllCategories())
+    {
+        for (const auto& name : getPresetsForCategory (category))
+            list.add ({ category, name });
+    }
+
+    return list;
+}
+
+int PresetManager::findCurrentFlatIndex (const juce::Array<FlatPreset>& list) const
+{
+    for (int i = 0; i < list.size(); ++i)
+    {
+        if (list[i].category.equalsIgnoreCase (currentCategory)
+            && list[i].name.equalsIgnoreCase (currentPresetName))
+            return i;
+    }
+
+    return 0;
+}
+
+int PresetManager::getTotalPresetCount() const
+{
+    return buildFlatPresetList().size();
+}
+
+int PresetManager::getCurrentPresetIndex() const
+{
+    const auto list = buildFlatPresetList();
+    return findCurrentFlatIndex (list);
+}
+
+bool PresetManager::loadPresetByFlatIndex (int index)
+{
+    const auto list = buildFlatPresetList();
+    if (list.isEmpty())
+        return false;
+
+    const int wrapped = ((index % list.size()) + list.size()) % list.size();
+    return loadPreset (list[wrapped].category, list[wrapped].name);
+}
+
+bool PresetManager::loadAdjacentPreset (int delta)
+{
+    return loadPresetByFlatIndex (getCurrentPresetIndex() + delta);
+}
+
 juce::File PresetManager::getFactoryPresetsDir() const
 {
     return {};

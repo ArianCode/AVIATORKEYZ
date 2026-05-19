@@ -1,81 +1,69 @@
 #include "MainPanel.h"
 #include "../PluginProcessor.h"
-#include <memory>
-#include "../State/StateSchema.h"
 #include "LuxuryLookAndFeel.h"
+
+namespace
+{
+    juce::String makeHudAlt (const juce::String& seed)
+    {
+        const int fl = 80 + (int) std::abs (seed.hashCode()) % 340;
+        return "FL " + juce::String (fl);
+    }
+
+    juce::String makeHudHdg (const juce::String& seed)
+    {
+        const int hdg = (int) std::abs (seed.hashCode() >> 4) % 360;
+        return "HDG " + juce::String (hdg) + juce::String::fromUTF8 ("\xc2\xb0");
+    }
+
+    juce::String makeHudRoute (const juce::String& seed)
+    {
+        static const char* airports[] = { "KLAS", "KJFK", "KSFO", "KEWR", "KMIA", "KLAX", "KORD", "KSEA" };
+        const int a = std::abs (seed.hashCode()) % 8;
+        const int b = std::abs (seed.hashCode() >> 3) % 8;
+        return juce::String (airports[a]) + " → " + airports[b];
+    }
+}
 
 MainPanel::MainPanel (AviatorKeyzProcessor& p)
     : processor (p)
     , luxuryLookAndFeel (std::make_unique<LuxuryLookAndFeel>())
-    , presetBrowser (p, [this] { syncHeaderFromPresetManager(); })
-    , waveformDisplay (p)
-    , knobInputGain (p.getAPVTS(), AviatorKeyz::ParamID::INPUT_GAIN, "Input")
-    , knobOutputGain (p.getAPVTS(), AviatorKeyz::ParamID::OUTPUT_GAIN, "Output")
-    , knobGlide (p.getAPVTS(), AviatorKeyz::ParamID::GLIDE_TIME, "Glide")
-    , knobSmear (p.getAPVTS(), AviatorKeyz::ParamID::SMEAR, "Smear")
-    , knobTone (p.getAPVTS(), AviatorKeyz::ParamID::TONE, "Tone")
-    , knobReverbAmt (p.getAPVTS(), AviatorKeyz::ParamID::REVERB_AMOUNT, "Room")
-    , knobReverbSize (p.getAPVTS(), AviatorKeyz::ParamID::REVERB_SIZE, "Decay")
-    , knobWidth (p.getAPVTS(), AviatorKeyz::ParamID::STEREO_WIDTH, "Width")
-    , knobAttack (p.getAPVTS(), AviatorKeyz::ParamID::ENV_ATTACK, "Attack")
-    , knobRelease (p.getAPVTS(), AviatorKeyz::ParamID::ENV_RELEASE, "Release")
-    , knobPan (p.getAPVTS(), AviatorKeyz::ParamID::PAN, "Pan")
+    , pluginShell (p)
 {
+    setOpaque (true);
     setLookAndFeel (luxuryLookAndFeel.get());
 
-    addAndMakeVisible (headerBar);
-    addAndMakeVisible (presetBrowser);
-    addAndMakeVisible (waveformDisplay);
+    addAndMakeVisible (pluginShell);
 
-    for (auto* k : { &knobInputGain,
-                     &knobOutputGain,
-                     &knobGlide,
-                     &knobSmear,
-                     &knobTone,
-                     &knobReverbAmt,
-                     &knobReverbSize,
-                     &knobWidth,
-                     &knobAttack,
-                     &knobRelease,
-                     &knobPan })
-        addAndMakeVisible (*k);
+    pluginShell.getCategories().setCategories (p.getPresetManager().getAllCategories());
+    pluginShell.getCategories().onCategorySelected =
+        [this] (const juce::String& cat) { selectCategory (cat); };
 
-    reverseButton.setButtonText ("Reverse");
-    reverseButton.setClickingTogglesState (true);
-    addAndMakeVisible (reverseButton);
-    reverseAttachment =
-        std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
-            p.getAPVTS(), AviatorKeyz::ParamID::REVERSE, reverseButton);
+    auto& header = pluginShell.getHeader();
+    header.onPreviousPreset = [this] { navigatePreset (-1); };
+    header.onNextPreset     = [this] { navigatePreset (+1); };
+    header.onLibraryClicked = [this] { showLibraryPopup(); };
 
-    addAndMakeVisible (saveUserPresetButton);
-    saveUserPresetButton.onClick = [this] {
-        const auto alert = std::make_shared<juce::AlertWindow> (
-            "Save user preset",
-            "Saved under Documents/AviatorKeyz/Presets/<category>/",
-            juce::AlertWindow::NoIcon);
+    auto& artwork = pluginShell.getArtwork();
+    artwork.onPreviousPreset = [this] { navigatePreset (-1); };
+    artwork.onNextPreset     = [this] { navigatePreset (+1); };
 
-        alert->addTextEditor ("nm", "My preset", "Preset name");
-        alert->addButton ("OK", 1, juce::KeyPress (juce::KeyPress::returnKey));
-        alert->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+    auto& footer = pluginShell.getFooter();
+    footer.onAboutClicked = [] {
+        juce::AlertWindow::showMessageBoxAsync (
+            juce::AlertWindow::InfoIcon,
+            "AviatorKeyz",
+            "Premium sample instrument.\nAviatorKeyz v1.0.0");
+    };
+    footer.onSettingsClicked = [this] { showLibraryPopup(); };
 
-        alert->enterModalState (
-            true,
-            juce::ModalCallbackFunction::create ([this, alert] (int result) {
-                if (result != 1)
-                    return;
-
-                const auto name = alert->getTextEditorContents ("nm").trim();
-
-                if (name.isEmpty())
-                    return;
-
-                if (processor.getPresetManager().saveUserPreset (
-                        presetBrowser.getSelectedCategory(), name))
-                    presetBrowser.refreshPresetList();
-            }));
+    p.getPresetManager().onPresetLoaded = [this] (const juce::String&, const juce::String&, const juce::String&) {
+        refreshPresetUI();
     };
 
-    syncHeaderFromPresetManager();
+    refreshPresetUI();
+    resized();
+    repaint();
 }
 
 MainPanel::~MainPanel()
@@ -83,71 +71,105 @@ MainPanel::~MainPanel()
     setLookAndFeel (nullptr);
 }
 
-void MainPanel::syncHeaderFromPresetManager()
+PresetDisplayInfo MainPanel::makeDisplayInfo() const
 {
     auto& pm = processor.getPresetManager();
-    headerBar.setPresetInfo (pm.getCurrentCategory(), pm.getCurrentPresetName());
+    const auto category = pm.getCurrentCategory();
+    const auto name     = pm.getCurrentPresetName();
+
+    PresetDisplayInfo info;
+    info.categoryTag = category + " · Factory";
+    info.heroName    = name;
+    info.subtitle    = "AviatorKeyz · " + category;
+    info.hudAlt      = makeHudAlt (name);
+    info.hudHdg      = makeHudHdg (name);
+    info.hudRoute    = makeHudRoute (name);
+    return info;
+}
+
+void MainPanel::refreshPresetUI()
+{
+    auto& pm = processor.getPresetManager();
+    const auto info = makeDisplayInfo();
+
+    pluginShell.getHeader().setPresetDisplayName (pm.getCurrentPresetName());
+    pluginShell.getHeader().setPresetCount (pm.getTotalPresetCount());
+    pluginShell.getCategories().setActiveCategory (pm.getCurrentCategory());
+    pluginShell.getArtwork().setPresetInfo (info);
+    pluginShell.getFooter().setHudText (info.hudAlt + " · " + info.hudHdg);
+    pluginShell.getFooter().setSampleRate (processor.getSampleRate() > 0.0 ? processor.getSampleRate() : 44100.0);
+    pluginShell.getFooter().setBlockSize (processor.getBlockSize() > 0 ? processor.getBlockSize() : 256);
+}
+
+void MainPanel::navigatePreset (int delta)
+{
+    if (processor.getPresetManager().loadAdjacentPreset (delta))
+    {
+        pluginShell.getArtwork().triggerPresetFlash();
+        refreshPresetUI();
+    }
+}
+
+void MainPanel::selectCategory (const juce::String& category)
+{
+    auto& pm = processor.getPresetManager();
+
+    if (category.equalsIgnoreCase ("All"))
+        return;
+
+    const auto presets = pm.getPresetsForCategory (category);
+    if (presets.isEmpty())
+        return;
+
+    if (pm.loadPreset (category, presets[0]))
+    {
+        pluginShell.getArtwork().triggerPresetFlash();
+        refreshPresetUI();
+    }
+}
+
+void MainPanel::showLibraryPopup()
+{
+    if (libraryCallout != nullptr)
+    {
+        libraryCallout->dismiss();
+        return;
+    }
+
+    auto browser = std::make_unique<PresetBrowser> (processor, [this] {
+        refreshPresetUI();
+        if (libraryCallout != nullptr)
+            libraryCallout->dismiss();
+    });
+    browser->setSize (280, 150);
+
+    libraryCallout = &juce::CallOutBox::launchAsynchronously (
+        std::move (browser),
+        pluginShell.getHeader().getScreenBounds().removeFromRight (300).withHeight (160),
+        nullptr);
 }
 
 void MainPanel::paint (juce::Graphics& g)
 {
-    g.fillAll (LuxuryLookAndFeel::backgroundColour());
-
-    const auto bounds = getLocalBounds().toFloat();
-    juce::ColourGradient vignette (juce::Colours::transparentBlack,
-                                   bounds.getCentreX(),
-                                   bounds.getCentreY(),
-                                   juce::Colour (0x66000000),
-                                   0.f,
-                                   0.f,
-                                   true);
-    g.setGradientFill (vignette);
-    g.fillRect (bounds);
+    g.fillAll (juce::Colour (0xff030309));
 }
 
 void MainPanel::resized()
 {
-    auto r = getLocalBounds().reduced (10);
-    headerBar.setBounds (r.removeFromTop (76));
+    auto bounds = getLocalBounds();
 
-    r.removeFromTop (8);
-    auto body = r;
+    if (bounds.getWidth() < 4 || bounds.getHeight() < 4)
+        return;
 
-    auto leftCol = body.removeFromLeft (230);
-    presetBrowser.setBounds (leftCol.removeFromTop (150));
+    const float scale = juce::jmin (bounds.getWidth()  / (float) DesignTokens::kDesignWidth,
+                                    bounds.getHeight() / (float) DesignTokens::kDesignHeight);
 
-    leftCol.removeFromTop (10);
-    reverseButton.setBounds (leftCol.removeFromTop (28));
-    leftCol.removeFromTop (8);
-    saveUserPresetButton.setBounds (leftCol.removeFromTop (30));
+    const int scaledW = juce::roundToInt ((float) DesignTokens::kDesignWidth  * scale);
+    const int scaledH = juce::roundToInt ((float) DesignTokens::kDesignHeight * scale);
+    const int offsetX = (bounds.getWidth()  - scaledW) / 2;
+    const int offsetY = (bounds.getHeight() - scaledH) / 2;
 
-    waveformDisplay.setBounds (body.removeFromTop (128));
-    body.removeFromTop (10);
-
-    auto knobArea = body;
-    const int cols = 4;
-    const int cellW = juce::jmax (72, knobArea.getWidth() / cols);
-    const int cellH = 104;
-
-    juce::Component* knobs[] = { &knobInputGain,
-                                   &knobOutputGain,
-                                   &knobGlide,
-                                   &knobSmear,
-                                   &knobTone,
-                                   &knobReverbAmt,
-                                   &knobReverbSize,
-                                   &knobWidth,
-                                   &knobAttack,
-                                   &knobRelease,
-                                   &knobPan };
-
-    for (int i = 0; i < 11; ++i)
-    {
-        const int row = i / cols;
-        const int col = i % cols;
-        knobs[i]->setBounds (knobArea.getX() + col * cellW,
-                             knobArea.getY() + row * cellH,
-                             cellW,
-                             cellH);
-    }
+    pluginShell.setBounds (offsetX, offsetY, scaledW, scaledH);
+    pluginShell.setTransform (juce::AffineTransform());
+    pluginShell.resized();
 }
