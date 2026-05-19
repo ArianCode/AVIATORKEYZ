@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "StateSchema.h"
 
@@ -43,11 +45,18 @@ public:
     // Current preset tracking (for header display)
     juce::String getCurrentPresetName() const;
     juce::String getCurrentCategory() const;
+    juce::String getCurrentSampleId() const;
+
+    /** category, preset name, sampleId — message thread only */
+    std::function<void (const juce::String& category,
+                        const juce::String& name,
+                        const juce::String& sampleId)> onPresetLoaded;
 
 private:
     juce::AudioProcessorValueTreeState& apvts;
     juce::String currentPresetName;
     juce::String currentCategory;
+    juce::String currentSampleId { AviatorKeyz::SampleID::DEFAULT };
 
     juce::File getFactoryPresetsDir() const;
     juce::File getUserPresetsDir()    const;

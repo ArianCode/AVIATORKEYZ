@@ -1,4 +1,5 @@
 #include "SmearProcessor.h"
+#include <cmath>
 
 SmearProcessor::SmearProcessor()  = default;
 SmearProcessor::~SmearProcessor() = default;

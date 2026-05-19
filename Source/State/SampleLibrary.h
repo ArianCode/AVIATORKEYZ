@@ -48,6 +48,16 @@ public:
     SampleLibrary();
     ~SampleLibrary();
 
+    // Load embedded factory WAV bytes (message thread).
+    bool loadFromMemory (const void* data,
+                         size_t numBytes,
+                         const juce::String& displayName,
+                         int   rootNote    = 60,
+                         int   noteMin     = 0,
+                         int   noteMax     = 127,
+                         float velocityMin = 0.0f,
+                         float velocityMax = 1.0f);
+
     // Load a single audio file into a SampleRegion and append to map.
     // Returns true on success, false on format/read error.
     // Call from message thread only.

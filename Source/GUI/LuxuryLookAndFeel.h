@@ -42,7 +42,9 @@ public:
     static juce::Colour textPrimary()       noexcept { return juce::Colour (0xfff0e6d0); }
     static juce::Colour textDim()           noexcept { return juce::Colour (0xff7a7063); }
 
-    // M4: override drawRotarySlider, drawButtonBackground, drawComboBox, etc.
+    void drawRotarySlider (juce::Graphics& g, int x, int y, int width, int height,
+                           float sliderPosProportional, float rotaryStartAngle,
+                           float rotaryEndAngle, juce::Slider& slider) override;
 
 private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LuxuryLookAndFeel)

@@ -1,13 +1,19 @@
 #pragma once
+
 #include <juce_gui_basics/juce_gui_basics.h>
 
-// M4: Top bar — logo, active preset name, nav tabs (INPUT / TONE / SPACE)
 class HeaderBar : public juce::Component
 {
 public:
-    HeaderBar() = default;
-    void paint (juce::Graphics&) override {}
-    void resized() override {}
+    HeaderBar();
+
+    void setPresetInfo (const juce::String& category, const juce::String& presetName);
+    void paint (juce::Graphics& g) override;
+    void resized() override;
+
 private:
+    juce::Label titleLabel;
+    juce::Label subtitleLabel;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (HeaderBar)
 };

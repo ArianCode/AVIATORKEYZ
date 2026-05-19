@@ -28,8 +28,8 @@ namespace AviatorKeyz {
 //   never from processBlock.
 // Factory presets: XML next to wav in Resources/, same binary_data target.
 //   Presets wrap APVTS XML in <Preset category name schemaVersion> root.
-// Presets reference sound by convention: v0 uses the shared factory wav for
-// all factory presets; per-preset sample IDs come later.
+// Presets reference sound via sampleId on the <Preset> root (see SampleID).
+// Factory WAVs live in Resources/Factory/*.wav and embed via juce_add_binary_data.
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
@@ -48,6 +48,25 @@ namespace PresetKey {
     static constexpr const char* NAME        = "name";
     static constexpr const char* AUTHOR      = "author";
     static constexpr const char* SCHEMA_VER  = "schemaVersion";
+    static constexpr const char* SAMPLE_ID   = "sampleId";
+}
+
+// ---------------------------------------------------------------------------
+// Factory sample IDs — referenced by preset XML sampleId attribute.
+// v1.0: one embedded WAV per category + factory_default; replace WAV files before ship.
+// ---------------------------------------------------------------------------
+namespace SampleID {
+    static constexpr const char* DEFAULT      = "factory_default";
+    static constexpr const char* LEADS        = "factory_leads";
+    static constexpr const char* BRASS        = "factory_brass";
+    static constexpr const char* ENSEMBLES    = "factory_ensembles";
+    static constexpr const char* STRINGS      = "factory_strings";
+    static constexpr const char* PADS         = "factory_pads";
+    static constexpr const char* CHORDS       = "factory_chords";
+    static constexpr const char* SYNTHS       = "factory_synths";
+    static constexpr const char* ARPS         = "factory_arps";
+    static constexpr const char* VOCALS       = "factory_vocals";
+    static constexpr const char* BELLS        = "factory_bells";
 }
 
 // ---------------------------------------------------------------------------

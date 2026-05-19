@@ -100,14 +100,25 @@ AviatorKeyz/
 
 ## Milestones
 
+Visual tracker (updated 2026-05-18): **[docs/PROGRESS.md](docs/PROGRESS.md)**
+
+```
+M0  Scaffold & build          ████████████  100%
+M1  Sampler + MIDI            ██████████░░   85%  ← current
+M2  Creative DSP              ████████░░░░   70%
+M3  Presets                    ████░░░░░░░░   25%
+M4  Premium UI                 ██████░░░░░░   50%
+M5  FL Studio certification    ░░░░░░░░░░░░    0%
+```
+
 | # | Title | Status |
 |---|-------|--------|
-| M0 | Scaffold & Build | ✅ Complete |
-| M1 | Core Sampler Engine | 🔜 Next |
-| M2 | Creative Engine (Reverse/Glide/Smear/Tone) | Pending |
-| M3 | Preset System | Pending |
-| M4 | Premium UI | Pending |
-| M5 | Polish & FL Studio Cert | Pending |
+| M0 | Scaffold & Build | ✅ Complete (committed) |
+| M1 | Core Sampler Engine | 🔧 ~85% — see [PROGRESS.md](docs/PROGRESS.md) |
+| M2 | Creative Engine | ~70% wired in working tree |
+| M3 | Preset System | ~25% |
+| M4 | Premium UI | ~50% |
+| M5 | Polish & FL Studio Cert | Not started |
 
 ---
 

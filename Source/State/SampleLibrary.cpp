@@ -8,6 +8,56 @@ SampleLibrary::SampleLibrary()
 
 SampleLibrary::~SampleLibrary() = default;
 
+bool SampleLibrary::loadFromMemory (const void* data,
+                                     size_t numBytes,
+                                     const juce::String& displayName,
+                                     int rootNote,
+                                     int noteMin,
+                                     int noteMax,
+                                     float velocityMin,
+                                     float velocityMax)
+{
+    lastError.clear();
+
+    if (data == nullptr || numBytes == 0)
+    {
+        lastError = "Empty sample data.";
+        return false;
+    }
+
+    juce::MemoryInputStream stream (data, numBytes, false);
+    std::unique_ptr<juce::AudioFormatReader> reader (formatManager.createReaderFor (&stream));
+
+    if (reader == nullptr)
+    {
+        lastError = "Could not decode embedded sample: " + displayName;
+        return false;
+    }
+
+    const int numChannels = static_cast<int> (reader->numChannels);
+    const int numSamples  = static_cast<int> (reader->lengthInSamples);
+
+    SampleRegion region;
+    region.buffer.setSize (juce::jmax (1, juce::jmin (numChannels, 2)), numSamples);
+    region.buffer.clear();
+
+    if (! reader->read (&region.buffer, 0, numSamples, 0, true, true))
+    {
+        lastError = "Failed to read embedded sample: " + displayName;
+        return false;
+    }
+
+    region.rootNote    = juce::jlimit (0, 127, rootNote);
+    region.noteMin     = juce::jlimit (0, 127, noteMin);
+    region.noteMax     = juce::jlimit (0, 127, noteMax);
+    region.velocityMin = juce::jlimit (0.0f, 1.0f, velocityMin);
+    region.velocityMax = juce::jlimit (0.0f, 1.0f, velocityMax);
+    region.name        = displayName;
+
+    sampleMap.push_back (std::move (region));
+    return true;
+}
+
 bool SampleLibrary::loadSample (const juce::File& file,
                                  int   rootNote,
                                  int   noteMin,

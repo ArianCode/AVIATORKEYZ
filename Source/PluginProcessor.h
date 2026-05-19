@@ -3,21 +3,16 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 
+#include "DSP/SamplerEngine.h"
+#include "DSP/ToneShaper.h"
+#include "DSP/SmearProcessor.h"
+#include "DSP/ReverbTail.h"
+#include "MIDI/MidiHandler.h"
 #include "State/StateSchema.h"
+#include "State/PresetManager.h"
 
 // =============================================================================
 //  AviatorKeyzProcessor — root AudioProcessor
-//
-//  Responsibilities:
-//    - Own the AudioProcessorValueTreeState (APVTS)
-//    - Orchestrate DSP module chain on the audio thread
-//    - Implement state save/restore with schema versioning
-//    - Handle prepareToPlay / releaseResources lifecycle
-//
-//  Architecture rules:
-//    - DSP modules are prepared here and called from processBlock
-//    - GUI must only access APVTS parameters — never call DSP methods directly
-//    - No allocations, no UI calls, no locks inside processBlock
 // =============================================================================
 
 class AviatorKeyzProcessor final : public juce::AudioProcessor
@@ -26,13 +21,10 @@ public:
     AviatorKeyzProcessor();
     ~AviatorKeyzProcessor() override;
 
-    // -------------------------------------------------------------------------
-    // AudioProcessor interface
-    // -------------------------------------------------------------------------
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
 
-    bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
+    bool isBusesLayoutSupported (const AudioProcessor::BusesLayout& layouts) const override;
 
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
     void processBlockBypassed (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
@@ -40,69 +32,54 @@ public:
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
 
-    // -------------------------------------------------------------------------
-    // Plugin identity
-    // -------------------------------------------------------------------------
     const juce::String getName() const override         { return JucePlugin_Name; }
     bool   acceptsMidi() const override                 { return true; }
     bool   producesMidi() const override                { return false; }
     bool   isMidiEffect() const override                { return false; }
-    double getTailLengthSeconds() const override        { return 2.0; }
+    double getTailLengthSeconds() const override        { return 4.0; }
 
-    // -------------------------------------------------------------------------
-    // Programs (not used — presets handled by PresetManager)
-    // -------------------------------------------------------------------------
     int  getNumPrograms() override                              { return 1; }
     int  getCurrentProgram() override                           { return 0; }
     void setCurrentProgram (int) override                       {}
     const juce::String getProgramName (int) override            { return {}; }
     void changeProgramName (int, const juce::String&) override  {}
 
-    // -------------------------------------------------------------------------
-    // State persistence — called by host on project save/load
-    // CompatibilityNote: schema versioned; migrations live in setStateInformation
-    // -------------------------------------------------------------------------
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
-    // -------------------------------------------------------------------------
-    // Public accessors (GUI / PresetManager use only)
-    // -------------------------------------------------------------------------
     juce::AudioProcessorValueTreeState& getAPVTS() noexcept { return apvts; }
+    PresetManager&                       getPresetManager() noexcept { return *presetManager; }
+
+    /** Message / UI thread: factory waveform thumbnail (mono). May be null if empty. */
+    const float* getFactoryWaveformData() const noexcept { return factoryMono.getData(); }
+    int          getFactoryWaveformFrames() const noexcept { return factoryFrames; }
+
+    /** Message thread: load embedded factory sample by id (from preset sampleId). */
+    void loadFactorySample (const juce::String& sampleId, int rootNote = 60);
 
 private:
-    // -------------------------------------------------------------------------
-    // Parameter layout — called once at construction
-    // CompatibilityNote: param IDs are locked; see StateSchema.h
-    // -------------------------------------------------------------------------
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
-    // -------------------------------------------------------------------------
-    // APVTS — single source of truth for all automatable parameters
-    // -------------------------------------------------------------------------
+    static void applyStereoWidth (juce::AudioBuffer<float>& buffer, float width) noexcept;
+    static void applyPan (juce::AudioBuffer<float>& buffer, float pan) noexcept;
+
     juce::AudioProcessorValueTreeState apvts;
 
-    // -------------------------------------------------------------------------
-    // Smoothed parameter values (audio-thread safe)
-    // These track their corresponding APVTS params and prevent zipper noise.
-    // Reset timing: 20 ms default, set in prepareToPlay.
-    // -------------------------------------------------------------------------
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> inputGainSmoothed;
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> outputGainSmoothed;
-    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> toneSmoothed;
-    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> smearSmoothed;
-    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> reverbAmountSmoothed;
-    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> stereoWidthSmoothed;
 
-    // -------------------------------------------------------------------------
-    // DSP module placeholders — replaced with real implementations in M1/M2
-    // -------------------------------------------------------------------------
-    // std::unique_ptr<SamplerEngine>    samplerEngine;
-    // std::unique_ptr<ToneShaper>       toneShaper;
-    // std::unique_ptr<SmearProcessor>   smearProcessor;
-    // std::unique_ptr<GlideEngine>      glideEngine;
-    // std::unique_ptr<ReversePlayer>    reversePlayer;
-    // juce::dsp::Reverb                 reverb;
+    SamplerEngine   samplerEngine;
+    MidiHandler     midiHandler;
+    ToneShaper      toneShaper;
+    SmearProcessor  smearProcessor;
+    ReverbTail      reverbTail;
+
+    juce::HeapBlock<float> factoryMono;
+    int                    factoryFrames { 0 };
+    int                    factoryRootNote { 60 };
+    juce::String           loadedSampleId;
+
+    std::unique_ptr<PresetManager> presetManager;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AviatorKeyzProcessor)
 };

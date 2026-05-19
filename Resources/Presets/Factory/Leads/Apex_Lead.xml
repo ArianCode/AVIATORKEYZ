@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Preset category="Leads" name="Apex Lead" schemaVersion="1" sampleId="factory_leads" author="AviatorKeyz">
+  <AviatorKeyzState stateVersion="1">
+    <PARAM id="input_gain" value="0.0"/>
+    <PARAM id="output_gain" value="-1.0"/>
+    <PARAM id="reverse" value="0"/>
+    <PARAM id="glide_time" value="0.0"/>
+    <PARAM id="smear" value="0.0"/>
+    <PARAM id="tone" value="0.1"/>
+    <PARAM id="reverb_amount" value="0.1"/>
+    <PARAM id="reverb_size" value="0.55"/>
+    <PARAM id="stereo_width" value="1.05"/>
+    <PARAM id="env_attack" value="8.0"/>
+    <PARAM id="env_release" value="190.0"/>
+    <PARAM id="pan" value="0.0"/>
+  </AviatorKeyzState>
+</Preset>

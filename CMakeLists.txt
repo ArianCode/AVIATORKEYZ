@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.22)
 #  Targets: VST3  |  Platforms: Windows, macOS
 # =============================================================================
 
-project(AviatorKeyz VERSION 0.1.0 LANGUAGES CXX)
+project(AviatorKeyz VERSION 0.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -27,7 +27,8 @@ include(FetchContent)
 FetchContent_Declare(
     JUCE
     GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
-    GIT_TAG        7.0.12
+    # JUCE 8+ required for macOS 15 SDK (juceaide / CGWindowListCreateImage)
+    GIT_TAG        8.0.9
     GIT_SHALLOW    TRUE
     GIT_PROGRESS   TRUE
 )
@@ -36,11 +37,16 @@ FetchContent_MakeAvailable(JUCE)
 
 # ---------------------------------------------------------------------------
 # Embedded factory assets (wav + preset XML). See StateSchema.h "Content pipeline".
+# Regenerate assets: python3 scripts/generate_factory_assets.py
 # ---------------------------------------------------------------------------
+file(GLOB_RECURSE AVIATORKEYZ_FACTORY_PRESETS CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/Resources/Presets/Factory/*.xml")
+file(GLOB AVIATORKEYZ_FACTORY_SAMPLES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/Resources/Factory/*.wav")
+
 juce_add_binary_data(AviatorKeyzData SOURCES
-    Resources/Factory/factory_default.wav
-    Resources/Presets/Factory/Leads/Init.xml
-    Resources/Presets/Factory/Pads/Pad_Warm.xml
+    ${AVIATORKEYZ_FACTORY_SAMPLES}
+    ${AVIATORKEYZ_FACTORY_PRESETS}
     HEADER_NAME BinaryData.h
     NAMESPACE AviatorKeyzBinary
 )
@@ -90,6 +96,7 @@ target_sources(AviatorKeyz
 
         # State layer
         Source/State/PresetManager.cpp
+        Source/State/FactoryResources.cpp
         Source/State/SampleLibrary.cpp
 
         # DSP layer (stubs — filled in during M1/M2)
