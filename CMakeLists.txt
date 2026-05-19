@@ -179,3 +179,12 @@ install(
     DESTINATION "AviatorKeyz.vst3"
     USE_SOURCE_PERMISSIONS
 )
+
+# ---------------------------------------------------------------------------
+# C++ unit tests (optional, excluded from default all-target build)
+#
+# Build:   cmake --build build --target AviatorKeyzTests
+# Run:     ./build/Tests/AviatorKeyzTests                    (macOS/Linux)
+#          build\Tests\Release\AviatorKeyzTests.exe          (Windows)
+# ---------------------------------------------------------------------------
+add_subdirectory(Tests EXCLUDE_FROM_ALL)
