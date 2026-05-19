@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.22)
 # =============================================================================
 #  AviatorKeyz — Premium Sample-Based VST3 Instrument
 #  Build system: CMake + JUCE (fetched automatically)
-#  Targets: VST3  |  Platforms: Windows, macOS
+#  Targets: VST3 + Standalone  |  Primary platform: macOS (Windows secondary)
 # =============================================================================
 
 project(AviatorKeyz VERSION 0.1.0 LANGUAGES C CXX)
@@ -77,7 +77,7 @@ juce_add_plugin(AviatorKeyz
     IS_MIDI_EFFECT              FALSE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
 
-    # VST3 category — must be "Instrument|Synth" to appear correctly in FL Studio
+    # VST3 category — must be "Instrument|Synth" (Logic, Ableton, FL Studio, etc.)
     VST3_CATEGORIES             "Instrument|Synth"
 
     # Post-build copy (set AVIATORKEYZ_COPY_AFTER_BUILD=ON to enable)
@@ -193,7 +193,7 @@ install(
 # C++ unit tests (optional, excluded from default all-target build)
 #
 # Build:   cmake --build build --target AviatorKeyzTests
-# Run:     ./build/Tests/AviatorKeyzTests                    (macOS/Linux)
-#          build\Tests\Release\AviatorKeyzTests.exe          (Windows)
+# Run:     ./build/tests/AviatorKeyzTests_artefacts/AviatorKeyzTests   (macOS, Ninja)
+#          build/tests/AviatorKeyzTests_artefacts/AviatorKeyzTests.exe (Windows)
 # ---------------------------------------------------------------------------
-add_subdirectory(Tests EXCLUDE_FROM_ALL)
+add_subdirectory(tests EXCLUDE_FROM_ALL)

@@ -1,0 +1,62 @@
+type,id,name,category,sampleId,file_path,root_midi,status,source,license_ref,peak_dbtp,lufs_notes,owner,notes
+wav,factory_default,Default,fallback,factory_default,Resources/Factory/factory_default.wav,60,draft,synthetic_placeholder,N/A,,,engineering,Replace before commercial ship
+wav,factory_leads,Leads hero,Leads,factory_leads,Resources/Factory/factory_leads.wav,60,draft,synthetic_placeholder,N/A,,,,Replace before commercial ship
+wav,factory_brass,Brass hero,Brass,factory_brass,Resources/Factory/factory_brass.wav,60,draft,synthetic_placeholder,N/A,,,,Replace before commercial ship
+wav,factory_ensembles,Ensembles hero,Ensembles,factory_ensembles,Resources/Factory/factory_ensembles.wav,60,draft,synthetic_placeholder,N/A,,,,Replace before commercial ship
+wav,factory_strings,Strings hero,Strings,factory_strings,Resources/Factory/factory_strings.wav,60,draft,synthetic_placeholder,N/A,,,,Replace before commercial ship
+wav,factory_pads,Pads hero,Pads,factory_pads,Resources/Factory/factory_pads.wav,60,draft,synthetic_placeholder,N/A,,,,Replace before commercial ship
+wav,factory_chords,Chords hero,Chords,factory_chords,Resources/Factory/factory_chords.wav,60,draft,synthetic_placeholder,N/A,,,,Replace before commercial ship
+wav,factory_synths,Synths hero,Synths,factory_synths,Resources/Factory/factory_synths.wav,60,draft,synthetic_placeholder,N/A,,,,Replace before commercial ship
+wav,factory_arps,Arps hero,Arps,factory_arps,Resources/Factory/factory_arps.wav,60,draft,synthetic_placeholder,N/A,,,,Replace before commercial ship
+wav,factory_vocals,Vocals hero,Vocals,factory_vocals,Resources/Factory/factory_vocals.wav,60,draft,synthetic_placeholder,N/A,,,,Replace before commercial ship
+wav,factory_bells,Bells hero,Bells,factory_bells,Resources/Factory/factory_bells.wav,60,draft,synthetic_placeholder,N/A,,,,Replace before commercial ship
+preset,arps_reverse_arp,Reverse Arp,Arps,factory_arps,Resources/Presets/Factory/Arps/Reverse_Arp.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,arps_smear_arp,Smear Arp,Arps,factory_arps,Resources/Presets/Factory/Arps/Smear_Arp.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,arps_sparkle_arp,Sparkle Arp,Arps,factory_arps,Resources/Presets/Factory/Arps/Sparkle_Arp.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,arps_tight_arp,Tight Arp,Arps,factory_arps,Resources/Presets/Factory/Arps/Tight_Arp.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,arps_wide_arp,Wide Arp,Arps,factory_arps,Resources/Presets/Factory/Arps/Wide_Arp.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,bells_crystal_bell,Crystal Bell,Bells,factory_bells,Resources/Presets/Factory/Bells/Crystal_Bell.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,bells_dark_bell,Dark Bell,Bells,factory_bells,Resources/Presets/Factory/Bells/Dark_Bell.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,bells_reverse_bell,Reverse Bell,Bells,factory_bells,Resources/Presets/Factory/Bells/Reverse_Bell.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,bells_soft_bell,Soft Bell,Bells,factory_bells,Resources/Presets/Factory/Bells/Soft_Bell.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,bells_wide_bell,Wide Bell,Bells,factory_bells,Resources/Presets/Factory/Bells/Wide_Bell.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,brass_fanfare,Fanfare,Brass,factory_brass,Resources/Presets/Factory/Brass/Fanfare.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,brass_horn_section,Horn Section,Brass,factory_brass,Resources/Presets/Factory/Brass/Horn_Section.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,brass_muted_brass,Muted Brass,Brass,factory_brass,Resources/Presets/Factory/Brass/Muted_Brass.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,brass_reverse_brass,Reverse Brass,Brass,factory_brass,Resources/Presets/Factory/Brass/Reverse_Brass.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,brass_soft_brass,Soft Brass,Brass,factory_brass,Resources/Presets/Factory/Brass/Soft_Brass.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,chords_bright_chords,Bright Chords,Chords,factory_chords,Resources/Presets/Factory/Chords/Bright_Chords.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,chords_narrow_chords,Narrow Chords,Chords,factory_chords,Resources/Presets/Factory/Chords/Narrow_Chords.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,chords_reverse_chords,Reverse Chords,Chords,factory_chords,Resources/Presets/Factory/Chords/Reverse_Chords.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,chords_smear_chords,Smear Chords,Chords,factory_chords,Resources/Presets/Factory/Chords/Smear_Chords.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,chords_warm_chords,Warm Chords,Chords,factory_chords,Resources/Presets/Factory/Chords/Warm_Chords.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,ensembles_chamber,Chamber,Ensembles,factory_ensembles,Resources/Presets/Factory/Ensembles/Chamber.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,ensembles_dark_ensemble,Dark Ensemble,Ensembles,factory_ensembles,Resources/Presets/Factory/Ensembles/Dark_Ensemble.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,ensembles_full_stack,Full Stack,Ensembles,factory_ensembles,Resources/Presets/Factory/Ensembles/Full_Stack.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,ensembles_smear_wash,Smear Wash,Ensembles,factory_ensembles,Resources/Presets/Factory/Ensembles/Smear_Wash.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,ensembles_wide_ensemble,Wide Ensemble,Ensembles,factory_ensembles,Resources/Presets/Factory/Ensembles/Wide_Ensemble.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,leads_apex_lead,Apex Lead,Leads,factory_leads,Resources/Presets/Factory/Leads/Apex_Lead.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,leads_bright_solo,Bright Solo,Leads,factory_leads,Resources/Presets/Factory/Leads/Bright_Solo.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,leads_glide_cut,Glide Cut,Leads,factory_leads,Resources/Presets/Factory/Leads/Glide_Cut.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,leads_init,Init,Leads,factory_leads,Resources/Presets/Factory/Leads/Init.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,leads_reverse_stab,Reverse Stab,Leads,factory_leads,Resources/Presets/Factory/Leads/Reverse_Stab.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,pads_cloud_pad,Cloud Pad,Pads,factory_pads,Resources/Presets/Factory/Pads/Cloud_Pad.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,pads_dark_pad,Dark Pad,Pads,factory_pads,Resources/Presets/Factory/Pads/Dark_Pad.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,pads_glide_pad,Glide Pad,Pads,factory_pads,Resources/Presets/Factory/Pads/Glide_Pad.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,pads_pad_warm,Pad Warm,Pads,factory_pads,Resources/Presets/Factory/Pads/Pad_Warm.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,pads_wide_pad,Wide Pad,Pads,factory_pads,Resources/Presets/Factory/Pads/Wide_Pad.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,strings_air_strings,Air Strings,Strings,factory_strings,Resources/Presets/Factory/Strings/Air_Strings.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,strings_legato_strings,Legato Strings,Strings,factory_strings,Resources/Presets/Factory/Strings/Legato_Strings.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,strings_reverse_bow,Reverse Bow,Strings,factory_strings,Resources/Presets/Factory/Strings/Reverse_Bow.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,strings_staccato_hit,Staccato Hit,Strings,factory_strings,Resources/Presets/Factory/Strings/Staccato_Hit.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,strings_trem_strings,Trem Strings,Strings,factory_strings,Resources/Presets/Factory/Strings/Trem_Strings.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,synths_analog_glow,Analog Glow,Synths,factory_synths,Resources/Presets/Factory/Synths/Analog_Glow.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,synths_dark_synth,Dark Synth,Synths,factory_synths,Resources/Presets/Factory/Synths/Dark_Synth.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,synths_glass_synth,Glass Synth,Synths,factory_synths,Resources/Presets/Factory/Synths/Glass_Synth.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,synths_reverse_synth,Reverse Synth,Synths,factory_synths,Resources/Presets/Factory/Synths/Reverse_Synth.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,synths_wide_synth,Wide Synth,Synths,factory_synths,Resources/Presets/Factory/Synths/Wide_Synth.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,vocals_vox_air,Vox Air,Vocals,factory_vocals,Resources/Presets/Factory/Vocals/Vox_Air.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,vocals_vox_bright,Vox Bright,Vocals,factory_vocals,Resources/Presets/Factory/Vocals/Vox_Bright.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,vocals_vox_choir,Vox Choir,Vocals,factory_vocals,Resources/Presets/Factory/Vocals/Vox_Choir.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,vocals_vox_glide,Vox Glide,Vocals,factory_vocals,Resources/Presets/Factory/Vocals/Vox_Glide.xml,,draft,built_in,,,,,Review after category WAV swap
+preset,vocals_vox_reverse,Vox Reverse,Vocals,factory_vocals,Resources/Presets/Factory/Vocals/Vox_Reverse.xml,,draft,built_in,,,,,Review after category WAV swap

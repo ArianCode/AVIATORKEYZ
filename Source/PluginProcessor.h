@@ -10,6 +10,7 @@
 #include "MIDI/MidiHandler.h"
 #include "State/StateSchema.h"
 #include "State/PresetManager.h"
+#include "State/SampleLibrary.h"
 
 // =============================================================================
 //  AviatorKeyzProcessor — root AudioProcessor
@@ -51,8 +52,8 @@ public:
     PresetManager&                       getPresetManager() noexcept { return *presetManager; }
 
     /** Message / UI thread: factory waveform thumbnail (mono). May be null if empty. */
-    const float* getFactoryWaveformData() const noexcept { return factoryMono.getData(); }
-    int          getFactoryWaveformFrames() const noexcept { return factoryFrames; }
+    const float* getFactoryWaveformData() const noexcept;
+    int          getFactoryWaveformFrames() const noexcept { return factoryWaveformFrames; }
 
     /** Message thread: load embedded factory sample by id (from preset sampleId). */
     void loadFactorySample (const juce::String& sampleId, int rootNote = 60);
@@ -74,9 +75,9 @@ private:
     SmearProcessor  smearProcessor;
     ReverbTail      reverbTail;
 
-    juce::HeapBlock<float> factoryMono;
-    int                    factoryFrames { 0 };
+    SampleLibrary          sampleLibrary;
     int                    factoryRootNote { 60 };
+    int                    factoryWaveformFrames { 0 };
     juce::String           loadedSampleId;
 
     std::unique_ptr<PresetManager> presetManager;

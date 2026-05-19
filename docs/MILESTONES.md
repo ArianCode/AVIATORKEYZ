@@ -7,7 +7,7 @@ Exit criteria are the definition of "done" — not "mostly done."
 
 ## M0 — Scaffold & Build ✅ COMPLETE
 
-**Goal:** Compilable JUCE VST3 instrument shell that scans correctly in FL Studio.
+**Goal:** Compilable JUCE VST3 instrument shell that runs on macOS (Standalone + DAW scan).
 
 **Deliverables:**
 - CMakeLists.txt with JUCE via FetchContent (pinned version, reproducible)
@@ -16,11 +16,12 @@ Exit criteria are the definition of "done" — not "mostly done."
 - StateSchema.h with all param IDs and schema version
 - All DSP/GUI/MIDI/State module skeletons (safe, compilable stubs)
 - docs/ folder with all spec documents
-- build script for Windows
+- `scripts/build_macos.sh` (primary); `scripts/build_windows.bat` (secondary)
 
 **Exit criteria:**
-- [ ] `scripts/build_windows.bat` produces `AviatorKeyz.vst3` with no errors
-- [ ] Plugin appears under Instruments in FL Studio plugin scan (not Effects)
+- [ ] `./scripts/build_macos.sh` produces `AviatorKeyz.vst3` with no errors
+- [ ] Standalone app launches without crash
+- [ ] Plugin appears as a VST3 **instrument** in a macOS DAW scan (not Effects)
 - [ ] Plugin window opens without crash
 - [ ] Plugin window resizes within set bounds
 - [ ] Project save → close → reopen → plugin loads with correct default state
@@ -68,13 +69,13 @@ Exit criteria are the definition of "done" — not "mostly done."
 - [ ] Glide: audible pitch slide at 100 ms; instant at 0 ms
 - [ ] Smear: 0.0 = clean transients; 1.0 = blurred wash
 - [ ] Tone: +1.0 = measurably brighter; -1.0 = measurably darker
-- [ ] All 4 controls automatable in FL Studio without clicks or zipper noise
+- [ ] All 4 controls automatable in host without clicks or zipper noise
 
 ---
 
 ## M3 — Preset System
 
-**Goal:** Presets save, load, and recall correctly in FL Studio. Factory library populated.
+**Goal:** Presets save, load, and recall correctly in the host. Factory library populated.
 
 **Deliverables:**
 - Factory presets as XML files binary-embedded via `juce_add_binary_data`
@@ -88,7 +89,7 @@ Exit criteria are the definition of "done" — not "mostly done."
 - [ ] 5+ factory presets per category (50+ total)
 - [ ] Load preset → all 9 param values match preset file
 - [ ] Save user preset → file appears in user docs folder
-- [ ] FL Studio project save → close → reopen → preset state recalled exactly
+- [ ] Host project save → close → reopen → preset state recalled exactly
 
 ---
 
@@ -113,9 +114,9 @@ Exit criteria are the definition of "done" — not "mostly done."
 
 ---
 
-## M5 — Polish & FL Studio Certification
+## M5 — Polish & Host Certification
 
-**Goal:** Plugin ships. No known crashes. FL Studio sign-off on all major behaviors.
+**Goal:** Plugin ships on macOS. No known crashes. Sign-off on all major host behaviors.
 
 **Deliverables:**
 - Multi-instance test (4 simultaneous instances)
@@ -129,7 +130,8 @@ Exit criteria are the definition of "done" — not "mostly done."
 - [ ] All test cases in `TESTPLAN.md` passing
 - [ ] 48h soak test completed without crash or leak
 - [ ] CPU <5% at 32 voices
-- [ ] Signed VST3 bundle installs cleanly on a fresh Windows machine
+- [ ] Signed VST3 bundle installs cleanly on a fresh macOS machine (notarized)
+- [ ] Windows build and scan verified on secondary platform
 
 ---
 

@@ -22,8 +22,10 @@ It is NOT a general-purpose sampler. It is a curated instrument with a strong ed
 | Plugin type | Instrument (synth) |
 | MIDI input | Yes |
 | Audio output | Stereo |
-| Primary DAW target | FL Studio (Windows) |
-| Platform | Windows 10/11 x64 |
+| Primary DAW targets | Logic Pro, Ableton Live, Reaper (macOS) |
+| Primary platform | macOS 13+ (Apple Silicon + Intel) |
+| Secondary platform | Windows 10/11 x64 |
+| Secondary DAW target | FL Studio (Windows / macOS) |
 
 ---
 
@@ -92,8 +94,8 @@ Shapes overall sound color with a single control. Negative values: darker, warme
 
 ## Out of Scope (v1.0)
 
-- macOS support
 - AU / AAX formats
+- Windows as the **primary** release target (macOS ships first; Windows follows)
 - MPE support
 - Modulation matrix
 - Arpeggiator / step sequencer

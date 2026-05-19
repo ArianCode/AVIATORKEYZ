@@ -5,6 +5,29 @@ Core plugin code should never contain host-specific hacks — all workarounds ar
 
 ---
 
+## macOS
+
+### MAC-001 — VST3 install location
+**Status:** Informational  
+**Issue:** macOS hosts only scan standard VST3 folders.  
+**Steps:**
+1. Build: `./scripts/build_macos.sh install` (or copy manually)
+2. Confirm bundle at `~/Library/Audio/Plug-Ins/VST3/AviatorKeyz.vst3`
+3. Rescan plugins in the DAW  
+**Notes:** System-wide path `/Library/Audio/Plug-Ins/VST3/` requires admin; prefer user folder for development.
+
+### MAC-002 — Gatekeeper / unsigned builds
+**Status:** Informational  
+**Issue:** Unsigned debug builds may be blocked on first launch.  
+**Mitigation:** Ad-hoc sign locally, or allow in **System Settings → Privacy & Security**. Release builds require Developer ID + notarization — see `docs/CODE_SIGNING.md`.
+
+### MAC-003 — Standalone vs VST3 state paths
+**Status:** Informational  
+**Issue:** Standalone and DAW instances use the same user preset folder (`~/Documents/AviatorKeyz/Presets/`).  
+**Mitigation:** No host-specific hacks in plugin code; document path for QA.
+
+---
+
 ## FL Studio
 
 ### FLSI-001 — Plugin category assignment
@@ -41,8 +64,18 @@ Core plugin code should never contain host-specific hacks — all workarounds ar
 
 ## General VST3 Notes
 
-### GVST-001 — VST3 bundle structure on Windows
-The VST3 format on Windows requires a specific bundle folder structure:
+### GVST-001 — VST3 bundle structure (macOS)
+On macOS the binary lives inside the bundle:
+```
+AviatorKeyz.vst3/
+└── Contents/
+    └── MacOS/
+        └── AviatorKeyz
+```
+JUCE's CMake build creates this structure automatically. Do not manually rename the binary.
+
+### GVST-001b — VST3 bundle structure (Windows)
+On Windows:
 ```
 AviatorKeyz.vst3/
 └── Contents/

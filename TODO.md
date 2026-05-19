@@ -16,7 +16,7 @@ Priority labels: [P0] = blocking, [P1] = current milestone, [P2] = next mileston
 - [P1] Pitch ratio calculation: `pow(2, (note - rootNote) / 12.0f)`
 - [P1] Wire GlideEngine into SamplerEngine pitch ratio per voice
 - [P1] Implement `prepareToPlay` / `releaseResources` lifecycle in SamplerEngine
-- [P1] Test: FL Studio scan (T-M0-03), plugin loads (T-M0-04)
+- [P1] Test: macOS build + Standalone (T-M0-01–03), DAW scan + load (T-M0-04–05)
 - [P2] Double-buffer for sample map swaps (message thread writes, audio thread reads)
 - [P2] Support loading .wav and .aif files via juce::AudioFormatManager
 
@@ -61,17 +61,17 @@ Priority labels: [P0] = blocking, [P1] = current milestone, [P2] = next mileston
 
 ---
 
-## M5 — Polish & FL Studio Cert [P3]
+## M5 — Polish & Host Cert [P3]
 
 - [P1] Multi-instance test: 4 simultaneous instances (T-M5-01)
 - [P1] Transport start/stop edge case testing (T-M5-02)
 - [P1] Plugin bypass test (T-M5-03)
 - [P1] CPU profiling — target <5% at 32 voices, 44.1 kHz, 256 buf (T-M5-04)
 - [P2] 48h soak test for memory leaks (T-M5-05)
-- [P2] Release build packaging — signed .vst3 bundle
+- [P2] Release build packaging — codesign + notarize .vst3 (macOS)
 - [P3] User sample import UI (drag-and-drop onto waveform display)
 - [P3] Sample library browser (multi-file sample map assignment)
-- [P3] macOS build support
+- [P3] Windows secondary build + FL Studio scan (T-M0-W01)
 
 ---
 
@@ -79,4 +79,4 @@ Priority labels: [P0] = blocking, [P1] = current milestone, [P2] = next mileston
 
 - [P1] Initialize Git repo with initial commit after M0 scaffold
 - [P2] Add juce::UnitTest subclasses for GlideEngine, StateSchema
-- [P3] CI pipeline (GitHub Actions: Windows CMake build on push)
+- [P3] CI pipeline (GitHub Actions: macOS CMake build on push)

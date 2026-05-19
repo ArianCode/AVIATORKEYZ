@@ -174,18 +174,34 @@ void AviatorKeyzProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
     loadFactorySample (presetManager->getCurrentSampleId(), factoryRootNote);
 }
 
+const float* AviatorKeyzProcessor::getFactoryWaveformData() const noexcept
+{
+    int frames = 0;
+    return sampleLibrary.getPrimaryWaveformData (frames);
+}
+
 void AviatorKeyzProcessor::loadFactorySample (const juce::String& sampleId, int rootNote)
 {
     factoryRootNote = juce::jlimit (0, 127, rootNote);
     loadedSampleId = sampleId;
+    factoryWaveformFrames = 0;
 
-    factoryMono.free();
-    factoryFrames = 0;
+    samplerEngine.allSoundOff();
 
-    if (FactoryResources::loadEmbeddedSampleMono (sampleId, factoryMono, factoryFrames, factoryRootNote))
-        samplerEngine.setSampleTable (factoryMono.getData(), factoryFrames, factoryRootNote);
-    else
-        samplerEngine.setSampleTable (nullptr, 0, factoryRootNote);
+    sampleLibrary.clearAll();
+
+    int numBytes = 0;
+    if (const void* data = FactoryResources::getEmbeddedWavData (sampleId, numBytes))
+    {
+        sampleLibrary.loadFromMemory (data,
+                                      static_cast<size_t> (numBytes),
+                                      sampleId,
+                                      factoryRootNote);
+    }
+
+    sampleLibrary.publish();
+    samplerEngine.setSampleSnapshot (sampleLibrary.getPublishedSnapshot());
+    sampleLibrary.getPrimaryWaveformData (factoryWaveformFrames);
 }
 
 void AviatorKeyzProcessor::releaseResources()

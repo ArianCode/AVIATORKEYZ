@@ -1,6 +1,6 @@
 @echo off
 REM =============================================================================
-REM  AviatorKeyz — Windows Build Script
+REM  AviatorKeyz — Windows Build Script (secondary platform; macOS: build_macos.sh)
 REM  Usage:
 REM    build_windows.bat          (Release build)
 REM    build_windows.bat debug    (Debug build)

@@ -2,11 +2,61 @@
 
 SampleLibrary::SampleLibrary()
 {
-    // Register supported formats
-    formatManager.registerBasicFormats(); // WAV, AIFF, and others if available
+    formatManager.registerBasicFormats();
+    storages[0].snapshot = std::make_unique<AudioSnapshot>();
+    storages[1].snapshot = std::make_unique<AudioSnapshot>();
 }
 
 SampleLibrary::~SampleLibrary() = default;
+
+const SampleLibrary::AudioSnapshot* SampleLibrary::getPublishedSnapshot() const noexcept
+{
+    const int idx = readIndex.load (std::memory_order_acquire);
+    return storages[idx].snapshot.get();
+}
+
+const float* SampleLibrary::getPrimaryWaveformData (int& numFramesOut) const noexcept
+{
+    numFramesOut = 0;
+    const auto* snap = getPublishedSnapshot();
+    if (snap == nullptr || snap->regions.empty())
+        return nullptr;
+
+    const auto& r = snap->regions.front();
+    numFramesOut = r.numFrames;
+    return r.data;
+}
+
+const SampleLibrary::AudioRegion* SampleLibrary::findRegionForNote (const AudioSnapshot& snapshot,
+                                                                     int midiNote,
+                                                                     float velocity) noexcept
+{
+    if (snapshot.regions.empty())
+        return nullptr;
+
+    const auto vel = juce::jlimit (0.0f, 1.0f, velocity);
+    const SampleLibrary::AudioRegion* fallback = nullptr;
+
+    for (const auto& region : snapshot.regions)
+    {
+        if (midiNote < region.noteMin || midiNote > region.noteMax)
+            continue;
+
+        if (vel < region.velocityMin || vel > region.velocityMax)
+        {
+            if (fallback == nullptr)
+                fallback = &region;
+            continue;
+        }
+
+        return &region;
+    }
+
+    if (fallback != nullptr)
+        return fallback;
+
+    return &snapshot.regions.front();
+}
 
 bool SampleLibrary::loadFromMemory (const void* data,
                                      size_t numBytes,
@@ -25,8 +75,9 @@ bool SampleLibrary::loadFromMemory (const void* data,
         return false;
     }
 
-    juce::MemoryInputStream stream (data, numBytes, false);
-    std::unique_ptr<juce::AudioFormatReader> reader (formatManager.createReaderFor (&stream));
+    auto stream = std::make_unique<juce::MemoryInputStream> (data, numBytes, false);
+    std::unique_ptr<juce::AudioFormatReader> reader (
+        formatManager.createReaderFor (std::move (stream)));
 
     if (reader == nullptr)
     {
@@ -47,14 +98,14 @@ bool SampleLibrary::loadFromMemory (const void* data,
         return false;
     }
 
-    region.rootNote    = juce::jlimit (0, 127, rootNote);
-    region.noteMin     = juce::jlimit (0, 127, noteMin);
-    region.noteMax     = juce::jlimit (0, 127, noteMax);
-    region.velocityMin = juce::jlimit (0.0f, 1.0f, velocityMin);
-    region.velocityMax = juce::jlimit (0.0f, 1.0f, velocityMax);
-    region.name        = displayName;
+    region.rootNote     = juce::jlimit (0, 127, rootNote);
+    region.noteMin      = juce::jlimit (0, 127, noteMin);
+    region.noteMax      = juce::jlimit (0, 127, noteMax);
+    region.velocityMin  = juce::jlimit (0.0f, 1.0f, velocityMin);
+    region.velocityMax  = juce::jlimit (0.0f, 1.0f, velocityMax);
+    region.name         = displayName;
 
-    sampleMap.push_back (std::move (region));
+    pendingMap.push_back (std::move (region));
     return true;
 }
 
@@ -67,7 +118,6 @@ bool SampleLibrary::loadSample (const juce::File& file,
 {
     lastError.clear();
 
-    // --- Validate extension ---
     const auto ext = file.getFileExtension().toLowerCase();
     if (ext != ".wav" && ext != ".aif" && ext != ".aiff")
     {
@@ -76,7 +126,6 @@ bool SampleLibrary::loadSample (const juce::File& file,
         return false;
     }
 
-    // --- Open reader ---
     std::unique_ptr<juce::AudioFormatReader> reader (
         formatManager.createReaderFor (file));
 
@@ -87,7 +136,6 @@ bool SampleLibrary::loadSample (const juce::File& file,
         return false;
     }
 
-    // --- Load into buffer ---
     const int numChannels = static_cast<int> (reader->numChannels);
     const int numSamples  = static_cast<int> (reader->lengthInSamples);
 
@@ -102,19 +150,70 @@ bool SampleLibrary::loadSample (const juce::File& file,
         return false;
     }
 
-    region.rootNote    = juce::jlimit (0, 127, rootNote);
-    region.noteMin     = juce::jlimit (0, 127, noteMin);
-    region.noteMax     = juce::jlimit (0, 127, noteMax);
-    region.velocityMin = juce::jlimit (0.0f, 1.0f, velocityMin);
-    region.velocityMax = juce::jlimit (0.0f, 1.0f, velocityMax);
-    region.name        = file.getFileNameWithoutExtension();
+    region.rootNote     = juce::jlimit (0, 127, rootNote);
+    region.noteMin      = juce::jlimit (0, 127, noteMin);
+    region.noteMax      = juce::jlimit (0, 127, noteMax);
+    region.velocityMin  = juce::jlimit (0.0f, 1.0f, velocityMin);
+    region.velocityMax  = juce::jlimit (0.0f, 1.0f, velocityMax);
+    region.name         = file.getFileNameWithoutExtension();
 
-    sampleMap.push_back (std::move (region));
+    pendingMap.push_back (std::move (region));
     return true;
 }
 
 void SampleLibrary::clearAll()
 {
-    sampleMap.clear();
+    pendingMap.clear();
     lastError.clear();
+}
+
+void SampleLibrary::buildSnapshotInto (const int storageIndex)
+{
+    auto& storage = storages[storageIndex];
+    storage.monoBuffers.clear();
+    storage.snapshot = std::make_unique<AudioSnapshot>();
+
+    for (const auto& region : pendingMap)
+    {
+        const int numFrames = region.buffer.getNumSamples();
+        if (numFrames <= 0)
+            continue;
+
+        const int numChannels = region.buffer.getNumChannels();
+        juce::HeapBlock<float> mono;
+        mono.malloc (static_cast<size_t> (numFrames));
+
+        if (numChannels > 1)
+        {
+            auto* dst = mono.getData();
+            for (int i = 0; i < numFrames; ++i)
+                dst[i] = 0.5f * (region.buffer.getSample (0, i) + region.buffer.getSample (1, i));
+        }
+        else
+        {
+            juce::FloatVectorOperations::copy (mono.getData(),
+                                               region.buffer.getReadPointer (0),
+                                               numFrames);
+        }
+
+        storage.monoBuffers.push_back (std::move (mono));
+
+        AudioRegion published;
+        published.data        = storage.monoBuffers.back().getData();
+        published.numFrames   = numFrames;
+        published.rootNote    = region.rootNote;
+        published.noteMin     = region.noteMin;
+        published.noteMax     = region.noteMax;
+        published.velocityMin = region.velocityMin;
+        published.velocityMax = region.velocityMax;
+
+        storage.snapshot->regions.push_back (published);
+    }
+}
+
+void SampleLibrary::publish()
+{
+    const int writeIdx = 1 - readIndex.load (std::memory_order_relaxed);
+    buildSnapshotInto (writeIdx);
+    readIndex.store (writeIdx, std::memory_order_release);
 }

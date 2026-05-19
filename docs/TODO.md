@@ -6,8 +6,9 @@ Priority: [P0] blocking | [P1] current milestone | [P2] next milestone | [P3] ba
 
 ## M0 EXIT CRITERIA (must all pass before M1 begins)
 
-- [ ] [P0] Build succeeds: `scripts\build_windows.bat` produces AviatorKeyz.vst3 with no errors
-- [ ] [P0] FL Studio scan: plugin appears under Instruments (not Effects)
+- [ ] [P0] Build succeeds: `./scripts/build_macos.sh` produces AviatorKeyz.vst3 with no errors
+- [ ] [P0] Standalone launches without crash
+- [ ] [P0] macOS DAW scan: plugin appears as VST3 instrument (not effect)
 - [ ] [P0] Plugin window opens without crash
 - [ ] [P0] Window resizes within bounds (min 700×404, max 1800×1040)
 - [ ] [P0] Project save → close → reopen → plugin loads at correct defaults
@@ -86,14 +87,14 @@ Priority: [P0] blocking | [P1] current milestone | [P2] next milestone | [P3] ba
 
 ---
 
-## M5 — Polish & FL Studio Certification
+## M5 — Polish & Host Certification (macOS)
 
 - [ ] [P1] Multi-instance test: 4 simultaneous instances, no shared state
 - [ ] [P1] Transport start/stop: verify no stuck notes on loop restart
 - [ ] [P1] Plugin bypass test
 - [ ] [P1] CPU profile: <5% at 32 voices, 44.1 kHz, 256 buf
 - [ ] [P2] 48h soak test
-- [ ] [P2] Release packaging: signed .vst3 bundle
+- [ ] [P2] Release packaging: codesign + notarize .vst3 (macOS)
 
 ---
 
@@ -101,6 +102,6 @@ Priority: [P0] blocking | [P1] current milestone | [P2] next milestone | [P3] ba
 
 - [ ] [P1] Init git repo with first commit (M0 scaffold)
 - [ ] [P2] Unit tests for GlideEngine, StateSchema, SamplerVoice pitch ratio
-- [ ] [P3] CI: GitHub Actions Windows build on push
-- [ ] [P3] macOS build support
+- [ ] [P3] CI: GitHub Actions macOS build on push
+- [ ] [P3] Windows secondary build + FL Studio scan
 - [ ] [P3] User sample import UI (drag-and-drop)

@@ -58,7 +58,12 @@ Format: [Version] — Date — Summary
 - HeaderBar with logo
 - Full MainPanel layout
 
-## [Unreleased] — M5: Polish & FL Studio Cert
+## [Unreleased] — Platform priority
+
+- **macOS first:** primary build script `scripts/build_macos.sh`, docs and test plan updated
+- Windows remains supported via `scripts/build_windows.bat` (secondary)
+
+## [Unreleased] — M5: Polish & Host Cert
 - Performance profiling
 - Multi-instance testing
 - Transport edge case hardening

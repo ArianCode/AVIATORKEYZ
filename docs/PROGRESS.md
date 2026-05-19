@@ -15,7 +15,7 @@ M1  Sampler + MIDI            ██████████░░   85%  🔧 i
 M2  Creative DSP              ████████░░░░   70%  wired; tune & validate
 M3  Presets                    ████░░░░░░░░   25%  2 factory + browser UI
 M4  Premium UI                 ██████░░░░░░   50%  layout + L&F; mockup polish TBD
-M5  FL Studio certification    ░░░░░░░░░░░░    0%  not started
+M5  Host certification (macOS) ░░░░░░░░░░░░    0%  not started
 ```
 
 | # | Milestone | % | State |
@@ -25,7 +25,7 @@ M5  FL Studio certification    ░░░░░░░░░░░░    0%  not s
 | M2 | Creative engine | 70% | Ahead of schedule in tree; finish M1 first |
 | M3 | Preset system | 25% | — |
 | M4 | Premium UI | 50% | — |
-| M5 | FL Studio cert | 0% | — |
+| M5 | Host cert (macOS) | 0% | — |
 
 ---
 
@@ -38,7 +38,7 @@ See [MILESTONES.md](MILESTONES.md) for full exit criteria.
 | Fix build (`createReaderFor` / JUCE 8) | ⬜ |
 | Connect `SampleLibrary` → `SamplerEngine` (note + velocity → right sample) | ⬜ |
 | Double-buffer sample map (safe updates, no audio-thread file I/O) | ⬜ |
-| Verify exit tests T-M1-01 … T-M1-08 in host (FL Studio or Standalone) | ⬜ |
+| Verify exit tests T-M1-01 … T-M1-08 in host (Standalone or macOS DAW) | ⬜ |
 | Commit M1 work to git | ⬜ |
 
 **Already in code (working tree):** 64 voices, steal-quietest, MIDI on/off, sustain, all-notes-off, glide, reverse, ADSR, factory WAV embed, basic sample playback.

@@ -39,12 +39,18 @@ juce::Array<FactoryResources::PresetEntry> buildPresetIndex()
         entries.add (std::move (e));
     }
 
-    entries.sort ([] (const FactoryResources::PresetEntry& a,
-                      const FactoryResources::PresetEntry& b) {
-        const int c = a.category.compareIgnoreCase (b.category);
-        if (c != 0) return c < 0;
-        return a.name.compareIgnoreCase (b.name) < 0;
-    });
+    struct PresetComparator
+    {
+        static int compareElements (const FactoryResources::PresetEntry& a,
+                                    const FactoryResources::PresetEntry& b)
+        {
+            const int c = a.category.compareIgnoreCase (b.category);
+            if (c != 0) return c;
+            return a.name.compareIgnoreCase (b.name);
+        }
+    };
+    PresetComparator cmp;
+    entries.sort (cmp);
 
     return entries;
 }
@@ -104,6 +110,15 @@ juce::String FactoryResources::sampleIdForPreset (const juce::String& category,
     return AviatorKeyz::SampleID::DEFAULT;
 }
 
+const void* FactoryResources::getEmbeddedWavData (const juce::String& sampleId, int& numBytesOut)
+{
+    numBytesOut = 0;
+    if (const char* data = findWavResource (sampleId, numBytesOut))
+        return data;
+
+    return findWavResource (AviatorKeyz::SampleID::DEFAULT, numBytesOut);
+}
+
 bool FactoryResources::loadEmbeddedSampleMono (const juce::String& sampleId,
                                                juce::HeapBlock<float>& monoOut,
                                                int& numFramesOut,
@@ -120,9 +135,9 @@ bool FactoryResources::loadEmbeddedSampleMono (const juce::String& sampleId,
 
     juce::AudioFormatManager fm;
     fm.registerBasicFormats();
-    juce::MemoryInputStream stream (data, static_cast<size_t> (size), false);
+    auto stream = std::make_unique<juce::MemoryInputStream> (data, static_cast<size_t> (size), false);
 
-    if (auto reader = std::unique_ptr<juce::AudioFormatReader> (fm.createReaderFor (&stream)))
+    if (auto reader = std::unique_ptr<juce::AudioFormatReader> (fm.createReaderFor (std::move (stream))))
     {
         numFramesOut = static_cast<int> (reader->lengthInSamples);
         const int ch = juce::jmax (1, static_cast<int> (reader->numChannels));

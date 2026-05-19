@@ -13,17 +13,12 @@ void SamplerEngine::prepare (const juce::dsp::ProcessSpec& spec)
 void SamplerEngine::releaseResources()
 {
     allSoundOff();
-    sampleData = nullptr;
-    sampleNumFrames = 0;
+    sampleSnapshot = nullptr;
 }
 
-void SamplerEngine::setSampleTable (const float* monoSamples,
-                                     int numFrames,
-                                     int rootMidiNote) noexcept
+void SamplerEngine::setSampleSnapshot (const SampleLibrary::AudioSnapshot* snapshot) noexcept
 {
-    sampleData = monoSamples;
-    sampleNumFrames = juce::jmax (0, numFrames);
-    sampleRootNote = rootMidiNote;
+    sampleSnapshot = snapshot;
 }
 
 void SamplerEngine::setEnvelopeTimesMs (float aMs, float rMs) noexcept
@@ -60,7 +55,8 @@ void SamplerEngine::startVoice (Voice& v,
                                  int midiNote,
                                  float velocity,
                                  bool reverse,
-                                 float glideTimeMs) noexcept
+                                 float glideTimeMs,
+                                 const SampleLibrary::AudioRegion* region) noexcept
 {
     v.active = true;
     v.noteNumber = midiNote;
@@ -68,6 +64,19 @@ void SamplerEngine::startVoice (Voice& v,
     v.reversed = reverse;
     v.phase = 0.f;
     v.targetPitch = static_cast<float> (midiNote);
+
+    if (region != nullptr && region->data != nullptr && region->numFrames > 1)
+    {
+        v.sampleData      = region->data;
+        v.sampleNumFrames = region->numFrames;
+        v.sampleRootNote  = region->rootNote;
+    }
+    else
+    {
+        v.sampleData      = nullptr;
+        v.sampleNumFrames = 0;
+        v.sampleRootNote  = 60;
+    }
 
     if (glideTimeMs > 1.f && lastNoteForGlide >= 0)
     {
@@ -87,14 +96,10 @@ void SamplerEngine::startVoice (Voice& v,
 
     lastNoteForGlide = midiNote;
 
-    if (sampleData != nullptr && sampleNumFrames > 1)
-    {
-        v.readPos = reverse ? static_cast<float> (sampleNumFrames - 1) : 0.f;
-    }
+    if (v.sampleData != nullptr && v.sampleNumFrames > 1)
+        v.readPos = reverse ? static_cast<float> (v.sampleNumFrames - 1) : 0.f;
     else
-    {
         v.readPos = 0.f;
-    }
 
     const double attS = attackMs * 0.001;
     if (attS <= 0.0)
@@ -182,34 +187,34 @@ float SamplerEngine::renderVoiceSample (Voice& v) noexcept
     const float vel = v.velocity;
     float osc = 0.f;
 
-    if (sampleData != nullptr && sampleNumFrames > 1)
+    if (v.sampleData != nullptr && v.sampleNumFrames > 1)
     {
         const float pitchRatio =
-            std::pow (2.f, (v.currentPitch - static_cast<float> (sampleRootNote)) / 12.f);
-        float inc = ReversePlayer::getReadIncrement (pitchRatio, v.reversed);
+            std::pow (2.f, (v.currentPitch - static_cast<float> (v.sampleRootNote)) / 12.f);
+        const float inc = ReversePlayer::getReadIncrement (pitchRatio, v.reversed);
 
         int i0 = static_cast<int> (std::floor (v.readPos));
         const float frac = v.readPos - static_cast<float> (i0);
 
         if (! v.reversed)
         {
-            i0 = juce::jlimit (0, sampleNumFrames - 2, i0);
-            const float s0 = sampleData[i0];
-            const float s1 = sampleData[i0 + 1];
+            i0 = juce::jlimit (0, v.sampleNumFrames - 2, i0);
+            const float s0 = v.sampleData[i0];
+            const float s1 = v.sampleData[i0 + 1];
             osc = s0 + frac * (s1 - s0);
             v.readPos += inc;
-            while (v.readPos >= static_cast<float> (sampleNumFrames - 1))
-                v.readPos -= static_cast<float> (sampleNumFrames - 1);
+            while (v.readPos >= static_cast<float> (v.sampleNumFrames - 1))
+                v.readPos -= static_cast<float> (v.sampleNumFrames - 1);
         }
         else
         {
-            i0 = juce::jlimit (1, sampleNumFrames - 1, i0);
-            const float s0 = sampleData[i0];
-            const float s1 = sampleData[i0 - 1];
+            i0 = juce::jlimit (1, v.sampleNumFrames - 1, i0);
+            const float s0 = v.sampleData[i0];
+            const float s1 = v.sampleData[i0 - 1];
             osc = s0 + (1.f - frac) * (s1 - s0);
             v.readPos += inc;
             while (v.readPos <= 0.f)
-                v.readPos += static_cast<float> (sampleNumFrames - 1);
+                v.readPos += static_cast<float> (v.sampleNumFrames - 1);
         }
     }
     else
@@ -228,8 +233,12 @@ float SamplerEngine::renderVoiceSample (Voice& v) noexcept
 
 void SamplerEngine::noteOn (int midiNote, float velocity, bool reverse, float glideTimeMs) noexcept
 {
+    const SampleLibrary::AudioRegion* region = nullptr;
+    if (sampleSnapshot != nullptr)
+        region = SampleLibrary::findRegionForNote (*sampleSnapshot, midiNote, velocity);
+
     const int i = findFreeOrStealVoice();
-    startVoice (voices[i], midiNote, velocity, reverse, glideTimeMs);
+    startVoice (voices[i], midiNote, velocity, reverse, glideTimeMs, region);
 }
 
 void SamplerEngine::noteOff (int midiNote) noexcept
@@ -256,6 +265,8 @@ void SamplerEngine::allSoundOff() noexcept
         v.active = false;
         v.envStage = EnvStage::idle;
         v.envLevel = 0.f;
+        v.sampleData = nullptr;
+        v.sampleNumFrames = 0;
     }
     lastNoteForGlide = -1;
 }

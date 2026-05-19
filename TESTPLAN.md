@@ -6,31 +6,38 @@
 
 ## M0 — Scaffold & Build
 
-### T-M0-01: Build succeeds (Release)
-- Run `scripts\build_windows.bat`
+### T-M0-01: Build succeeds (Release, macOS)
+- Run `./scripts/build_macos.sh`
 - Expected: no errors, `AviatorKeyz.vst3` present in build output
 
-### T-M0-02: Build succeeds (Debug)
-- Run `scripts\build_windows.bat debug`
+### T-M0-02: Build succeeds (Debug, macOS)
+- Run `./scripts/build_macos.sh debug`
 - Expected: debug build with `AVIATORKEYZ_DEBUG=1` defined
 
-### T-M0-03: FL Studio plugin scan
-- Copy VST3 to `C:\Program Files\Common Files\VST3\`
-- Rescan in FL Studio (Options → Manage plugins)
-- Expected: "AviatorKeyz" appears under Instruments, not Effects
+### T-M0-03: Standalone launches (macOS)
+- Run `open build/AviatorKeyz_artefacts/Standalone/AviatorKeyz.app` (Ninja paths; add `/Release` if using Xcode)
+- Expected: window opens, dark background + gold UI visible, no crash
 
-### T-M0-04: Plugin loads without crash
-- Drag AviatorKeyz onto FL Studio channel
-- Expected: plugin window opens, dark background + gold wordmark visible
-- Expected: no crash, no error dialog
+### T-M0-04: DAW plugin scan (macOS)
+- Copy VST3 to `~/Library/Audio/Plug-Ins/VST3/`
+- Rescan in host (Logic, Ableton, Reaper, or FL Studio for Mac)
+- Expected: "AviatorKeyz" appears as a **VST3 instrument**, not an effect
 
-### T-M0-05: Resizing
+### T-M0-05: Plugin loads without crash
+- Insert AviatorKeyz on an instrument track
+- Expected: plugin window opens, no crash, no error dialog
+
+### T-M0-06: Resizing
 - Drag the plugin window to resize
 - Expected: window resizes smoothly, constrains to min (700×404) and max (1800×1040)
 
-### T-M0-06: Project save/reload
-- Open plugin, save FL Studio project, close FL, reopen project
+### T-M0-07: Project save/reload
+- Open plugin, save host project, quit host, reopen project
 - Expected: plugin loads with same state (all params at defaults)
+
+### T-M0-W01: Windows build (secondary)
+- Run `scripts\build_windows.bat`
+- Expected: Release VST3 builds on Windows 10/11 x64
 
 ---
 
@@ -60,7 +67,7 @@
 - Send CC123 — all active voices should stop
 
 ### T-M1-07: Sample rate change
-- Change FL Studio project sample rate (44100 → 48000 → 96000)
+- Change host project sample rate (44100 → 48000 → 96000)
 - Expected: plugin prepares correctly, no pitch shift, no crash
 
 ### T-M1-08: Buffer size change
@@ -146,17 +153,17 @@
 
 ---
 
-## M5 — Polish & FL Studio Certification
+## M5 — Polish & Host Certification
 
-### T-M5-01: Multiple instances
-- Open 4 simultaneous instances of AviatorKeyz in FL
+### T-M5-01: Multiple instances (macOS)
+- Open 4 simultaneous instances in your primary DAW
 - Expected: all instances work independently, no shared state conflicts
 
 ### T-M5-02: Transport start/stop
-- Start/stop FL transport repeatedly — plugin responds correctly
+- Start/stop host transport repeatedly — plugin responds correctly
 
 ### T-M5-03: Plugin bypass
-- Enable/disable plugin bypass in FL Studio
+- Enable/disable plugin bypass in host
 - Expected: signal passes cleanly when bypassed, no artifacts on toggle
 
 ### T-M5-04: CPU profiling

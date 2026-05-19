@@ -52,17 +52,18 @@ Each risk has: description, likelihood (H/M/L), impact (H/M/L), mitigation plan,
 
 ---
 
-## R-04 — FL Studio VST3 recognition failure
+## R-04 — VST3 recognition failure (host scan)
 
 **Likelihood:** L | **Impact:** H
 
-**Description:** FL Studio may fail to scan or incorrectly categorize the plugin if VST3 metadata flags are wrong, causing the plugin to appear under Effects instead of Instruments, or not appear at all.
+**Description:** A host may fail to scan or incorrectly categorize the plugin if VST3 metadata flags are wrong, causing AviatorKeyz to appear under Effects instead of Instruments, or not appear at all.
 
 **Mitigation:**
 - `IS_SYNTH=TRUE` and `VST3_CATEGORIES="Instrument|Synth"` are set in CMakeLists.txt
 - Plugin has no audio inputs (instruments should have no input bus or disabled input)
 - `isBusesLayoutSupported()` rejects any layout with an active main input bus
-- FL Studio recognition test (T-M0-03) is the first M0 exit criterion — tested before anything else
+- macOS DAW scan test (T-M0-04) is a primary M0 exit criterion — tested before M1 work begins
+- FL Studio (Windows/macOS) covered as secondary host QA
 
 **Owner milestone:** M0 ← test immediately
 
@@ -133,4 +134,4 @@ Each risk has: description, likelihood (H/M/L), impact (H/M/L), mitigation plan,
 
 ## Active Monitoring
 
-Risks R-04 (FL Studio scan) and R-05 (parameter ID drift) are the two highest-priority risks to catch early. Both must be verified at M0 completion before any M1 work begins.
+Risks R-04 (host VST3 scan) and R-05 (parameter ID drift) are the two highest-priority risks to catch early. Both must be verified at M0 completion before any M1 work begins.
