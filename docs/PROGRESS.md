@@ -1,7 +1,7 @@
 # AviatorKeyz — Progress tracker
 
-**Last updated:** 2026-05-18  
-**Branch:** `main` (M0 committed; M1+ work mostly in working tree, uncommitted)
+**Last updated:** 2026-05-19  
+**Branch:** `main` (M1 checkpoint committed; bypass + tests in working tree)
 
 Legend: `█` done · `░` remaining
 
@@ -35,11 +35,13 @@ See [MILESTONES.md](MILESTONES.md) for full exit criteria.
 
 | Task | Status |
 |------|--------|
-| Fix build (`createReaderFor` / JUCE 8) | ⬜ |
-| Connect `SampleLibrary` → `SamplerEngine` (note + velocity → right sample) | ⬜ |
-| Double-buffer sample map (safe updates, no audio-thread file I/O) | ⬜ |
+| Fix build (`createReaderFor` / JUCE 8) | ✅ |
+| Connect `SampleLibrary` → `SamplerEngine` (note + velocity → right sample) | ✅ |
+| Double-buffer sample map (safe updates, no audio-thread file I/O) | ✅ |
+| Bypass MIDI state drain (`processBlockBypassed`) | ✅ (working tree) |
+| C++ unit tests synced to `AudioSnapshot` API | ✅ (working tree) |
 | Verify exit tests T-M1-01 … T-M1-08 in host (Standalone or macOS DAW) | ⬜ |
-| Commit M1 work to git | ⬜ |
+| Commit M1 work to git | ✅ checkpoint |
 
 **Already in code (working tree):** 64 voices, steal-quietest, MIDI on/off, sustain, all-notes-off, glide, reverse, ADSR, factory WAV embed, basic sample playback.
 

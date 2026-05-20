@@ -20,6 +20,9 @@ public:
                   bool reverse,
                   float glideTimeMs);
 
+    /** Bypass path: update sustain/key-held state only; do not start or stop voices. */
+    void processBypassed (juce::MidiBuffer& midiBuffer);
+
     void setMidiChannel (int channel) noexcept { midiChannel = channel; }
 
 private:

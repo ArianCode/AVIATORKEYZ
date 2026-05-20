@@ -1,7 +1,7 @@
 // =============================================================================
-//  SamplerEngine unit tests (committed API)
+//  SamplerEngine unit tests
 //
-//  API: setSampleTable(const float*, int numFrames, int rootMidiNote)
+//  API: setSampleSnapshot(const SampleLibrary::AudioSnapshot*)
 //
 //  Tests cover:
 //    - noteOn with sample data produces non-zero audio
@@ -19,6 +19,7 @@
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_dsp/juce_dsp.h>
 #include "DSP/SamplerEngine.h"
+#include "State/SampleLibrary.h"
 
 // ---------------------------------------------------------------------------
 // Static sine-wave sample buffer (shared across tests to avoid repeated alloc)
@@ -39,6 +40,26 @@ namespace TestSamples
     }
 }
 
+struct TestSampleSnapshot
+{
+    SampleLibrary::AudioSnapshot snapshot;
+    SampleLibrary::AudioRegion   region;
+
+    void setMono (const float* data, int numFrames, int rootNote = 60) noexcept
+    {
+        region.data        = data;
+        region.numFrames   = numFrames;
+        region.rootNote    = rootNote;
+        region.noteMin     = 0;
+        region.noteMax     = 127;
+        region.velocityMin = 0.0f;
+        region.velocityMax = 1.0f;
+        snapshot.regions.clear();
+        if (data != nullptr && numFrames > 0)
+            snapshot.regions.push_back (region);
+    }
+};
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -57,7 +78,9 @@ public:
             SamplerEngine engine;
             juce::dsp::ProcessSpec spec { 44100.0, 512, 2 };
             engine.prepare (spec);
-            engine.setSampleTable (TestSamples::sine4096, TestSamples::kFrames, 60);
+            TestSampleSnapshot snap;
+            snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
+            engine.setSampleSnapshot (&snap.snapshot);
             engine.setEnvelopeTimesMs (0.5f, 50.0f);
             engine.noteOn (60, 1.0f, false, 0.0f);
 
@@ -79,7 +102,9 @@ public:
             SamplerEngine engine;
             juce::dsp::ProcessSpec spec { 44100.0, 256, 2 };
             engine.prepare (spec);
-            engine.setSampleTable (TestSamples::sine4096, TestSamples::kFrames, 60);
+            TestSampleSnapshot snap;
+            snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
+            engine.setSampleSnapshot (&snap.snapshot);
             engine.setEnvelopeTimesMs (0.5f, 50.0f);
 
             juce::AudioBuffer<float> buf (2, 256);
@@ -116,7 +141,9 @@ public:
             SamplerEngine engine;
             juce::dsp::ProcessSpec spec { 44100.0, 512, 2 };
             engine.prepare (spec);
-            engine.setSampleTable (TestSamples::sine4096, TestSamples::kFrames, 60);
+            TestSampleSnapshot snap;
+            snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
+            engine.setSampleSnapshot (&snap.snapshot);
             engine.setEnvelopeTimesMs (0.5f, 500.0f);
 
             for (int n = 60; n < 68; ++n)
@@ -142,7 +169,9 @@ public:
             SamplerEngine engine;
             juce::dsp::ProcessSpec spec { 44100.0, 512, 2 };
             engine.prepare (spec);
-            engine.setSampleTable (TestSamples::sine4096, TestSamples::kFrames, 60);
+            TestSampleSnapshot snap;
+            snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
+            engine.setSampleSnapshot (&snap.snapshot);
             engine.setEnvelopeTimesMs (0.5f, 200.0f);  // 200ms release
 
             engine.noteOn (60, 1.0f, false, 0.0f);
@@ -169,7 +198,9 @@ public:
             SamplerEngine engine;
             juce::dsp::ProcessSpec spec { 44100.0, 256, 2 };
             engine.prepare (spec);
-            engine.setSampleTable (TestSamples::sine4096, TestSamples::kFrames, 60);
+            TestSampleSnapshot snap;
+            snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
+            engine.setSampleSnapshot (&snap.snapshot);
             engine.setEnvelopeTimesMs (0.5f, 100.0f);
 
             for (int n = 48; n < 64; ++n)  // 16 = kMaxVoices
@@ -187,7 +218,9 @@ public:
             SamplerEngine engine;
             juce::dsp::ProcessSpec spec { 44100.0, 256, 2 };
             engine.prepare (spec);
-            engine.setSampleTable (TestSamples::sine4096, TestSamples::kFrames, 60);
+            TestSampleSnapshot snap;
+            snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
+            engine.setSampleSnapshot (&snap.snapshot);
             engine.setEnvelopeTimesMs (0.5f, 100.0f);
 
             for (int n = 40; n < 57; ++n)  // 17 notes — steals one
@@ -216,7 +249,9 @@ public:
             SamplerEngine engine;
             juce::dsp::ProcessSpec spec { 44100.0, 512, 2 };
             engine.prepare (spec);
-            engine.setSampleTable (TestSamples::sine4096, TestSamples::kFrames, 60);
+            TestSampleSnapshot snap;
+            snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
+            engine.setSampleSnapshot (&snap.snapshot);
             engine.setEnvelopeTimesMs (0.5f, 50.0f);
 
             engine.noteOn (60, 1.0f, true, 0.0f);  // reverse=true
@@ -241,7 +276,9 @@ public:
                 SamplerEngine engine;
                 juce::dsp::ProcessSpec spec { 44100.0, 512, 2 };
                 engine.prepare (spec);
-                engine.setSampleTable (TestSamples::sine4096, TestSamples::kFrames, 60);
+                TestSampleSnapshot snap;
+            snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
+            engine.setSampleSnapshot (&snap.snapshot);
                 engine.setEnvelopeTimesMs (0.5f, 50.0f);
                 engine.noteOn (60, 1.0f, false, 0.0f);
                 fwdBuf.clear();
@@ -252,7 +289,9 @@ public:
                 SamplerEngine engine;
                 juce::dsp::ProcessSpec spec { 44100.0, 512, 2 };
                 engine.prepare (spec);
-                engine.setSampleTable (TestSamples::sine4096, TestSamples::kFrames, 60);
+                TestSampleSnapshot snap;
+            snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
+            engine.setSampleSnapshot (&snap.snapshot);
                 engine.setEnvelopeTimesMs (0.5f, 50.0f);
                 engine.noteOn (60, 1.0f, true, 0.0f);  // reversed
                 revBuf.clear();
@@ -284,7 +323,9 @@ public:
             SamplerEngine engine;
             juce::dsp::ProcessSpec spec { 44100.0, 256, 2 };
             engine.prepare (spec);
-            engine.setSampleTable (TestSamples::sine4096, TestSamples::kFrames, 60);
+            TestSampleSnapshot snap;
+            snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
+            engine.setSampleSnapshot (&snap.snapshot);
             engine.setEnvelopeTimesMs (0.5f, 50.0f);
 
             engine.noteOn (60, 1.0f, false, 0.0f);
@@ -308,7 +349,9 @@ public:
             SamplerEngine engine;
             juce::dsp::ProcessSpec spec { 44100.0, 256, 2 };
             engine.prepare (spec);
-            engine.setSampleTable (TestSamples::sine4096, TestSamples::kFrames, 60);
+            TestSampleSnapshot snap;
+            snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
+            engine.setSampleSnapshot (&snap.snapshot);
             engine.setEnvelopeTimesMs (0.5f, 50.0f);
 
             engine.noteOn (60, 1.0f, false, 0.0f);
@@ -358,12 +401,14 @@ public:
             engine.allSoundOff();
         }
 
-        beginTest ("null sample table (setSampleTable nullptr): sine fallback active");
+        beginTest ("empty sample snapshot: sine fallback active");
         {
             SamplerEngine engine;
             juce::dsp::ProcessSpec spec { 44100.0, 256, 2 };
             engine.prepare (spec);
-            engine.setSampleTable (nullptr, 0, 60);  // explicit null
+            TestSampleSnapshot snap;
+            snap.setMono (nullptr, 0, 60);
+            engine.setSampleSnapshot (&snap.snapshot);
             engine.setEnvelopeTimesMs (0.5f, 50.0f);
             engine.noteOn (69, 1.0f, false, 0.0f);  // A4
 
@@ -375,7 +420,7 @@ public:
             for (int i = 0; i < 256; ++i)
                 maxAbs = std::max (maxAbs, std::abs (buf.getSample (0, i)));
 
-            expect (maxAbs > 0.0f, "Null sample table must activate sine fallback");
+            expect (maxAbs > 0.0f, "Empty sample snapshot must activate sine fallback");
             engine.allSoundOff();
         }
     }

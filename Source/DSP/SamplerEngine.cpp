@@ -7,6 +7,9 @@ SamplerEngine::~SamplerEngine() = default;
 
 void SamplerEngine::prepare (const juce::dsp::ProcessSpec& spec)
 {
+    if (std::abs (spec.sampleRate - sampleRate) > 1e-9)
+        allSoundOff();
+
     sampleRate = spec.sampleRate;
 }
 

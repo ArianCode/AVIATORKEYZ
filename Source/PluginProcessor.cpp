@@ -311,9 +311,15 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
 }
 
 void AviatorKeyzProcessor::processBlockBypassed (AudioBuffer<float>& buffer,
-                                                  MidiBuffer&)
+                                                  MidiBuffer& midiMessages)
 {
     buffer.clear();
+
+    const bool reverse = apvts.getRawParameterValue (ParamID::REVERSE)->load() > 0.5f;
+    const float glideMs = apvts.getRawParameterValue (ParamID::GLIDE_TIME)->load();
+    juce::ignoreUnused (reverse, glideMs);
+
+    midiHandler.processBypassed (midiMessages);
 }
 
 AudioProcessorEditor* AviatorKeyzProcessor::createEditor()

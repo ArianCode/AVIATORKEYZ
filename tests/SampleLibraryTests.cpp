@@ -1,7 +1,7 @@
 // =============================================================================
 //  SampleLibrary unit tests (committed API)
 //
-//  API: loadFromMemory(), loadSample(), clearAll(), getSampleMap(), getLastError()
+//  API: loadFromMemory(), loadSample(), clearAll(), getPendingMap(), publish(), getLastError()
 //
 //  Tests cover:
 //    - loadFromMemory: null/zero-size data rejected with error
@@ -77,7 +77,7 @@ public:
         beginTest ("Initial sample map is empty");
         {
             SampleLibrary lib;
-            expect (lib.getSampleMap().empty(),
+            expect (lib.getPendingMap().empty(),
                     "Fresh SampleLibrary must have empty sample map");
             expect (lib.getLastError().isEmpty(),
                     "Fresh SampleLibrary must have no error");
@@ -90,7 +90,7 @@ public:
             expect (!ok, "loadFromMemory(nullptr) must return false");
             expect (lib.getLastError().isNotEmpty(),
                     "loadFromMemory(nullptr) must set an error string");
-            expect (lib.getSampleMap().empty(),
+            expect (lib.getPendingMap().empty(),
                     "Map must remain empty after failed load");
         }
 
@@ -122,7 +122,7 @@ public:
             expect (ok, "loadFromMemory must accept valid WAV: " + lib.getLastError());
             if (ok)
             {
-                expect (!lib.getSampleMap().empty(), "Map must have a region after successful load");
+                expect (!lib.getPendingMap().empty(), "Map must have a region after successful load");
                 expect (lib.getLastError().isEmpty(), "No error after successful load");
             }
         }
@@ -133,9 +133,9 @@ public:
             auto wav = makeAudioWav();
             bool ok = lib.loadFromMemory (wav.getData(), wav.getSize(), "s", 69);  // A4 root
             expect (ok, lib.getLastError());
-            if (ok && !lib.getSampleMap().empty())
+            if (ok && !lib.getPendingMap().empty())
             {
-                const int root = lib.getSampleMap().front().rootNote;
+                const int root = lib.getPendingMap().front().rootNote;
                 expectEquals (root, 69, "rootNote 69 (A4) must be stored");
             }
         }
@@ -147,9 +147,9 @@ public:
             bool ok = lib.loadFromMemory (wav.getData(), wav.getSize(), "s",
                                           60, 48, 72);
             expect (ok, lib.getLastError());
-            if (ok && !lib.getSampleMap().empty())
+            if (ok && !lib.getPendingMap().empty())
             {
-                const auto& r = lib.getSampleMap().front();
+                const auto& r = lib.getPendingMap().front();
                 expectEquals (r.noteMin, 48, "noteMin must be stored");
                 expectEquals (r.noteMax, 72, "noteMax must be stored");
             }
@@ -161,9 +161,9 @@ public:
             auto wav = makeAudioWav();
             bool ok = lib.loadFromMemory (wav.getData(), wav.getSize(), "s", 200);  // > 127
             expect (ok, "Load should succeed even with clamped rootNote");
-            if (ok && !lib.getSampleMap().empty())
+            if (ok && !lib.getPendingMap().empty())
             {
-                const int root = lib.getSampleMap().front().rootNote;
+                const int root = lib.getPendingMap().front().rootNote;
                 expect (root <= 127, "rootNote must be clamped to <= 127");
                 expect (root >= 0,   "rootNote must be clamped to >= 0");
             }
@@ -184,10 +184,10 @@ public:
             auto wav = makeAudioWav();
             lib.loadFromMemory (wav.getData(), wav.getSize(), "s1");
             lib.loadFromMemory (wav.getData(), wav.getSize(), "s2");
-            expect (!lib.getSampleMap().empty(), "Map should have 2 regions before clear");
+            expect (!lib.getPendingMap().empty(), "Map should have 2 regions before clear");
 
             lib.clearAll();
-            expect (lib.getSampleMap().empty(), "Map must be empty after clearAll");
+            expect (lib.getPendingMap().empty(), "Map must be empty after clearAll");
             expect (lib.getLastError().isEmpty(), "Error must be cleared by clearAll");
         }
 
@@ -199,7 +199,7 @@ public:
             lib.clearAll();
             lib.loadFromMemory (wav.getData(), wav.getSize(), "second");
 
-            expectEquals ((int)lib.getSampleMap().size(), 1,
+            expectEquals ((int)lib.getPendingMap().size(), 1,
                           "After clearAll + one reload, map must have exactly 1 region");
         }
 
@@ -211,7 +211,7 @@ public:
             lib.loadFromMemory (wav.getData(), wav.getSize(), "b");
             lib.loadFromMemory (wav.getData(), wav.getSize(), "c");
 
-            expectEquals ((int)lib.getSampleMap().size(), 3,
+            expectEquals ((int)lib.getPendingMap().size(), 3,
                           "Three loadFromMemory calls must produce 3 map regions");
         }
     }

@@ -2,25 +2,12 @@
 #  AviatorKeyz — C++ unit tests
 #
 #  Build:  cmake --build build --target AviatorKeyzTests
-#  Run:    ./build/Tests/AviatorKeyzTests          (macOS/Linux)
-#          build\Tests\Release\AviatorKeyzTests.exe  (Windows)
+#  Run:    ./build/Tests/AviatorKeyzTests_artefacts/AviatorKeyzTests   (macOS, Ninja)
 #
 #  What is tested here:
-#    - SamplerEngine DSP math (setSampleTable API, committed version)
-#    - StateSchema constants (compile-time + runtime value checks)
-#
-#  What is NOT tested here (tested in Python tests/ instead):
-#    - SampleLibrary: committed SampleLibrary.cpp uses JUCE 7 API
-#      (createReaderFor(&stream) raw pointer) that was removed in JUCE 8.
-#      The working-tree fix (std::make_unique<MemoryInputStream>) is not yet
-#      committed. Once committed, add SampleLibraryTests.cpp back here:
-#        ${CMAKE_SOURCE_DIR}/Source/State/SampleLibrary.cpp
-#    - PresetManager / FactoryResources: depend on BinaryData (generated assets)
-#      and juce_audio_processors — covered by Python tests.
-#
-#  NOTE: SampleLibraryTests.cpp is included in the source list below
-#  but its body is guarded with #if COMPILE_SAMPLE_LIBRARY_TESTS.
-#  Remove the guard once SampleLibrary.cpp is updated to JUCE 8 API.
+#    - SamplerEngine DSP (AudioSnapshot API)
+#    - SampleLibrary load/publish (JUCE 8)
+#    - StateSchema constants
 # =============================================================================
 
 juce_add_console_app(AviatorKeyzTests
@@ -31,11 +18,11 @@ target_sources(AviatorKeyzTests
     PRIVATE
         AviatorKeyzTests.cpp
         SamplerEngineTests.cpp
+        SampleLibraryTests.cpp
         StateSchemaTests.cpp
-        # SampleLibraryTests.cpp — re-enable when SampleLibrary.cpp uses JUCE 8 API
-        # DSP sources included directly — avoids JucePlugin_xxx macro requirements
         ${CMAKE_SOURCE_DIR}/Source/DSP/SamplerEngine.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/ReversePlayer.cpp
+        ${CMAKE_SOURCE_DIR}/Source/State/SampleLibrary.cpp
 )
 
 target_include_directories(AviatorKeyzTests
@@ -53,6 +40,7 @@ target_compile_definitions(AviatorKeyzTests
 target_link_libraries(AviatorKeyzTests
     PRIVATE
         juce::juce_audio_basics
+        juce::juce_audio_formats
         juce::juce_dsp
         juce::juce_core
     PUBLIC

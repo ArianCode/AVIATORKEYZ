@@ -193,7 +193,7 @@ install(
 # C++ unit tests (optional, excluded from default all-target build)
 #
 # Build:   cmake --build build --target AviatorKeyzTests
-# Run:     ./build/tests/AviatorKeyzTests_artefacts/AviatorKeyzTests   (macOS, Ninja)
+# Run:     ./build/tests/AviatorKeyzTests_artefacts/Release/AviatorKeyzTests   (macOS, Ninja)
 #          build/tests/AviatorKeyzTests_artefacts/AviatorKeyzTests.exe (Windows)
 # ---------------------------------------------------------------------------
 add_subdirectory(tests EXCLUDE_FROM_ALL)
