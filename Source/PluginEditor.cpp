@@ -1,5 +1,5 @@
 #include "PluginEditor.h"
-#include "GUI/DesignTokens.h"
+#include "GUI/AviatorTokens.h"
 
 AviatorKeyzEditor::AviatorKeyzEditor (AviatorKeyzProcessor& p)
     : AudioProcessorEditor (&p)

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AviatorKeyz — Photo-Anchored Cockpit</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --instrument-cyan: #00cfff;
+  --mfd-amber: #f5a623;
+  --panel-glass: rgba(5, 13, 26, 0.55);
+  --text-primary: #e6f3ff;
+  --text-muted: #7d97b3;
+  --footer-h: 22px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #000; color: var(--text-primary);
+  font-family: 'Share Tech Mono', monospace; font-size: 10px; text-transform: uppercase; overflow: hidden; }
+
+.stage { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.cockpit-wrap { position: relative; width: min(100vw, calc((100vh - var(--footer-h)) * 16 / 9)); height: calc(100vh - var(--footer-h)); max-height: min(100vh, calc(100vw * 9 / 16)); }
+.cockpit { position: relative; width: 100%; height: 100%; overflow: hidden; }
+.cockpit-bg { position: absolute; inset: 0; background: url('Resources/UI/Cockpit/cockpit_photo_1x.jpg') center/cover no-repeat; z-index: 0; }
+.cockpit-bg.off { background-image: none; background: #030309; }
+
+.glass { position: absolute; z-index: 2; background: var(--panel-glass); backdrop-filter: blur(1px); -webkit-backdrop-filter: blur(1px);
+  border: 1px solid rgba(0, 207, 255, 0.25); overflow: hidden; pointer-events: auto; }
+.glass.circle { border-radius: 50%; }
+.glass.rounded { border-radius: 6px; }
+.glass-title { padding: 4px 6px; color: var(--instrument-cyan); font-size: 9px; letter-spacing: 0.2em; border-bottom: 1px solid rgba(0,207,255,0.2); }
+
+#physicalLayer { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.anchor { position: absolute; pointer-events: auto; transform: translate(-50%, -50%); cursor: pointer; border-radius: 50%;
+  border: 1px solid transparent; transition: border-color 0.12s, box-shadow 0.12s; }
+.anchor:hover, .anchor.active { border-color: var(--instrument-cyan); box-shadow: 0 0 12px rgba(0,207,255,0.6); }
+.anchor.rotary::after { content: ''; position: absolute; inset: 20%; border-radius: 50%; border: 2px solid rgba(0,207,255,0.4); }
+.anchor.toggle { border-radius: 3px; }
+.anchor.toggle.on { background: rgba(0,207,255,0.35); box-shadow: 0 0 8px var(--instrument-cyan); }
+.anchor.lever { border-radius: 4px; width: 12px !important; height: 48px !important; background: linear-gradient(180deg, rgba(0,207,255,0.15), rgba(0,207,255,0.05)); }
+.anchor.btn { border-radius: 2px; font-size: 7px; color: var(--text-muted); display: flex; align-items: center; justify-content: center; }
+.anchor.dome { background: radial-gradient(circle, var(--mfd-amber), #c8362e); color: #000; font-weight: bold; }
+
+.mfd-content { padding: 4px; height: calc(100% - 20px); display: flex; flex-direction: column; gap: 4px; }
+.search { background: transparent; border: 1px solid rgba(0,207,255,0.25); color: var(--text-primary); padding: 4px; font: inherit; font-size: 9px; }
+.preset-list { flex: 1; overflow-y: auto; }
+.preset-item { padding: 3px 4px; cursor: pointer; color: var(--text-muted); }
+.preset-item.active, .preset-item:hover { color: var(--instrument-cyan); background: rgba(0,207,255,0.12); }
+.chips { display: flex; flex-wrap: wrap; gap: 2px; }
+.chip { padding: 2px 4px; border: 1px solid rgba(0,207,255,0.2); cursor: pointer; font-size: 8px; }
+.chip.active { color: var(--instrument-cyan); border-color: var(--instrument-cyan); }
+
+.radar-canvas { width: 100%; height: calc(100% - 18px); display: block; }
+.fx-bars { display: flex; gap: 6px; align-items: flex-end; height: calc(100% - 24px); padding: 8px; }
+.fx-bars .bar { width: 8px; background: var(--instrument-cyan); opacity: 0.7; }
+
+.strip-readout { display: flex; align-items: center; justify-content: center; height: 100%; font-size: 11px; color: var(--instrument-cyan); letter-spacing: 0.15em; }
+
+.status-footer { width: 100%; height: var(--footer-h); background: #06080c; border-top: 1px solid rgba(0,207,255,0.2);
+  display: flex; align-items: center; justify-content: space-between; padding: 0 12px; font-size: 9px; color: var(--text-muted); z-index: 10; }
+.status-footer span.hi { color: var(--instrument-cyan); }
+
+.debug-zone { position: absolute; border: 1px dashed rgba(0,207,255,0.6); pointer-events: none; z-index: 20; font-size: 8px; color: var(--instrument-cyan); }
+.debug-hint { position: fixed; top: 8px; left: 8px; z-index: 100; background: rgba(0,0,0,0.7); padding: 6px 8px; font-size: 9px; color: var(--instrument-cyan); }
+</style>
+</head>
+<body>
+<div class="debug-hint" id="debugHint" hidden>B=photo · debug zones · calibrate=click log</div>
+<div class="stage">
+  <div class="cockpit-wrap">
+    <div class="cockpit" id="cockpit">
+      <div class="cockpit-bg" id="cockpitBg"></div>
+      <div id="glassLayer"></div>
+      <div id="physicalLayer"></div>
+      <div id="debugLayer"></div>
+    </div>
+  </div>
+  <footer class="status-footer">
+    <span>VST3 · PHOTO COCKPIT</span>
+    <span>CPU <span class="hi" id="cpuOut">02</span>% · VOICES <span class="hi">04</span> · SR <span class="hi">48.0K</span></span>
+    <span>MIDI <span class="hi" id="midiLed">○</span></span>
+  </footer>
+</div>
+
+<script src="Resources/UI/Cockpit/cockpit-zones.js"></script>
+<script>
+const params = Object.fromEntries(new URLSearchParams(location.search));
+const DEBUG = params.debug === '1';
+const CALIBRATE = params.calibrate === '1';
+if (DEBUG || CALIBRATE) document.getElementById('debugHint').hidden = false;
+
+const state = {
+  reverse: false, glide: 0, smear: 0, tone: 0.5, reverb: 0.2, reverbSize: 0.5,
+  width: 0.5, atk: 0.3, rel: 0.4, output: 0.5, pan: 0, input: 0.5,
+  presetIndex: 0,
+};
+const presets = [
+  'ARCTIC WAVE','FROZEN STRINGS','AURORA KEYS','RUNWAY LIGHTS','CABIN GLOW',
+  'JET STREAM','SNOWFALL BELLS','NORTH STAR','ICE FOG','TAILWIND'
+];
+
+let knobAnchors = [];
+fetch('Resources/UI/Cockpit/knobAnchors.json').then(r => r.json()).then(j => { knobAnchors = j; buildAnchors(); }).catch(() => { knobAnchors = []; buildAnchors(); });
+
+function pctRect(z) {
+  const css = zoneToCSS(z);
+  return { left: css.left, top: css.top, width: css.width, height: css.height };
+}
+
+function buildGlass() {
+  const layer = document.getElementById('glassLayer');
+  const specs = [
+    { id: 'leftMfd', z: CockpitZones.leftMfd, cls: 'rounded', html: () => `
+      <div class="glass-title">ENGINE / OSC</div>
+      <div class="mfd-content">
+        <input class="search" placeholder="SEARCH PRESETS…" />
+        <div class="chips">${['ALL','PADS','KEYS','STRINGS','LEADS'].map((c,i)=>`<span class="chip${i===0?' active':''}">${c}</span>`).join('')}</div>
+        <div class="preset-list" id="presetList"></div>
+      </div>` },
+    { id: 'rightMfd', z: CockpitZones.rightMfd, cls: 'rounded', html: () => `
+      <div class="glass-title">FX / EFFECTS</div>
+      <div class="mfd-content"><div class="fx-bars" id="fxBars"></div></div>` },
+    { id: 'radarAdsr', z: CockpitZones.radarAdsr, cls: 'circle', html: () => `
+      <div class="glass-title">ADSR</div><canvas class="radar-canvas" id="adsrCanvas"></canvas>` },
+    { id: 'radarLfo', z: CockpitZones.radarLfo, cls: 'circle', html: () => `
+      <div class="glass-title">LFO / MOD</div><canvas class="radar-canvas" id="lfoCanvas"></canvas>` },
+    { id: 'autopilotStrip', z: CockpitZones.autopilotStrip, cls: 'rounded', html: () => `
+      <div class="strip-readout" id="stripReadout"></div>` },
+    { id: 'overhead', z: CockpitZones.overhead, cls: 'rounded', html: () => '' },
+    { id: 'throttleQuadrant', z: CockpitZones.throttleQuadrant, cls: 'rounded', html: () => '' },
+  ];
+  specs.forEach(s => {
+    const el = document.createElement('div');
+    el.className = `glass ${s.cls}`;
+    el.id = `zone-${s.id}`;
+    Object.assign(el.style, pctRect(s.z));
+    el.innerHTML = s.html();
+    layer.appendChild(el);
+  });
+  refreshPresetList();
+  buildFxBars();
+}
+
+function buildFxBars() {
+  const wrap = document.getElementById('fxBars');
+  if (!wrap) return;
+  ['RV','SM','WD'].forEach((lbl, i) => {
+    const b = document.createElement('div');
+    b.className = 'bar';
+    b.title = lbl;
+    b.style.height = (30 + i * 20) + '%';
+    wrap.appendChild(b);
+  });
+}
+
+function refreshPresetList() {
+  const list = document.getElementById('presetList');
+  if (!list) return;
+  list.innerHTML = presets.map((p, i) =>
+    `<div class="preset-item${i===state.presetIndex?' active':''}" data-i="${i}">${p}</div>`).join('');
+  list.querySelectorAll('.preset-item').forEach(el => el.addEventListener('click', () => {
+    state.presetIndex = +el.dataset.i;
+    refreshPresetList();
+    updateReadouts();
+  }));
+  document.getElementById('stripReadout').textContent =
+    `PATCH ${String(state.presetIndex+1).padStart(2,'0')} · BPM 128 · VOICES 04`;
+}
+
+function buildAnchors() {
+  const layer = document.getElementById('physicalLayer');
+  layer.innerHTML = '';
+  knobAnchors.forEach(a => {
+    const el = document.createElement('div');
+    el.className = 'anchor ' + (a.kind === 'verticalLever' ? 'lever' : a.kind === 'pushButton' ? 'btn' : a.kind === 'guardedDome' ? 'dome' : a.kind === 'toggle' ? 'toggle' : 'rotary');
+    el.style.left = (a.x * 100) + '%';
+    el.style.top = (a.y * 100) + '%';
+    const d = Math.max(20, a.r * window.innerWidth * 2);
+    el.style.width = el.style.height = (a.kind === 'verticalLever' ? 12 : d) + 'px';
+    if (a.kind === 'verticalLever') el.style.height = '48px';
+    el.title = a.label + (a.param ? ' · ' + a.param : '');
+    el.dataset.param = a.param || '';
+    el.dataset.action = a.action || '';
+    el.addEventListener('click', e => handleAnchorClick(a, el, e));
+    if (a.kind === 'rotary' || a.kind === 'verticalLever') initDrag(el, a);
+    layer.appendChild(el);
+  });
+}
+
+function handleAnchorClick(a, el, e) {
+  if (CALIBRATE) {
+    console.log('ANCHOR', a.id, (a.x*100).toFixed(2)+'%', (a.y*100).toFixed(2)+'%');
+    return;
+  }
+  if (a.kind === 'toggle') { el.classList.toggle('on'); if (a.param === 'reverse') state.reverse = el.classList.contains('on'); }
+  if (a.action === 'presetPrev') { state.presetIndex = (state.presetIndex - 1 + presets.length) % presets.length; refreshPresetList(); }
+  if (a.action === 'presetNext') { state.presetIndex = (state.presetIndex + 1) % presets.length; refreshPresetList(); }
+  if (a.action === 'emergencyBurst') { state.smear = 1; el.classList.add('active'); setTimeout(() => el.classList.remove('active'), 400); }
+  updateReadouts();
+  drawRadars();
+}
+
+function initDrag(el, a) {
+  let startY = 0, startV = 0.5;
+  const key = a.param || 'glide';
+  el.addEventListener('mousedown', e => {
+    if (CALIBRATE) return;
+    startY = e.clientY; startV = state[key] ?? 0.5;
+    el.classList.add('active');
+    e.preventDefault();
+    const move = ev => {
+      const v = Math.max(0, Math.min(1, startV + (startY - ev.clientY) * 0.005));
+      if (state[key] !== undefined) state[key] = v;
+      updateReadouts(); drawRadars();
+    };
+    const up = () => { el.classList.remove('active'); window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  });
+}
+
+function buildDebug() {
+  if (!DEBUG) return;
+  const layer = document.getElementById('debugLayer');
+  Object.entries(CockpitZones).forEach(([name, z]) => {
+    const d = document.createElement('div');
+    d.className = 'debug-zone';
+    Object.assign(d.style, pctRect(z));
+    d.textContent = name;
+    layer.appendChild(d);
+  });
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'b' || e.key === 'B') document.getElementById('cockpitBg').classList.toggle('off');
+});
+document.getElementById('cockpit').addEventListener('click', e => {
+  if (!CALIBRATE) return;
+  const r = e.currentTarget.getBoundingClientRect();
+  const x = ((e.clientX - r.left) / r.width * 100).toFixed(2);
+  const y = ((e.clientY - r.top) / r.height * 100).toFixed(2);
+  console.log('CLICK', x + '%', y + '%');
+});
+
+function drawRadars() {
+  const adsr = document.getElementById('adsrCanvas');
+  const lfo = document.getElementById('lfoCanvas');
+  if (adsr) {
+    const ctx = adsr.getContext('2d');
+    adsr.width = adsr.clientWidth; adsr.height = adsr.clientHeight;
+    ctx.clearRect(0,0,adsr.width,adsr.height);
+    ctx.strokeStyle = '#00cfff'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(8, adsr.height-8);
+    ctx.lineTo(8 + adsr.width*state.atk*0.3, 20);
+    ctx.lineTo(adsr.width-20, 20); ctx.lineTo(adsr.width-8, adsr.height-8); ctx.stroke();
+  }
+  if (lfo) {
+    const ctx = lfo.getContext('2d');
+    lfo.width = lfo.clientWidth; lfo.height = lfo.clientHeight;
+    const cx = lfo.width/2, cy = lfo.height/2, rad = Math.min(cx,cy)-8;
+    ctx.clearRect(0,0,lfo.width,lfo.height);
+    ctx.strokeStyle = 'rgba(0,207,255,0.2)';
+    for (let i=1;i<=3;i++) { ctx.beginPath(); ctx.arc(cx,cy,rad*i/3,0,Math.PI*2); ctx.stroke(); }
+    const ang = performance.now() / 800;
+    ctx.strokeStyle = '#f5a623'; ctx.beginPath(); ctx.moveTo(cx,cy);
+    ctx.lineTo(cx+Math.cos(ang)*rad, cy+Math.sin(ang)*rad); ctx.stroke();
+  }
+}
+
+function updateReadouts() {
+  document.getElementById('stripReadout').textContent =
+    `PATCH ${String(state.presetIndex+1).padStart(2,'0')} · BPM 128 · GLIDE ${state.glide.toFixed(2)}`;
+}
+
+buildGlass();
+buildDebug();
+setInterval(drawRadars, 50);
+drawRadars();
+updateReadouts();
+</script>
+</body>
+</html>

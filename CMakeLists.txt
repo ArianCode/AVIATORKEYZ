@@ -43,10 +43,13 @@ file(GLOB_RECURSE AVIATORKEYZ_FACTORY_PRESETS CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/Resources/Presets/Factory/*.xml")
 file(GLOB AVIATORKEYZ_FACTORY_SAMPLES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/Resources/Factory/*.wav")
+file(GLOB AVIATORKEYZ_COCKPIT_UI CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/Resources/UI/Cockpit/*.*")
 
 juce_add_binary_data(AviatorKeyzData SOURCES
     ${AVIATORKEYZ_FACTORY_SAMPLES}
     ${AVIATORKEYZ_FACTORY_PRESETS}
+    ${AVIATORKEYZ_COCKPIT_UI}
     HEADER_NAME BinaryData.h
     NAMESPACE AviatorKeyzBinary
 )
@@ -107,22 +110,17 @@ target_sources(AviatorKeyz
         Source/DSP/ReverbTail.cpp
         Source/DSP/ReversePlayer.cpp
 
-        # GUI layer (stubs — filled in during M3/M4)
+        # GUI — photo-anchored cockpit
         Source/GUI/LuxuryLookAndFeel.cpp
         Source/GUI/MainPanel.cpp
-        Source/GUI/PluginShell.cpp
-        Source/GUI/HeaderBar.cpp
-        Source/GUI/CategoryBar.cpp
-        Source/GUI/ArtworkPanel.cpp
         Source/GUI/FooterBar.cpp
-        Source/GUI/MacroSection.cpp
-        Source/GUI/SecondaryPanel.cpp
         Source/GUI/PrecisionKnob.cpp
-        Source/GUI/HorizontalFader.cpp
         Source/GUI/ReverseToggle.cpp
-        Source/GUI/KnobComponent.cpp
-        Source/GUI/WaveformDisplay.cpp
         Source/GUI/PresetBrowser.cpp
+        Source/GUI/Cockpit/CockpitZones.cpp
+        Source/GUI/Cockpit/CockpitPhotoBackground.cpp
+        Source/GUI/Cockpit/PhotoAnchoredKnob.cpp
+        Source/GUI/Cockpit/CockpitCrossworldPanel.cpp
 
         # MIDI layer
         Source/MIDI/MidiHandler.cpp

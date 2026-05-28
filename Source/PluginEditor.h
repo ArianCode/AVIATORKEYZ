@@ -19,12 +19,12 @@ public:
 private:
     AviatorKeyzProcessor& processorRef;
 
-    static constexpr int kDefaultWidth  = 860;
-    static constexpr int kDefaultHeight = 608;
-    static constexpr int kMinWidth      = 700;
-    static constexpr int kMinHeight     = 495;  // 700 * 608/860
-    static constexpr int kMaxWidth      = 1720; // 2x design
-    static constexpr int kMaxHeight     = 1216;
+    static constexpr int kDefaultWidth  = 1600;
+    static constexpr int kDefaultHeight = 922; // 900 photo + 22 footer
+    static constexpr int kMinWidth      = 1280;
+    static constexpr int kMinHeight     = 742;
+    static constexpr int kMaxWidth      = 2048;
+    static constexpr int kMaxHeight     = 1186;
 
     std::unique_ptr<MainPanel> mainPanel;
 
