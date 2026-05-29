@@ -6,7 +6,10 @@
 class ReverseToggle : public juce::Component
 {
 public:
-    ReverseToggle (juce::AudioProcessorValueTreeState& apvts, const juce::String& paramID);
+    ReverseToggle (juce::AudioProcessorValueTreeState& apvts,
+                   const juce::String& paramID,
+                   const juce::String& displayName = "Reverse",
+                   const juce::String& sublabel = "Playback Phase");
 
     void paint (juce::Graphics& g) override;
     void resized() override;

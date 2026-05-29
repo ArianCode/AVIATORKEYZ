@@ -4,16 +4,15 @@
 #include "CockpitZones.h"
 #include "../FooterBar.h"
 #include "../PrecisionKnob.h"
+#include "../ReverseToggle.h"
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <functional>
 #include <memory>
 #include <vector>
 
 class AviatorKeyzProcessor;
-class PhotoAnchoredKnob;
-class ReverseToggle;
 
-/** Photo-anchored crossworld UI: photo + glass zones + physical anchor controls. */
+/** Cockpit UI: untouched photo background + organized glass overlay panels. */
 class CockpitCrossworldPanel : public juce::Component,
                                private juce::Timer
 {
@@ -39,42 +38,65 @@ private:
         juce::String title;
     };
 
+    class StatusStrip : public juce::Component
+    {
+    public:
+        void paint (juce::Graphics& g) override;
+        juce::Label readout { "status", "" };
+    };
+
+    std::unique_ptr<PrecisionKnob> makeKnob (const char* paramId,
+                                             const juce::String& name,
+                                             const juce::String& sublabel,
+                                             PrecisionKnob::ValueFormat format);
+
+    void buildPanelControls();
+    void buildCategoryFilters();
     void layoutZones();
-    void layoutPhysicalControls();
+    void layoutLeftBrowser();
+    void layoutCenterMacros();
+    void layoutEnvelopePanel();
+    void layoutModulationPanel();
+    void layoutEffectsPanel();
+    void layoutStatusStrip();
     void buildPresetList();
-    void handleAnchorAction (const char* action);
+    void applyCategoryFilter();
+    void updateCategoryButtonStates();
     PrecisionKnob::ValueFormat formatForParam (const char* paramId) const;
-    void paintAdsrCurve (juce::Graphics& g, juce::Rectangle<int> bounds);
-    void paintLfoRadar (juce::Graphics& g, juce::Rectangle<int> bounds);
-    void paintFxMeters (juce::Graphics& g, juce::Rectangle<int> bounds);
+    bool categoryMatchesFilter (const juce::String& category) const;
     void timerCallback() override;
 
     AviatorKeyzProcessor& processor;
     CockpitPhotoBackground photoBackground;
 
-    GlassZone leftMfd { AviatorCockpit::ZoneId::leftMfd };
-    GlassZone rightMfd { AviatorCockpit::ZoneId::rightMfd };
-    GlassZone radarAdsr { AviatorCockpit::ZoneId::radarAdsr };
-    GlassZone radarLfo { AviatorCockpit::ZoneId::radarLfo };
-    GlassZone autopilotStrip { AviatorCockpit::ZoneId::autopilotStrip };
-    GlassZone overheadZone { AviatorCockpit::ZoneId::overhead };
-    GlassZone throttleZone { AviatorCockpit::ZoneId::throttleQuadrant };
+    GlassZone leftBrowserPanel   { AviatorCockpit::ZoneId::leftMfd };
+    GlassZone effectsPanel       { AviatorCockpit::ZoneId::rightMfd };
+    GlassZone envelopePanel      { AviatorCockpit::ZoneId::radarAdsr };
+    GlassZone modulationPanel    { AviatorCockpit::ZoneId::radarLfo };
+    GlassZone centerMacroZone    { AviatorCockpit::ZoneId::throttleQuadrant };
+    StatusStrip headerStatusStrip;
 
     FooterBar footer;
 
     juce::ListBox presetList;
     juce::TextEditor searchBox;
     juce::StringArray presetDisplayNames;
-    juce::Label engineReadout;
-    juce::Label stripReadout;
+    juce::StringArray presetCategories;
+    juce::Array<int> presetFlatIndices;
+    juce::String categoryFilter;
+    juce::Label selectedPresetLabel;
 
-    std::vector<std::unique_ptr<PhotoAnchoredKnob>> photoKnobs;
-    std::vector<std::unique_ptr<ReverseToggle>> photoToggles;
-    std::vector<std::unique_ptr<juce::TextButton>> photoButtons;
-    std::vector<std::unique_ptr<juce::Slider>> photoLevers;
-    std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> leverAttachments;
-    std::vector<juce::Component*> anchoredWidgets;
-    std::vector<int> anchoredIndices;
+    std::vector<std::unique_ptr<juce::TextButton>> categoryButtons;
+
+    std::vector<std::unique_ptr<PrecisionKnob>> macroKnobs;
+    std::vector<std::unique_ptr<PrecisionKnob>> fxKnobs;
+    std::vector<std::unique_ptr<PrecisionKnob>> envKnobs;
+    std::vector<std::unique_ptr<PrecisionKnob>> modKnobs;
+    std::unique_ptr<ReverseToggle> motionToggle;
+
+    juce::Label syncReadout;
+    juce::Label decayReadout;
+    juce::Label sustainReadout;
 
     juce::Rectangle<int> photoArea;
     float lfoSweep = 0.f;

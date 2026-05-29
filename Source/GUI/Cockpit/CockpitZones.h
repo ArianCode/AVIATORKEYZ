@@ -60,13 +60,13 @@ inline NormalizedRect zoneRect (ZoneId z) noexcept
 {
     switch (z)
     {
-        case ZoneId::leftMfd:         return { 0.02f, 0.48f, 0.16f, 0.80f };
-        case ZoneId::rightMfd:        return { 0.84f, 0.48f, 0.98f, 0.80f };
-        case ZoneId::radarAdsr:       return { 0.28f, 0.50f, 0.44f, 0.75f };
-        case ZoneId::radarLfo:        return { 0.56f, 0.50f, 0.72f, 0.75f };
-        case ZoneId::autopilotStrip:  return { 0.10f, 0.42f, 0.90f, 0.47f };
-        case ZoneId::overhead:        return { 0.00f, 0.00f, 1.00f, 0.28f };
-        case ZoneId::throttleQuadrant: return { 0.42f, 0.60f, 0.58f, 0.90f };
+        case ZoneId::leftMfd:          return { 0.015f, 0.50f, 0.185f, 0.84f };
+        case ZoneId::rightMfd:         return { 0.815f, 0.50f, 0.985f, 0.84f };
+        case ZoneId::radarAdsr:        return { 0.19f, 0.62f, 0.37f, 0.84f };
+        case ZoneId::radarLfo:         return { 0.63f, 0.62f, 0.81f, 0.84f };
+        case ZoneId::autopilotStrip:   return { 0.19f, 0.445f, 0.81f, 0.495f };
+        case ZoneId::overhead:         return { 0.00f, 0.00f, 1.00f, 0.28f };
+        case ZoneId::throttleQuadrant:  return { 0.36f, 0.52f, 0.64f, 0.78f };
     }
     return {};
 }

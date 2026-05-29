@@ -1,35 +1,36 @@
 #include "FooterBar.h"
-#include "DesignTokens.h"
+#include "AviatorTokens.h"
 
 FooterBar::FooterBar()
 {
-    setOpaque (true);
+    setOpaque (false);
     addAndMakeVisible (statusLabel);
     addAndMakeVisible (metaLabel);
-    addAndMakeVisible (hudLabel);
+    addAndMakeVisible (hostLabel);
     addAndMakeVisible (settingsButton);
     addAndMakeVisible (aboutButton);
     addAndMakeVisible (versionLabel);
 
-    statusLabel.setFont (DesignTokens::labelFont (7.f));
-    statusLabel.setColour (juce::Label::textColourId, DesignTokens::textFaint());
+    statusLabel.setFont (AviatorTokens::hud (9.f));
+    statusLabel.setColour (juce::Label::textColourId, AviatorTokens::instrumentCyan());
     statusLabel.setText ("Active", juce::dontSendNotification);
 
-    metaLabel.setFont (DesignTokens::labelFont (7.f));
-    metaLabel.setColour (juce::Label::textColourId, DesignTokens::textFaint());
+    metaLabel.setFont (AviatorTokens::hud (9.f));
+    metaLabel.setColour (juce::Label::textColourId, AviatorTokens::textMuted());
 
-    hudLabel.setFont (DesignTokens::monoFont (7.f));
-    hudLabel.setColour (juce::Label::textColourId, DesignTokens::champagne().withAlpha (0.18f));
+    hostLabel.setFont (AviatorTokens::hud (9.f));
+    hostLabel.setColour (juce::Label::textColourId, AviatorTokens::textMuted());
+    hostLabel.setJustificationType (juce::Justification::centred);
 
-    versionLabel.setFont (DesignTokens::labelFont (7.f));
-    versionLabel.setColour (juce::Label::textColourId, DesignTokens::textFaint());
-    versionLabel.setText ("v 1.0.0", juce::dontSendNotification);
+    versionLabel.setFont (AviatorTokens::hud (9.f));
+    versionLabel.setColour (juce::Label::textColourId, AviatorTokens::textMuted());
+    versionLabel.setText ("v1.0.0", juce::dontSendNotification);
     versionLabel.setJustificationType (juce::Justification::centredRight);
 
     for (auto* b : { &settingsButton, &aboutButton })
     {
         b->setColour (juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
-        b->setColour (juce::TextButton::textColourOffId, DesignTokens::textFaint());
+        b->setColour (juce::TextButton::textColourOffId, AviatorTokens::textMuted());
     }
 
     settingsButton.onClick = [this] {
@@ -56,48 +57,57 @@ void FooterBar::setBlockSize (int newBlockSize)
     refreshMetaLabel();
 }
 
+void FooterBar::setActiveStatus (const juce::String& status)
+{
+    statusLabel.setText (status, juce::dontSendNotification);
+}
+
+void FooterBar::setHostDescription (const juce::String& host)
+{
+    hostDescription = host;
+    hostLabel.setText (host, juce::dontSendNotification);
+}
+
 void FooterBar::refreshMetaLabel()
 {
     const auto kHz = lastSampleRate >= 1000.0 ? lastSampleRate / 1000.0 : 44.1;
-    metaLabel.setText (juce::String (kHz, (kHz == (int) kHz ? 0 : 1)) + " kHz · "
+    metaLabel.setText (juce::String (kHz, (kHz == (int) kHz ? 0 : 1)) + " kHz  |  "
                        + juce::String (blockSize) + " spl",
                        juce::dontSendNotification);
 }
 
-void FooterBar::setHudText (const juce::String& hud)
-{
-    hudLabel.setText (hud, juce::dontSendNotification);
-}
-
 void FooterBar::paint (juce::Graphics& g)
 {
-    const float s = DesignTokens::scaleFactorFor (*this);
+    const float sc = AviatorTokens::scaleFor (*this);
+    const auto b = getLocalBounds().toFloat();
 
-    g.fillAll (DesignTokens::piano());
-    g.setColour (DesignTokens::border0());
-    g.drawHorizontalLine (0, 0.f, (float) getWidth());
+    g.setColour (juce::Colour (0xcc030309));
+    g.fillRect (b);
+    g.setColour (AviatorTokens::instrumentCyan().withAlpha (0.35f));
+    g.drawHorizontalLine (0, 0.f, b.getWidth());
 
-    g.setColour (DesignTokens::statusGreen());
-    g.fillEllipse (26.f * s, (float) getHeight() * 0.5f - 2.f * s, 4.f * s, 4.f * s);
+    g.setColour (AviatorTokens::instrumentCyan());
+    g.fillEllipse (10.f * sc, b.getCentreY() - 3.f * sc, 6.f * sc, 6.f * sc);
 }
 
 void FooterBar::resized()
 {
-    const float s = DesignTokens::scaleFactorFor (*this);
-    const int margin = DesignTokens::scaled (26, s);
+    const float sc = AviatorTokens::scaleFor (*this);
+    const int margin = AviatorTokens::scaledFor (*this, 12);
 
-    statusLabel.setFont (DesignTokens::labelFont (7.f * s));
-    metaLabel.setFont (DesignTokens::labelFont (7.f * s));
-    hudLabel.setFont (DesignTokens::monoFont (7.f * s));
-    versionLabel.setFont (DesignTokens::labelFont (7.f * s));
+    statusLabel.setFont (AviatorTokens::hud (9.f * sc));
+    metaLabel.setFont (AviatorTokens::hud (9.f * sc));
+    hostLabel.setFont (AviatorTokens::hud (9.f * sc));
+    versionLabel.setFont (AviatorTokens::hud (9.f * sc));
 
     auto left = getLocalBounds().reduced (margin, 0);
-    statusLabel.setBounds (left.removeFromLeft (DesignTokens::scaled (48, s)).withTrimmedLeft (DesignTokens::scaled (10, s)));
-    metaLabel.setBounds (left.removeFromLeft (DesignTokens::scaled (110, s)));
-    hudLabel.setBounds (left.removeFromLeft (DesignTokens::scaled (140, s)));
+    statusLabel.setBounds (left.removeFromLeft (AviatorTokens::scaledFor (*this, 72)).withTrimmedLeft (AviatorTokens::scaledFor (*this, 8)));
+    metaLabel.setBounds (left.removeFromLeft (AviatorTokens::scaledFor (*this, 130)));
 
     auto right = getLocalBounds().reduced (margin, 0);
-    versionLabel.setBounds (right.removeFromRight (DesignTokens::scaled (40, s)));
-    aboutButton.setBounds (right.removeFromRight (DesignTokens::scaled (42, s)));
-    settingsButton.setBounds (right.removeFromRight (DesignTokens::scaled (56, s)));
+    versionLabel.setBounds (right.removeFromRight (AviatorTokens::scaledFor (*this, 48)));
+    aboutButton.setBounds (right.removeFromRight (AviatorTokens::scaledFor (*this, 48)));
+    settingsButton.setBounds (right.removeFromRight (AviatorTokens::scaledFor (*this, 60)));
+
+    hostLabel.setBounds (getLocalBounds().reduced (margin, 0));
 }

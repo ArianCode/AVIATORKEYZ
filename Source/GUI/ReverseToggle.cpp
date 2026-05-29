@@ -1,20 +1,23 @@
 #include "ReverseToggle.h"
 #include "DesignTokens.h"
 
-ReverseToggle::ReverseToggle (juce::AudioProcessorValueTreeState& apvts, const juce::String& paramID)
+ReverseToggle::ReverseToggle (juce::AudioProcessorValueTreeState& apvts,
+                              const juce::String& paramID,
+                              const juce::String& displayName,
+                              const juce::String& sublabel)
 {
     setOpaque (false);
     button.setClickingTogglesState (true);
     button.onClick = [this] { syncState(); };
     addChildComponent (button);
 
-    nameLabel.setText ("Reverse", juce::dontSendNotification);
+    nameLabel.setText (displayName, juce::dontSendNotification);
     nameLabel.setJustificationType (juce::Justification::centred);
     nameLabel.setFont (DesignTokens::labelFont (8.f, juce::Font::bold));
     nameLabel.setColour (juce::Label::textColourId, DesignTokens::textSecondary());
     addAndMakeVisible (nameLabel);
 
-    subLabel.setText ("Playback Phase", juce::dontSendNotification);
+    subLabel.setText (sublabel, juce::dontSendNotification);
     subLabel.setJustificationType (juce::Justification::centred);
     subLabel.setFont (DesignTokens::labelFont (6.f));
     subLabel.setColour (juce::Label::textColourId, DesignTokens::textFaint());
@@ -41,7 +44,7 @@ void ReverseToggle::syncState()
     stateLabel.setText (on ? "On" : "Off", juce::dontSendNotification);
     stateLabel.setColour (juce::Label::textColourId,
                           on ? DesignTokens::champagneMid() : DesignTokens::textFaint());
-    valueLabel.setText (on ? "Active" : "", juce::dontSendNotification);
+    valueLabel.setText (on ? "On" : "Off", juce::dontSendNotification);
     repaint();
 }
 
