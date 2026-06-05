@@ -4,87 +4,172 @@ A high-end, sample-based virtual instrument built with JUCE and C++20, targeting
 
 ---
 
-## Requirements
+## Local Development Workflow (Windows + macOS)
 
-| Tool | Version |
-|------|---------|
-| CMake | 3.22+ |
-| Xcode Command Line Tools | macOS 13+ (full Xcode for GUI debugging) |
-| Ninja | Recommended (`brew install ninja`) |
-| Git | Any recent |
-| JUCE | Fetched automatically by CMake |
+### 1) Required software
 
-**Primary platform:** macOS 13+ (Apple Silicon and Intel).  
-**Secondary platform:** Windows 10/11 x64 (see `scripts/build_windows.bat`).
+#### Windows (Visual Studio workflow)
 
----
+- Windows 10/11 x64
+- Visual Studio 2022 with `Desktop development with C++`
+  - MSVC v143
+  - Windows 10/11 SDK
+  - MSBuild + CMake tools
+- CMake 3.22+
+- Git
 
-## Build (macOS)
+Optional but useful:
+
+- REAPER (quick VST3 host)
+- JUCE AudioPluginHost (`extras/AudioPluginHost`) for quick plugin validation
+
+#### macOS (Xcode workflow)
+
+- macOS 13+
+- Xcode 15+ (or compatible with your installed SDK)
+- Xcode Command Line Tools
+- CMake 3.22+
+- Git
+
+Optional but useful:
+
+- REAPER/Ableton/Logic Pro for host testing
+- JUCE AudioPluginHost for quick plugin validation
+- Ninja (`brew install ninja`) if you prefer non-Xcode command-line builds
+
+### 2) Generate project files (if needed)
+
+#### Windows (Visual Studio 2022 solution)
+
+```powershell
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+```
+
+Open `build\AviatorKeyz.sln` in Visual Studio.
+
+#### macOS (Xcode project)
+
+```bash
+cmake -S . -B build-xcode -G Xcode
+```
+
+Open `build-xcode/AviatorKeyz.xcodeproj` in Xcode.
+
+### 3) Build commands
+
+#### Windows quick build (scripted)
+
+```powershell
+# Release
+.\scripts\build_windows.bat
+
+# Debug
+.\scripts\build_windows.bat debug
+
+# Clean
+.\scripts\build_windows.bat clean
+```
+
+#### Windows manual CMake build
+
+```powershell
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+cmake --build build --config Release --parallel
+```
+
+#### macOS quick build (scripted)
 
 ```bash
 chmod +x scripts/build_macos.sh
 
-# Release build
+# Release
 ./scripts/build_macos.sh
 
-# Debug build
+# Debug
 ./scripts/build_macos.sh debug
 
-# Release + install VST3 to ~/Library/Audio/Plug-Ins/VST3/
+# Release + install VST3
 ./scripts/build_macos.sh install
 
 # Clean
 ./scripts/build_macos.sh clean
 ```
 
-Or manually with CMake (Ninja):
+#### macOS manual CMake build
 
 ```bash
+# Xcode generator
+cmake -S . -B build-xcode -G Xcode
+cmake --build build-xcode --config Release
+
+# or Ninja
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
 ```
 
-**Outputs:** the build script prints exact paths. On macOS they are typically:
+### 4) Build outputs
+
+Typical output locations:
 
 - VST3: `build/AviatorKeyz_artefacts/Release/VST3/AviatorKeyz.vst3`
-- Standalone: `build/AviatorKeyz_artefacts/Release/Standalone/AviatorKeyz.app`
+- Standalone:
+  - macOS: `build/AviatorKeyz_artefacts/Release/Standalone/AviatorKeyz.app`
+  - Windows: `build/AviatorKeyz_artefacts/Release/Standalone/AviatorKeyz.exe`
+- AU (macOS): `build/AviatorKeyz_artefacts/Release/AU/AviatorKeyz.component`
 
----
+### 5) Test in DAW or plugin host
 
-## Install for DAW testing (macOS)
+#### Windows (VST3)
 
-1. Build the plugin (release or debug)
-2. Copy the bundle:
-   ```bash
-   cp -R build/AviatorKeyz_artefacts/Release/VST3/AviatorKeyz.vst3 \
-     ~/Library/Audio/Plug-Ins/VST3/
-   ```
-   Or use `./scripts/build_macos.sh install`
-3. Rescan plugins in your DAW (Logic, Ableton, Reaper, FL Studio for Mac, etc.)
-4. AviatorKeyz should appear as a **VST3 instrument** (not an effect)
+1. Build Release.
+2. Copy:
+   - `build\AviatorKeyz_artefacts\Release\VST3\AviatorKeyz.vst3`
+   - to `C:\Program Files\Common Files\VST3\`
+3. Rescan plugins in your DAW.
+4. Load AviatorKeyz as an instrument plugin.
 
-**Fast dev loop:** run the Standalone app — no DAW required:
+For quick host testing, use REAPER or JUCE AudioPluginHost and scan the same VST3 folder.
+
+#### macOS (AU + VST3)
+
+1. Build Release.
+2. Copy/install artifacts:
+   - VST3 to `~/Library/Audio/Plug-Ins/VST3/`
+   - AU component to `~/Library/Audio/Plug-Ins/Components/`
+3. Rescan/restart host:
+   - Logic uses AU
+   - Ableton/REAPER can use VST3
+4. Load AviatorKeyz as an instrument.
+
+### 6) Fast UI preview without a DAW
+
+Use the Standalone target for rapid GUI iteration:
+
+#### Windows
+
+```powershell
+.\scripts\run_standalone_windows.bat
+```
+
+#### macOS
 
 ```bash
-open build/AviatorKeyz_artefacts/Release/Standalone/AviatorKeyz.app
+chmod +x scripts/run_standalone_macos.sh
+./scripts/run_standalone_macos.sh
 ```
+
+Recommended UI loop:
+
+1. Build Debug or Release standalone
+2. Launch standalone
+3. Iterate on `Source/GUI/*`
+4. Rebuild + relaunch
 
 Factory sounds ship inside the plugin (embedded WAV + presets), not as a separate host sound-bank file.
 
 Pre-release checks: `./scripts/verify_release.sh`
 
 Full deliverables checklist: [docs/DELIVERABLES.md](docs/DELIVERABLES.md)
-
----
-
-## Build (Windows) — secondary
-
-```batch
-scripts\build_windows.bat
-```
-
-Output: `build\AviatorKeyz_artefacts\Release\VST3\AviatorKeyz.vst3`  
-Install to: `C:\Program Files\Common Files\VST3\`
 
 ---
 
@@ -124,6 +209,8 @@ AviatorKeyz/
 ├── scripts/
 │   ├── build_macos.sh      Primary build script
 │   ├── build_windows.bat   Secondary (Windows)
+│   ├── run_standalone_macos.sh
+│   ├── run_standalone_windows.bat
 │   ├── generate_factory_assets.py
 │   ├── validate_factory_presets.py
 │   └── verify_release.sh

@@ -530,8 +530,12 @@ void CockpitCrossworldPanel::layoutZones()
     place (modulationPanel);
     place (centerMacroZone);
 
-    headerStatusStrip.setBounds (AviatorCockpit::zoneRect (AviatorCockpit::ZoneId::autopilotStrip)
-                                     .toPixels (photoArea));
+    auto stripBounds = AviatorCockpit::zoneRect (AviatorCockpit::ZoneId::autopilotStrip)
+                           .toPixels (photoArea);
+    stripBounds = stripBounds.reduced (AviatorTokens::scaledFor (*this, 3), 0)
+                             .withTrimmedTop (AviatorTokens::scaledFor (*this, 8))
+                             .withTrimmedBottom (AviatorTokens::scaledFor (*this, 8));
+    headerStatusStrip.setBounds (stripBounds);
 
     layoutStatusStrip();
     layoutLeftBrowser();

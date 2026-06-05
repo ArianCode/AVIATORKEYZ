@@ -70,8 +70,8 @@ juce_add_plugin(AviatorKeyz
     PLUGIN_NAME                 "AviatorKeyz"
     PRODUCT_NAME                "AviatorKeyz"
 
-    # Format — VST3 ships; Standalone is the fast dev loop (Milestone 0)
-    FORMATS                     VST3 Standalone
+    # Formats — cross-platform VST3 + macOS AU, with Standalone for fast UI iteration
+    FORMATS                     VST3 AU Standalone
 
     # Capabilities
     IS_SYNTH                    TRUE
