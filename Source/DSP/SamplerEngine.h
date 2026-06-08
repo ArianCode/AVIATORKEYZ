@@ -24,7 +24,20 @@ public:
     /** Message thread — pointer must remain valid until the next publish + allSoundOff. */
     void setSampleSnapshot (const SampleLibrary::AudioSnapshot* snapshot) noexcept;
 
-    void setEnvelopeTimesMs (float attackMs, float releaseMs) noexcept;
+    void setEnvelopeTimesMs (float attackMs, float decayMs, float sustain01, float releaseMs) noexcept;
+
+    void setPolyphony (int voices) noexcept;
+    void setPlayMode (int mode) noexcept;
+    void setGlideMode (int mode) noexcept;
+
+    void setPhraseParams (bool enabled,
+                          float startNorm,
+                          float lengthNorm,
+                          int pitchSemis,
+                          bool loop,
+                          bool tempoSync,
+                          bool keySync,
+                          double hostBpm) noexcept;
 
     void noteOn (int midiNote, float velocity, bool reverse, float glideTimeMs) noexcept;
     void noteOff (int midiNote) noexcept;
@@ -38,9 +51,13 @@ private:
     {
         idle,
         attack,
+        decay,
         sustain,
         release
     };
+
+    enum class PlayMode : int { poly = 0, mono, legato };
+    enum class GlideMode : int { off = 0, legato, always };
 
     struct Voice
     {
@@ -86,9 +103,24 @@ private:
     const SampleLibrary::AudioSnapshot* sampleSnapshot = nullptr;
 
     float attackMs = 5.f;
+    float decayMs = 300.f;
+    float sustainLevel = 1.f;
     float releaseMs = 150.f;
 
+    int maxVoices { 16 };
+    PlayMode playMode { PlayMode::poly };
+    GlideMode glideMode { GlideMode::off };
     int lastNoteForGlide = -1;
+    int monoVoiceIndex { -1 };
+
+    bool phraseEnabled { false };
+    float phraseStartNorm { 0.f };
+    float phraseLengthNorm { 1.f };
+    int phrasePitchSemis { 0 };
+    bool phraseLoop { false };
+    bool phraseTempoSync { false };
+    bool phraseKeySync { true };
+    double phraseHostBpm { 120.0 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SamplerEngine)
 };

@@ -1,4 +1,55 @@
 #include "SampleLibrary.h"
+#include "Debug/AviatorDebug.h"
+#include <cstring>
+
+// ---------------------------------------------------------------------------
+// Read MIDI unity note from a WAV smpl chunk, if present.
+// Returns -1 when no smpl chunk is found (caller uses preset XML value instead).
+//
+// smpl chunk layout (IEEE 1666 / MMA spec):
+//   bytes  0- 3: manufacturer
+//   bytes  4- 7: product
+//   bytes  8-11: sample period (ns)
+//   bytes 12-15: MIDI unity note  ← what we want
+//   bytes 16-19: MIDI pitch fraction
+//   ...
+// ---------------------------------------------------------------------------
+static int readSmplRootNote (const void* wavData, size_t numBytes) noexcept
+{
+    const auto* p   = static_cast<const uint8_t*> (wavData);
+    const auto* end = p + numBytes;
+
+    // Skip RIFF header (12 bytes) and scan for 'smpl' chunk tag
+    if (numBytes < 12) return -1;
+    p += 12;
+
+    while (p + 8 <= end)
+    {
+        uint32_t tag, chunkSize;
+        std::memcpy (&tag,       p,     4);
+        std::memcpy (&chunkSize, p + 4, 4);
+        // Little-endian 'smpl' = 0x736d706c
+        if (tag == 0x6c706d73u)   // 's','m','p','l' in little-endian memory
+        {
+            const auto* chunkBody = p + 8;
+            if (chunkBody + 16 <= end)
+            {
+                uint32_t midiUnity;
+                std::memcpy (&midiUnity, chunkBody + 12, 4);
+                if (midiUnity <= 127)
+                {
+                    AK_LOG ("SampleLibrary: smpl chunk root note = " + juce::String (midiUnity));
+                    return static_cast<int> (midiUnity);
+                }
+            }
+            break;  // found smpl but malformed — stop searching
+        }
+        const uint32_t advance = 8 + ((chunkSize + 1) & ~1u);  // align to 2 bytes
+        if (advance == 0) break;
+        p += advance;
+    }
+    return -1;
+}
 
 SampleLibrary::SampleLibrary()
 {
@@ -98,7 +149,17 @@ bool SampleLibrary::loadFromMemory (const void* data,
         return false;
     }
 
-    region.rootNote     = juce::jlimit (0, 127, rootNote);
+    // Prefer the smpl chunk root note when the WAV contains one —
+    // it is authoritative over the preset XML inference.
+    const int smplRoot = readSmplRootNote (data, numBytes);
+    const int effectiveRoot = (smplRoot >= 0) ? smplRoot : rootNote;
+
+    if (smplRoot >= 0 && smplRoot != rootNote)
+        AK_LOG ("SampleLibrary: smpl chunk (" + juce::String (smplRoot)
+                + ") overrides preset XML rootNote (" + juce::String (rootNote)
+                + ") for " + displayName);
+
+    region.rootNote     = juce::jlimit (0, 127, effectiveRoot);
     region.noteMin      = juce::jlimit (0, 127, noteMin);
     region.noteMax      = juce::jlimit (0, 127, noteMax);
     region.velocityMin  = juce::jlimit (0.0f, 1.0f, velocityMin);
@@ -216,4 +277,6 @@ void SampleLibrary::publish()
     const int writeIdx = 1 - readIndex.load (std::memory_order_relaxed);
     buildSnapshotInto (writeIdx);
     readIndex.store (writeIdx, std::memory_order_release);
+    AK_LOG ("SampleLibrary::publish idx=" + juce::String (writeIdx)
+            + " regions=" + juce::String (storages[writeIdx].snapshot->regions.size()));
 }

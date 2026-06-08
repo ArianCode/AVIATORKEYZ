@@ -17,14 +17,19 @@ void ReverbTail::reset()
 
 void ReverbTail::process (juce::AudioBuffer<float>& buffer,
                            float reverbAmount,
-                           float reverbSize)
+                           float reverbSize,
+                           bool reverbOn,
+                           float damping)
 {
-    if (! prepared || buffer.getNumChannels() < 2)
+    if (! prepared || buffer.getNumChannels() < 2 || ! reverbOn)
+        return;
+
+    if (reverbAmount < 0.001f)
         return;
 
     juce::dsp::Reverb::Parameters params;
     params.roomSize   = juce::jlimit (0.f, 1.f, reverbSize);
-    params.damping    = 0.5f;
+    params.damping    = juce::jlimit (0.f, 1.f, damping);
     params.wetLevel   = juce::jlimit (0.f, 1.f, reverbAmount);
     params.dryLevel   = 1.0f - params.wetLevel;
     params.width      = 1.0f;

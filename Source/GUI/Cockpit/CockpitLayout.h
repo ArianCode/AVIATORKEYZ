@@ -9,7 +9,7 @@ namespace CockpitLayout
 
 inline float scale (const juce::Component& c) noexcept
 {
-    return AviatorTokens::scaleFactor (c.getWidth() > 0 ? c.getWidth() : AviatorTokens::kDesignWidth);
+    return AviatorTokens::scaleFor (c);
 }
 
 inline int s (const juce::Component& c, int designPx) noexcept

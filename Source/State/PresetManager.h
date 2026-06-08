@@ -46,18 +46,35 @@ public:
     juce::String getCurrentPresetName() const;
     juce::String getCurrentCategory() const;
     juce::String getCurrentSampleId() const;
+    int          getCurrentRootNote() const;
+
+    /** Update preset/sample tracking without reloading preset XML (host state restore). */
+    void setPresetIdentity (const juce::String& category,
+                            const juce::String& name,
+                            const juce::String& sampleId,
+                            int rootNote);
 
     int  getTotalPresetCount() const;
     int  getCurrentPresetIndex() const;
     bool loadPresetByFlatIndex (int index);
     bool loadAdjacentPreset (int delta);
+    /** Steps within the active category only (PATCH prev/next). */
+    bool loadAdjacentPresetInCategory (int delta);
+    int  getCurrentPresetIndexInCategory() const;
+    /** Steps across factory categories (CAT prev/next). */
+    bool loadAdjacentCategory (int delta);
 
-    /** category, preset name, sampleId — message thread only */
+    /** category, preset name, sampleId, rootNote — message thread only */
     std::function<void (const juce::String& category,
                         const juce::String& name,
-                        const juce::String& sampleId)> onPresetLoaded;
+                        const juce::String& sampleId,
+                        int rootNote)> onPresetLoaded;
 
 private:
+    static int inferRootNoteFromPresetName (const juce::String& presetName,
+                                            const juce::String& sampleId);
+    static int parseRootNoteAttribute (const juce::XmlElement* presetRoot);
+
     struct FlatPreset
     {
         juce::String category;
@@ -71,6 +88,7 @@ private:
     juce::String currentPresetName;
     juce::String currentCategory;
     juce::String currentSampleId { AviatorKeyz::SampleID::DEFAULT };
+    int          currentRootNote { 60 };
 
     juce::File getFactoryPresetsDir() const;
     juce::File getUserPresetsDir()    const;

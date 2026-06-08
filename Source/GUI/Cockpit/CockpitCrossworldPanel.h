@@ -1,22 +1,33 @@
 #pragma once
 
 #include "CockpitPhotoBackground.h"
+#include "CockpitPresetControlBar.h"
+#include "CockpitTopPresetBar.h"
 #include "CockpitZones.h"
+#include "InstrumentPanelBar.h"
+#include "PhotoAnchoredKnob.h"
+#include "PresetCenterNavigator.h"
+#include "PresetSearchOverlay.h"
+#include "../Advanced/AdvancedPresetSidebar.h"
 #include "../FooterBar.h"
 #include "../PrecisionKnob.h"
 #include "../ReverseToggle.h"
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <functional>
 #include <memory>
+#include <unordered_set>
 #include <vector>
 
 class AviatorKeyzProcessor;
 
-/** Cockpit UI: untouched photo background + organized glass overlay panels. */
-class CockpitCrossworldPanel : public juce::Component,
-                               private juce::Timer
+/** Main cockpit: preset sidebar, full-bleed photo, centered navigator, bottom gauges. */
+class CockpitCrossworldPanel : public juce::Component
 {
 public:
+    static constexpr int kTopPresetBarH = 52;
+    static constexpr int kPresetControlBarH = 34;
+    static constexpr int kSidebarDesignW = 280;
+
     explicit CockpitCrossworldPanel (AviatorKeyzProcessor& processor);
     ~CockpitCrossworldPanel() override;
 
@@ -29,80 +40,34 @@ public:
     void refreshPresetUI();
 
 private:
-    class GlassZone : public juce::Component
-    {
-    public:
-        explicit GlassZone (AviatorCockpit::ZoneId id);
-        void paint (juce::Graphics& g) override;
-        AviatorCockpit::ZoneId zoneId;
-        juce::String title;
-    };
-
-    class StatusStrip : public juce::Component
-    {
-    public:
-        void paint (juce::Graphics& g) override;
-        juce::Label readout { "status", "" };
-    };
-
-    std::unique_ptr<PrecisionKnob> makeKnob (const char* paramId,
-                                             const juce::String& name,
-                                             const juce::String& sublabel,
-                                             PrecisionKnob::ValueFormat format);
-
-    void buildPanelControls();
-    void buildCategoryFilters();
+    void buildInstrumentGauges();
+    void buildPhotoAnchors();
+    void buildTopPresetBar();
+    void selectCategory (const juce::String& category);
     void layoutZones();
-    void layoutLeftBrowser();
-    void layoutCenterMacros();
-    void layoutEnvelopePanel();
-    void layoutModulationPanel();
-    void layoutEffectsPanel();
-    void layoutStatusStrip();
-    void buildPresetList();
-    void applyCategoryFilter();
-    void updateCategoryButtonStates();
-    PrecisionKnob::ValueFormat formatForParam (const char* paramId) const;
-    bool categoryMatchesFilter (const juce::String& category) const;
-    void timerCallback() override;
+    void openSearchOverlay();
+    juce::String favouriteKey (const juce::String& cat, const juce::String& name) const;
+    bool isFavourited (const juce::String& cat, const juce::String& name) const;
+    void setFavourited (const juce::String& cat, const juce::String& name, bool fav);
+    void saveCurrentPreset();
 
     AviatorKeyzProcessor& processor;
     CockpitPhotoBackground photoBackground;
+    CockpitTopPresetBar topPresetBar;
+    CockpitPresetControlBar presetControlBar;
+    PresetCenterNavigator presetNavigator;
+    std::unique_ptr<AdvancedPresetSidebar> presetSidebar;
+    std::unique_ptr<PresetSearchOverlay> searchOverlay;
 
-    GlassZone leftBrowserPanel   { AviatorCockpit::ZoneId::leftMfd };
-    GlassZone effectsPanel       { AviatorCockpit::ZoneId::rightMfd };
-    GlassZone envelopePanel      { AviatorCockpit::ZoneId::radarAdsr };
-    GlassZone modulationPanel    { AviatorCockpit::ZoneId::radarLfo };
-    GlassZone centerMacroZone    { AviatorCockpit::ZoneId::throttleQuadrant };
-    StatusStrip headerStatusStrip;
-
+    std::unique_ptr<InstrumentPanelBar> instrumentBar;
     FooterBar footer;
 
-    juce::ListBox presetList;
-    juce::TextEditor searchBox;
-    juce::StringArray presetDisplayNames;
-    juce::StringArray presetCategories;
-    juce::Array<int> presetFlatIndices;
-    juce::String categoryFilter;
-    juce::Label selectedPresetLabel;
+    std::vector<AviatorCockpit::KnobAnchor> photoAnchorSpecs;
+    std::vector<std::unique_ptr<juce::Component>> photoControls;
 
-    std::vector<std::unique_ptr<juce::TextButton>> categoryButtons;
-
-    std::vector<std::unique_ptr<PrecisionKnob>> macroKnobs;
-    std::vector<std::unique_ptr<PrecisionKnob>> fxKnobs;
-    std::vector<std::unique_ptr<PrecisionKnob>> envKnobs;
-    std::vector<std::unique_ptr<PrecisionKnob>> modKnobs;
-    std::unique_ptr<ReverseToggle> motionToggle;
-
-    juce::Label syncReadout;
-    juce::Label decayReadout;
-    juce::Label sustainReadout;
-
-    juce::Rectangle<int> photoArea;
-    float lfoSweep = 0.f;
-
-    struct PresetListModel;
-    std::unique_ptr<PresetListModel> presetModel;
+    juce::String activeCategory;
+    bool topBarCategoriesBuilt { false };
+    std::unordered_set<std::string> favourites;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CockpitCrossworldPanel)
 };

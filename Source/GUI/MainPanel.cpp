@@ -19,7 +19,14 @@ MainPanel::MainPanel (AviatorKeyzProcessor& p)
             "Photo-anchored cockpit UI.\nAviatorKeyz v1.0.0");
     };
 
-    p.getPresetManager().onPresetLoaded = [this] (const juce::String&, const juce::String&, const juce::String&) {
+    auto& pm = p.getPresetManager();
+    auto loadSampleHook = pm.onPresetLoaded;
+    pm.onPresetLoaded = [this, loadSampleHook] (const juce::String& category,
+                                                const juce::String& name,
+                                                const juce::String& sampleId,
+                                                int rootNote) {
+        if (loadSampleHook)
+            loadSampleHook (category, name, sampleId, rootNote);
         refreshPresetUI();
     };
 
@@ -49,9 +56,9 @@ void MainPanel::showLibraryPopup()
         if (libraryCallout != nullptr)
             libraryCallout->dismiss();
     });
-    browser->setSize (280, 150);
+    browser->setSize (320, 200);
 
-    auto popupArea = juce::Rectangle<int> (280, 150).withCentre (getScreenBounds().getCentre());
+    auto popupArea = juce::Rectangle<int> (320, 200).withCentre (getScreenBounds().getCentre());
     libraryCallout = &juce::CallOutBox::launchAsynchronously (
         std::move (browser), popupArea, nullptr);
 }

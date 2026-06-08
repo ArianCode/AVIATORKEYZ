@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Preset category="Leads" name="Init" schemaVersion="1" sampleId="factory_leads" author="AviatorKeyz">
+<Preset category="Leads" name="Init" schemaVersion="1" sampleId="factory_leads_bos_aa_synth_one_shot_shadows_c" rootNote="60" author="AviatorKeyz">
   <AviatorKeyzState stateVersion="1">
     <PARAM id="input_gain" value="0.0"/>
     <PARAM id="output_gain" value="0.0"/>

@@ -233,21 +233,21 @@ Visual tracker (updated 2026-05-18): **[docs/PROGRESS.md](docs/PROGRESS.md)**
 
 ```
 M0  Scaffold & build          ████████████  100%
-M1  Sampler + MIDI            ████████████  100%
-M2  Creative DSP              ████████████  100%
-M3  Presets                    ████████████  100%
-M4  Premium UI                 ██████░░░░░░   50%
+M1  Sampler + MIDI            ██████████░░   90%
+M2  Creative DSP              █████████░░░   85%
+M3  Presets                    █████████░░░   80%
+M4  Premium UI                 ███████░░░░░   60%
 M5  Host certification         ██░░░░░░░░░░   15%
 ```
 
 | # | Title | Status |
 |---|-------|--------|
 | M0 | Scaffold & Build | ✅ Complete (committed) |
-| M1 | Core Sampler Engine | ✅ Complete |
-| M2 | Creative Engine | ✅ Complete |
-| M3 | Preset System | ✅ 50 factory presets embedded |
-| M4 | Premium UI | 🔧 In progress |
-| M5 | Polish & host cert | Manual QA on macOS + signing — see [CODE_SIGNING.md](docs/CODE_SIGNING.md) |
+| M1 | Core Sampler Engine | ~90% — host exit tests open |
+| M2 | Creative Engine | ~85% — automation validation open |
+| M3 | Preset System | ~110 factory presets embedded |
+| M4 | Premium UI | Photo-anchored cockpit + Advanced view |
+| M5 | Polish & host cert | Automated smoke + manual DAW QA — see [M5_CERTIFICATION.md](docs/M5_CERTIFICATION.md) |
 
 ---
 

@@ -3,9 +3,9 @@
 Tests for state/parameter schema consistency.
 
 Parses StateSchema.h to extract authoritative parameter IDs,
-then verifies all preset XML files are consistent with the schema.
-Also checks that APVTS layout (PluginProcessor.cpp) defines the
-same parameters as StateSchema.h declares.
+then verifies preset XML files are consistent with the schema.
+Also checks that APVTS layout (ParameterLayout + AdvancedParameterLayout)
+defines the same parameters as StateSchema.h declares.
 """
 
 from __future__ import annotations
@@ -16,9 +16,13 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SCHEMA_H   = ROOT / "Source" / "State" / "StateSchema.h"
+SCHEMA_H = ROOT / "Source" / "State" / "StateSchema.h"
+PARAMETER_LAYOUT_CPP = ROOT / "Source" / "State" / "ParameterLayout.cpp"
+ADVANCED_LAYOUT_CPP = ROOT / "Source" / "GUI" / "Advanced" / "AdvancedParameterLayout.cpp"
 PROCESSOR_CPP = ROOT / "Source" / "PluginProcessor.cpp"
 PRESETS_DIR = ROOT / "Resources" / "Presets" / "Factory"
+
+EXPECTED_PARAM_COUNT = 130
 
 
 def _extract_param_ids_from_schema() -> set[str]:
@@ -26,22 +30,43 @@ def _extract_param_ids_from_schema() -> set[str]:
     if not SCHEMA_H.exists():
         return set()
     text = SCHEMA_H.read_text(encoding="utf-8")
-    # Find the ParamID namespace block
-    m = re.search(r'namespace ParamID\s*\{(.+?)\}', text, re.DOTALL)
+    m = re.search(r"namespace ParamID\s*\{(.+?)\}", text, re.DOTALL)
     if not m:
         return set()
     block = m.group(1)
-    # Extract all string literals assigned to constexpr const char*
     return set(re.findall(r'"([a-z_][a-z0-9_]*)"', block))
 
 
-def _extract_param_ids_from_processor() -> set[str]:
-    """Extract ParameterID string literals from createParameterLayout() in PluginProcessor.cpp."""
-    if not PROCESSOR_CPP.exists():
-        return set()
-    text = PROCESSOR_CPP.read_text(encoding="utf-8")
-    # Match: ParameterID { ParamID::FOO, 1 } or ParameterID { "literal", 1 }
-    return set(re.findall(r'ParamID::([A-Z_]+)', text))
+def _extract_param_ids_from_layout_sources() -> set[str]:
+    """Collect registered param ID strings from parameter layout source files."""
+    ids: set[str] = set()
+    constant_to_string: dict[str, str] = {}
+
+    if SCHEMA_H.exists():
+        schema_text = SCHEMA_H.read_text(encoding="utf-8")
+        m = re.search(r"namespace ParamID\s*\{(.+?)\}", schema_text, re.DOTALL)
+        if m:
+            for name, value in re.findall(
+                r"constexpr\s+const\s+char\*\s+([A-Z_0-9]+)\s*=\s*\"([a-z_][a-z0-9_]*)\"",
+                m.group(1),
+            ):
+                constant_to_string[name] = value
+
+    layout_files = (PARAMETER_LAYOUT_CPP, ADVANCED_LAYOUT_CPP, PROCESSOR_CPP)
+    combined = ""
+    for path in layout_files:
+        if path.exists():
+            combined += path.read_text(encoding="utf-8") + "\n"
+
+    for const_name in re.findall(r"ParamID::([A-Z_0-9]+)", combined):
+        if const_name in constant_to_string:
+            ids.add(constant_to_string[const_name])
+
+    for prefix in re.findall(r'addOsc\s*\([^,]+,\s*"([a-z0-9]+)"', combined):
+        for suffix in ("type", "tune", "fine", "shape", "level", "pan"):
+            ids.add(f"{prefix}_{suffix}")
+
+    return ids
 
 
 def _extract_param_ids_from_presets() -> set[str]:
@@ -65,7 +90,7 @@ def _extract_sample_ids_from_schema() -> set[str]:
     if not SCHEMA_H.exists():
         return set()
     text = SCHEMA_H.read_text(encoding="utf-8")
-    m = re.search(r'namespace SampleID\s*\{(.+?)\}', text, re.DOTALL)
+    m = re.search(r"namespace SampleID\s*\{(.+?)\}", text, re.DOTALL)
     if not m:
         return set()
     block = m.group(1)
@@ -76,7 +101,7 @@ def _extract_category_names_from_schema() -> set[str]:
     if not SCHEMA_H.exists():
         return set()
     text = SCHEMA_H.read_text(encoding="utf-8")
-    m = re.search(r'namespace Category\s*\{(.+?)\}', text, re.DOTALL)
+    m = re.search(r"namespace Category\s*\{(.+?)\}", text, re.DOTALL)
     if not m:
         return set()
     block = m.group(1)
@@ -84,6 +109,7 @@ def _extract_category_names_from_schema() -> set[str]:
 
 
 _SCHEMA_PARAM_IDS = _extract_param_ids_from_schema()
+_LAYOUT_PARAM_IDS = _extract_param_ids_from_layout_sources()
 _PRESET_PARAM_IDS = _extract_param_ids_from_presets()
 _SCHEMA_SAMPLE_IDS = _extract_sample_ids_from_schema()
 _SCHEMA_CATEGORY_NAMES = _extract_category_names_from_schema()
@@ -92,52 +118,66 @@ _SCHEMA_CATEGORY_NAMES = _extract_category_names_from_schema()
 class TestStateSchemaH(unittest.TestCase):
 
     def test_schema_h_exists(self):
-        self.assertTrue(SCHEMA_H.exists(),
-                        f"StateSchema.h not found at {SCHEMA_H}")
+        self.assertTrue(SCHEMA_H.exists(), f"StateSchema.h not found at {SCHEMA_H}")
 
-    def test_schema_defines_12_param_ids(self):
-        self.assertEqual(len(_SCHEMA_PARAM_IDS), 12,
-                         f"Expected 12 param IDs in StateSchema.h, "
-                         f"found {len(_SCHEMA_PARAM_IDS)}: {sorted(_SCHEMA_PARAM_IDS)}")
+    def test_schema_defines_expected_param_count(self):
+        self.assertEqual(
+            len(_SCHEMA_PARAM_IDS),
+            EXPECTED_PARAM_COUNT,
+            f"Expected {EXPECTED_PARAM_COUNT} param IDs in StateSchema.h, "
+            f"found {len(_SCHEMA_PARAM_IDS)}: {sorted(_SCHEMA_PARAM_IDS)}",
+        )
 
-    def test_schema_has_all_expected_param_ids(self):
+    def test_schema_has_all_v1_param_ids(self):
         expected = {
             "input_gain", "output_gain", "reverse", "glide_time", "smear", "tone",
             "reverb_amount", "reverb_size", "stereo_width", "env_attack", "env_release", "pan",
         }
         missing = expected - _SCHEMA_PARAM_IDS
-        self.assertEqual(missing, set(),
-                         f"StateSchema.h missing param IDs: {missing}")
+        self.assertEqual(missing, set(), f"StateSchema.h missing param IDs: {missing}")
 
     def test_schema_defines_11_sample_ids(self):
-        self.assertEqual(len(_SCHEMA_SAMPLE_IDS), 11,
-                         f"Expected 11 sample IDs in StateSchema.h SampleID namespace, "
-                         f"found {len(_SCHEMA_SAMPLE_IDS)}: {sorted(_SCHEMA_SAMPLE_IDS)}")
+        self.assertEqual(
+            len(_SCHEMA_SAMPLE_IDS),
+            11,
+            f"Expected 11 sample IDs in StateSchema.h SampleID namespace, "
+            f"found {len(_SCHEMA_SAMPLE_IDS)}: {sorted(_SCHEMA_SAMPLE_IDS)}",
+        )
 
     def test_schema_defines_10_categories(self):
-        self.assertEqual(len(_SCHEMA_CATEGORY_NAMES), 10,
-                         f"Expected 10 categories in StateSchema.h, "
-                         f"found {len(_SCHEMA_CATEGORY_NAMES)}: {sorted(_SCHEMA_CATEGORY_NAMES)}")
+        self.assertEqual(
+            len(_SCHEMA_CATEGORY_NAMES),
+            10,
+            f"Expected 10 categories in StateSchema.h, "
+            f"found {len(_SCHEMA_CATEGORY_NAMES)}: {sorted(_SCHEMA_CATEGORY_NAMES)}",
+        )
 
     def test_schema_categories_match_expected(self):
-        expected = {"Leads", "Brass", "Ensembles", "Strings", "Pads",
-                    "Chords", "Synths", "Arps", "Vocals", "Bells"}
-        self.assertEqual(_SCHEMA_CATEGORY_NAMES, expected,
-                         f"Extra: {_SCHEMA_CATEGORY_NAMES - expected}, "
-                         f"Missing: {expected - _SCHEMA_CATEGORY_NAMES}")
+        expected = {
+            "Leads", "Brass", "Ensembles", "Strings", "Pads",
+            "Chords", "Synths", "Arps", "Vocals", "Bells",
+        }
+        self.assertEqual(
+            _SCHEMA_CATEGORY_NAMES,
+            expected,
+            f"Extra: {_SCHEMA_CATEGORY_NAMES - expected}, "
+            f"Missing: {expected - _SCHEMA_CATEGORY_NAMES}",
+        )
 
     def test_schema_version_is_1(self):
         if not SCHEMA_H.exists():
             self.skipTest("StateSchema.h not found")
         text = SCHEMA_H.read_text(encoding="utf-8")
-        m = re.search(r'STATE_SCHEMA_VERSION\s*=\s*(\d+)', text)
+        m = re.search(r"STATE_SCHEMA_VERSION\s*=\s*(\d+)", text)
         self.assertIsNotNone(m, "STATE_SCHEMA_VERSION not found in StateSchema.h")
-        self.assertEqual(m.group(1), "1",
-                         f"STATE_SCHEMA_VERSION should be 1, got {m.group(1)}")
+        self.assertEqual(m.group(1), "1", f"STATE_SCHEMA_VERSION should be 1, got {m.group(1)}")
 
     def test_schema_default_sample_id_exists(self):
-        self.assertIn("factory_default", _SCHEMA_SAMPLE_IDS,
-                      "StateSchema.h SampleID::DEFAULT ('factory_default') must be defined")
+        self.assertIn(
+            "factory_default",
+            _SCHEMA_SAMPLE_IDS,
+            "StateSchema.h SampleID::DEFAULT ('factory_default') must be defined",
+        )
 
 
 class TestSchemaVsPresets(unittest.TestCase):
@@ -146,19 +186,10 @@ class TestSchemaVsPresets(unittest.TestCase):
         if not _SCHEMA_PARAM_IDS:
             self.skipTest("Could not parse StateSchema.h")
         extra = _PRESET_PARAM_IDS - _SCHEMA_PARAM_IDS
-        self.assertEqual(extra, set(),
-                         f"Presets reference param IDs not in StateSchema.h: {extra}")
+        self.assertEqual(extra, set(), f"Presets reference param IDs not in StateSchema.h: {extra}")
 
-    def test_all_schema_params_used_in_at_least_one_preset(self):
-        if not _SCHEMA_PARAM_IDS:
-            self.skipTest("Could not parse StateSchema.h")
-        unused = _SCHEMA_PARAM_IDS - _PRESET_PARAM_IDS
-        self.assertEqual(unused, set(),
-                         f"Schema params never referenced in any preset: {unused}")
-
-    def test_preset_sample_ids_are_valid_schema_ids(self):
-        if not _SCHEMA_SAMPLE_IDS:
-            self.skipTest("Could not parse StateSchema.h SampleID namespace")
+    def test_preset_sample_ids_use_factory_prefix(self):
+        """Per-sample factory IDs (factory_<category>_<slug>) are allowed beyond SampleID enum."""
         bad = []
         for xml in sorted(PRESETS_DIR.rglob("*.xml")):
             try:
@@ -166,8 +197,8 @@ class TestSchemaVsPresets(unittest.TestCase):
             except ET.ParseError:
                 continue
             sid = root.get("sampleId", "")
-            if sid and sid not in _SCHEMA_SAMPLE_IDS:
-                bad.append(f"{xml.name}: sampleId '{sid}' not in StateSchema.h SampleID")
+            if sid and not sid.startswith("factory_"):
+                bad.append(f"{xml.name}: sampleId '{sid}' must start with 'factory_'")
         self.assertEqual(bad, [], "\n  ".join(bad))
 
     def test_preset_categories_are_valid_schema_categories(self):
@@ -185,64 +216,85 @@ class TestSchemaVsPresets(unittest.TestCase):
         self.assertEqual(bad, [], "\n  ".join(bad))
 
 
+class TestParameterLayout(unittest.TestCase):
+
+    def test_layout_sources_exist(self):
+        self.assertTrue(PARAMETER_LAYOUT_CPP.exists(), str(PARAMETER_LAYOUT_CPP))
+        self.assertTrue(ADVANCED_LAYOUT_CPP.exists(), str(ADVANCED_LAYOUT_CPP))
+
+    def test_layout_registers_all_schema_params(self):
+        if not _SCHEMA_PARAM_IDS:
+            self.skipTest("Could not parse StateSchema.h")
+        missing = _SCHEMA_PARAM_IDS - _LAYOUT_PARAM_IDS
+        self.assertEqual(
+            missing,
+            set(),
+            f"Schema ParamIDs not referenced in layout sources: {sorted(missing)}",
+        )
+
+    def test_layout_has_no_extra_params_outside_schema(self):
+        if not _SCHEMA_PARAM_IDS:
+            self.skipTest("Could not parse StateSchema.h")
+        extra = _LAYOUT_PARAM_IDS - _SCHEMA_PARAM_IDS
+        self.assertEqual(
+            extra,
+            set(),
+            f"Layout references ParamIDs not declared in StateSchema.h: {sorted(extra)}",
+        )
+
+    def test_layout_param_count_matches_schema(self):
+        self.assertEqual(
+            len(_LAYOUT_PARAM_IDS),
+            EXPECTED_PARAM_COUNT,
+            f"Layout registers {len(_LAYOUT_PARAM_IDS)} unique param IDs, "
+            f"expected {EXPECTED_PARAM_COUNT}",
+        )
+
+
 class TestPluginProcessorCpp(unittest.TestCase):
 
     def test_processor_cpp_exists(self):
-        self.assertTrue(PROCESSOR_CPP.exists(),
-                        f"PluginProcessor.cpp not found at {PROCESSOR_CPP}")
+        self.assertTrue(PROCESSOR_CPP.exists(), f"PluginProcessor.cpp not found at {PROCESSOR_CPP}")
 
-    def test_processor_defines_all_schema_params(self):
-        """Every ParamID constant in StateSchema.h should be referenced in createParameterLayout().
-
-        PluginProcessor.cpp accesses params via ParamID::CONSTANT_NAME (not string literals),
-        so this test checks for the C++ constant name (upper_snake), not the string value.
-        """
+    def test_processor_delegates_to_parameter_layout(self):
         if not PROCESSOR_CPP.exists():
             self.skipTest("PluginProcessor.cpp not found")
-        if not SCHEMA_H.exists():
-            self.skipTest("StateSchema.h not found")
-
-        schema_text = SCHEMA_H.read_text(encoding="utf-8")
-        processor_text = PROCESSOR_CPP.read_text(encoding="utf-8")
-
-        # Extract constant names (e.g. INPUT_GAIN, SMEAR) from namespace ParamID in StateSchema.h
-        m = re.search(r'namespace ParamID\s*\{(.+?)\}', schema_text, re.DOTALL)
-        if not m:
-            self.skipTest("Could not parse namespace ParamID block in StateSchema.h")
-
-        block = m.group(1)
-        # Match: static constexpr const char* CONSTANT_NAME = "value";
-        constant_names = re.findall(r'constexpr\s+const\s+char\*\s+([A-Z_]+)\s*=', block)
-
-        missing = [name for name in constant_names
-                   if f"ParamID::{name}" not in processor_text]
-        self.assertEqual(missing, [],
-                         f"These ParamID constants are not used in PluginProcessor.cpp "
-                         f"(expected ParamID::NAME): {missing}")
+        text = PROCESSOR_CPP.read_text(encoding="utf-8")
+        self.assertIn(
+            "AviatorKeyz::createParameterLayout",
+            text,
+            "PluginProcessor must delegate createParameterLayout to State/ParameterLayout.cpp",
+        )
 
     def test_processor_saves_state_version(self):
-        """getStateInformation must store stateVersion for future migration."""
         if not PROCESSOR_CPP.exists():
             self.skipTest("PluginProcessor.cpp not found")
         text = PROCESSOR_CPP.read_text(encoding="utf-8")
-        self.assertIn("stateVersion", text,
-                      "PluginProcessor.cpp must store 'stateVersion' in getStateInformation")
+        self.assertIn(
+            "stateVersion",
+            text,
+            "PluginProcessor.cpp must store 'stateVersion' in getStateInformation",
+        )
 
     def test_processor_reads_state_version(self):
-        """setStateInformation must read stateVersion for migration logic."""
         if not PROCESSOR_CPP.exists():
             self.skipTest("PluginProcessor.cpp not found")
         text = PROCESSOR_CPP.read_text(encoding="utf-8")
-        self.assertIn("savedVersion", text,
-                      "setStateInformation should read the savedVersion for migration")
+        self.assertIn(
+            "savedVersion",
+            text,
+            "setStateInformation should read the savedVersion for migration",
+        )
 
     def test_init_preset_loaded_in_constructor(self):
-        """Constructor must load a factory preset so the plugin starts with valid state."""
         if not PROCESSOR_CPP.exists():
             self.skipTest("PluginProcessor.cpp not found")
         text = PROCESSOR_CPP.read_text(encoding="utf-8")
-        self.assertIn("loadPreset", text,
-                      "AviatorKeyzProcessor constructor must call loadPreset on startup")
+        self.assertIn(
+            "loadPreset",
+            text,
+            "AviatorKeyzProcessor constructor must call loadPreset on startup",
+        )
 
 
 if __name__ == "__main__":

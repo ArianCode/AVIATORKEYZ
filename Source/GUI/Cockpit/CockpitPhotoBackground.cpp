@@ -28,7 +28,7 @@ void CockpitPhotoBackground::paint (juce::Graphics& g)
         return;
 
     g.drawImage (cockpitImage, getLocalBounds().toFloat(),
-                 juce::RectanglePlacement::fillDestination);
+                 juce::RectanglePlacement::stretchToFit);
 }
 
 void CockpitPhotoBackground::resized() {}

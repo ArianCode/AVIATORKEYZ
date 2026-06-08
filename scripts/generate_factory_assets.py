@@ -106,11 +106,57 @@ def write_wav(path: Path, freq_hz: float) -> None:
             w.writeframes(struct.pack("<h", sample))
 
 
-def write_preset_xml(path: Path, category: str, name: str, sample_id: str, params: dict) -> None:
+def infer_root_note_midi(stem: str) -> int:
+    """Best-effort MIDI root note (0-127) from a preset/sample filename.
+
+    Strategy (applied in order):
+      1. Explicit note+octave after a separator: _C3, _A#4, -G2, _C3_
+         Only matches tokens preceded by _ or - to avoid false positives from
+         model numbers like 'sb2', 'PMFC2', or chord extensions like '_add11'.
+      2. Note-only token at end after separator: _C, _Cm, _Cmin, _CM
+         Defaults to octave 4 (C4 = MIDI 60) when no octave digit is given.
+      3. Fallback: 60 (C4).
+
+    Previous bug: bare r"([A-G])(#?)(\\d)" matched 'B2' in 'sb2_guitar_C'
+    (rootNote=47) and 'D1' in '_add11' (rootNote=26) — both wrong.
+    """
+    import re
+
+    semis = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
+    text = stem.upper()
+
+    # 1. Explicit note+octave after a separator (_C3, -A#4, _B2_, etc.)
+    m = re.search(r"[_\-]([A-G])(#?)(\d)(?:[_\-\s]|$)", text)
+    if m:
+        letter, sharp, octave = m.group(1), m.group(2), int(m.group(3))
+        midi = (octave + 1) * 12 + semis[letter]
+        if sharp:
+            midi += 1
+        return max(0, min(127, midi))
+
+    # 2. Note-only token after separator (_C, _Cm, _Cmin, _CM, _A, _Am, etc.)
+    m = re.search(r"[_\-]([A-G])(?:MIN|MAJ|M|#)?(?:[_\-\s]|$)", text)
+    if m:
+        letter = m.group(1)
+        return 12 * 5 + semis[letter]   # octave 4: (4+1)*12 + semitone
+
+    return 60  # fallback
+
+
+def write_preset_xml(
+    path: Path,
+    category: str,
+    name: str,
+    sample_id: str,
+    params: dict,
+    root_note: int | None = None,
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    if root_note is None:
+        root_note = infer_root_note_midi(f"{name} {sample_id}")
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
-        f'<Preset category="{category}" name="{name}" schemaVersion="1" sampleId="{sample_id}" author="AviatorKeyz">',
+        f'<Preset category="{category}" name="{name}" schemaVersion="1" sampleId="{sample_id}" rootNote="{root_note}" author="AviatorKeyz">',
         '  <AviatorKeyzState stateVersion="1">',
         f'    <PARAM id="input_gain" value="{params.get("input_gain", 0.0)}"/>',
         f'    <PARAM id="output_gain" value="{params.get("output_gain", 0.0)}"/>',

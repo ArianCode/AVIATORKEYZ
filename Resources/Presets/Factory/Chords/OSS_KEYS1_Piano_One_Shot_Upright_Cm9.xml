@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<Preset category="Chords" name="OSS_KEYS1_Piano_One_Shot_Upright_Cm9" schemaVersion="1" sampleId="factory_chords_oss_keys1_piano_one_shot_upright_cm9" author="AviatorKeyz" rootNote="60">
+  <AviatorKeyzState stateVersion="1">
+    <PARAM id="input_gain" value="0.0" />
+    <PARAM id="output_gain" value="0.0" />
+    <PARAM id="reverse" value="0" />
+    <PARAM id="glide_time" value="0.0" />
+    <PARAM id="smear" value="0.0" />
+    <PARAM id="tone" value="0.0" />
+    <PARAM id="reverb_amount" value="0.1" />
+    <PARAM id="reverb_size" value="0.5" />
+    <PARAM id="stereo_width" value="1.0" />
+    <PARAM id="env_attack" value="5.0" />
+    <PARAM id="env_release" value="150.0" />
+    <PARAM id="pan" value="0.0" />
+  </AviatorKeyzState>
+</Preset>

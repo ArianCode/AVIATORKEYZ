@@ -4,9 +4,17 @@
 #include <juce_dsp/juce_dsp.h>
 
 #include "DSP/SamplerEngine.h"
+#include "DSP/SynthEngine.h"
+#include "DSP/FilterProcessor.h"
+#include "DSP/TextureEngine.h"
+#include "DSP/OutputLimiter.h"
+#include "DSP/PerformanceMacroEngine.h"
 #include "DSP/ToneShaper.h"
 #include "DSP/SmearProcessor.h"
 #include "DSP/ReverbTail.h"
+#include "DSP/LfoEngine.h"
+#include "DSP/FxChain.h"
+#include "DSP/ModMatrix.h"
 #include "MIDI/MidiHandler.h"
 #include "State/StateSchema.h"
 #include "State/PresetManager.h"
@@ -70,17 +78,32 @@ private:
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> outputGainSmoothed;
 
     SamplerEngine   samplerEngine;
+    SynthEngine     synthEngine;
+    FilterProcessor filterProcessor;
+    TextureEngine   textureEngine;
+    OutputLimiter   outputLimiter;
     MidiHandler     midiHandler;
     ToneShaper      toneShaper;
     SmearProcessor  smearProcessor;
     ReverbTail      reverbTail;
+    LfoEngine       lfoEngine;
+    FxChain         fxChain;
+    ModMatrix       modMatrix;
 
     SampleLibrary          sampleLibrary;
+    juce::HeapBlock<float> factoryWaveformCopy;
     int                    factoryRootNote { 60 };
     int                    factoryWaveformFrames { 0 };
+    const float*           factoryWaveformData { nullptr };
     juce::String           loadedSampleId;
 
     std::unique_ptr<PresetManager> presetManager;
+
+    juce::AudioBuffer<float> synthScratch;
+    juce::AudioBuffer<float> samplerScratch;
+
+    mutable juce::CriticalSection sampleLoadLock;
+    bool isPrepared { false };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AviatorKeyzProcessor)
 };

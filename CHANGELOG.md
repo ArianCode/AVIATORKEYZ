@@ -34,6 +34,22 @@ Format: [Version] — Date — Summary
 
 ---
 
+## [Unreleased] — 2026-06-05 — Factory bank + certification prep
+
+### Added
+- Per-preset factory bank (~110 licensed WAVs + XML presets via `import_factory_bank.py`)
+- `PitchProbe` utility for pitch alignment tests
+- Photo-anchored cockpit controls wired from `CockpitZones`
+- Host project state: preset category/name, sampleId, rootNote persisted
+- `scripts/run_m5_smoke.sh`, `scripts/notarize_macos.sh`, `docs/M5_CERTIFICATION.md`
+
+### Changed
+- Python/C++ tests updated for per-preset factory model
+- `PresetManagerTests` and `PitchAlignmentTests` wired in CMake
+- JUCE 8.0.9 (was 7.0.12 in v0.1.0 scaffold)
+
+---
+
 ## [Unreleased] — M1: Core Sampler Engine
 - Polyphonic sample playback
 - MIDI note/CC routing

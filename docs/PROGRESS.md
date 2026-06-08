@@ -1,7 +1,7 @@
 # AviatorKeyz — Progress tracker
 
-**Last updated:** 2026-05-19  
-**Branch:** `main` (M1 checkpoint committed; bypass + tests in working tree)
+**Last updated:** 2026-06-05  
+**Branch:** `main`
 
 Legend: `█` done · `░` remaining
 
@@ -10,40 +10,32 @@ Legend: `█` done · `░` remaining
 ## Milestone bars
 
 ```
-M0  Scaffold & build          ████████████  100%  ✅ committed
-M1  Sampler + MIDI            ██████████░░   85%  🔧 in progress
-M2  Creative DSP              ████████░░░░   70%  wired; tune & validate
-M3  Presets                    ████░░░░░░░░   25%  2 factory + browser UI
-M4  Premium UI                 ██████░░░░░░   50%  layout + L&F; mockup polish TBD
-M5  Host certification (macOS) ░░░░░░░░░░░░    0%  not started
+M0  Scaffold & build          ████████████  100%  ✅
+M1  Sampler + MIDI            ██████████░░   90%  host exit tests pending
+M2  Creative DSP              █████████░░░   85%  automation stress TBD
+M3  Presets                    █████████░░░   80%  ~110 factory presets embedded
+M4  Premium UI                 ███████░░░░░   60%  photo anchors wired
+M5  Host certification (macOS) ██░░░░░░░░░░   15%  automated smoke script added
 ```
 
 | # | Milestone | % | State |
 |---|-----------|---|--------|
-| M0 | Scaffold & build | 100% | Done (committed) |
-| M1 | Core sampler + MIDI | 85% | **Current focus** |
-| M2 | Creative engine | 70% | Ahead of schedule in tree; finish M1 first |
-| M3 | Preset system | 25% | — |
-| M4 | Premium UI | 50% | — |
-| M5 | Host cert (macOS) | 0% | — |
+| M0 | Scaffold & build | 100% | Done |
+| M1 | Core sampler + MIDI | 90% | Engine complete; formal host sign-off open |
+| M2 | Creative engine | 85% | Wired; zipper/automation validation open |
+| M3 | Preset system | 80% | Per-preset factory bank; session restore fixed |
+| M4 | Premium UI | 60% | Cockpit + photo-anchored controls |
+| M5 | Host cert (macOS) | 15% | Checklist + scripts; manual DAW QA open |
 
 ---
 
-## M1 — What’s left (finish checklist)
+## Recent session (2026-06-05)
 
-See [MILESTONES.md](MILESTONES.md) for full exit criteria.
-
-| Task | Status |
-|------|--------|
-| Fix build (`createReaderFor` / JUCE 8) | ✅ |
-| Connect `SampleLibrary` → `SamplerEngine` (note + velocity → right sample) | ✅ |
-| Double-buffer sample map (safe updates, no audio-thread file I/O) | ✅ |
-| Bypass MIDI state drain (`processBlockBypassed`) | ✅ (working tree) |
-| C++ unit tests synced to `AudioSnapshot` API | ✅ (working tree) |
-| Verify exit tests T-M1-01 … T-M1-08 in host (Standalone or macOS DAW) | ⬜ |
-| Commit M1 work to git | ✅ checkpoint |
-
-**Already in code (working tree):** 64 voices, steal-quietest, MIDI on/off, sustain, all-notes-off, glide, reverse, ADSR, factory WAV embed, basic sample playback.
+- Migrated factory bank: 11 monolithic WAVs → ~110 per-preset WAVs + XMLs
+- Synced Python/C++ tests for new content model
+- Host state restore: sampleId + preset identity saved in project state
+- Wired `CockpitZones` photo-anchored knobs/toggles onto cockpit photo
+- Added `scripts/run_m5_smoke.sh`, `docs/M5_CERTIFICATION.md`, `scripts/notarize_macos.sh`
 
 ---
 

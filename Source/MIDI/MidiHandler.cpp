@@ -1,5 +1,6 @@
 #include "MidiHandler.h"
 #include "../DSP/SamplerEngine.h"
+#include "../DSP/SynthEngine.h"
 
 namespace
 {
@@ -50,9 +51,14 @@ void MidiHandler::processBypassed (juce::MidiBuffer& midiBuffer)
 
 void MidiHandler::process (juce::MidiBuffer& midiBuffer,
                             SamplerEngine& samplerEngine,
+                            SynthEngine& synthEngine,
                             bool reverse,
-                            float glideTimeMs)
+                            float glideTimeMs,
+                            float sourceBlend)
 {
+    const bool useSampler = sourceBlend < 0.999f;
+    const bool useSynth = sourceBlend > 0.001f;
+
     for (const auto metadata : midiBuffer)
     {
         const auto message = metadata.getMessage();
@@ -66,16 +72,21 @@ void MidiHandler::process (juce::MidiBuffer& midiBuffer,
             if (message.getVelocity() > 0)
             {
                 keyHeld[static_cast<size_t> (note)] = true;
-                samplerEngine.noteOn (note,
-                                      message.getFloatVelocity(),
-                                      reverse,
-                                      glideTimeMs);
+                if (useSampler)
+                    samplerEngine.noteOn (note, message.getFloatVelocity(), reverse, glideTimeMs);
+                if (useSynth)
+                    synthEngine.noteOn (note, message.getFloatVelocity(), glideTimeMs);
             }
             else
             {
                 keyHeld[static_cast<size_t> (note)] = false;
                 if (! sustainPedal)
-                    samplerEngine.noteOff (note);
+                {
+                    if (useSampler)
+                        samplerEngine.noteOff (note);
+                    if (useSynth)
+                        synthEngine.noteOff (note);
+                }
             }
         }
         else if (message.isNoteOff())
@@ -83,7 +94,12 @@ void MidiHandler::process (juce::MidiBuffer& midiBuffer,
             const int note = message.getNoteNumber();
             keyHeld[static_cast<size_t> (note)] = false;
             if (! sustainPedal)
-                samplerEngine.noteOff (note);
+            {
+                if (useSampler)
+                    samplerEngine.noteOff (note);
+                if (useSynth)
+                    synthEngine.noteOff (note);
+            }
         }
         else if (message.isSustainPedalOn())
         {
@@ -95,7 +111,12 @@ void MidiHandler::process (juce::MidiBuffer& midiBuffer,
             for (int n = 0; n < 128; ++n)
             {
                 if (! keyHeld[static_cast<size_t> (n)])
-                    samplerEngine.noteOff (n);
+                {
+                    if (useSampler)
+                        samplerEngine.noteOff (n);
+                    if (useSynth)
+                        synthEngine.noteOff (n);
+                }
             }
         }
         else if (message.isAllNotesOff() || message.isAllSoundOff())
@@ -103,9 +124,19 @@ void MidiHandler::process (juce::MidiBuffer& midiBuffer,
             keyHeld.fill (false);
             sustainPedal = false;
             if (message.isAllSoundOff())
-                samplerEngine.allSoundOff();
+            {
+                if (useSampler)
+                    samplerEngine.allSoundOff();
+                if (useSynth)
+                    synthEngine.allSoundOff();
+            }
             else
-                samplerEngine.allNotesOff();
+            {
+                if (useSampler)
+                    samplerEngine.allNotesOff();
+                if (useSynth)
+                    synthEngine.allNotesOff();
+            }
         }
     }
 

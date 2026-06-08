@@ -1,5 +1,6 @@
 #include "FactoryResources.h"
 #include "StateSchema.h"
+#include "../Debug/AviatorDebug.h"
 
 #include <BinaryData.h>
 #include <juce_audio_formats/juce_audio_formats.h>
@@ -14,8 +15,6 @@ juce::Array<FactoryResources::PresetEntry> buildPresetIndex()
     {
         const juce::String orig (AviatorKeyzBinary::originalFilenames[i]);
         if (! orig.endsWithIgnoreCase (".xml"))
-            continue;
-        if (! orig.containsIgnoreCase ("Presets/Factory"))
             continue;
 
         const char* resName = AviatorKeyzBinary::namedResourceList[i];
@@ -78,9 +77,8 @@ const char* findWavResource (const juce::String& sampleId, int& sizeOut)
     for (int i = 0; i < AviatorKeyzBinary::namedResourceListSize; ++i)
     {
         const juce::String orig (AviatorKeyzBinary::originalFilenames[i]);
-        if (! orig.endsWithIgnoreCase (needle))
-            continue;
-        return AviatorKeyzBinary::getNamedResource (AviatorKeyzBinary::namedResourceList[i], sizeOut);
+        if (orig.endsWithIgnoreCase (needle) || orig.containsIgnoreCase (needle))
+            return AviatorKeyzBinary::getNamedResource (AviatorKeyzBinary::namedResourceList[i], sizeOut);
     }
     return nullptr;
 }
@@ -116,6 +114,8 @@ const void* FactoryResources::getEmbeddedWavData (const juce::String& sampleId, 
     if (const char* data = findWavResource (sampleId, numBytesOut))
         return data;
 
+    AK_LOG ("getEmbeddedWavData: sample '" + sampleId
+            + "' not found — falling back to " + juce::String (AviatorKeyz::SampleID::DEFAULT));
     return findWavResource (AviatorKeyz::SampleID::DEFAULT, numBytesOut);
 }
 

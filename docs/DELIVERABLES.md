@@ -20,7 +20,7 @@ This document implements the product deliverables checklist for v1.0.
 | **Build** | `AviatorKeyz.vst3` (VST3 instrument) + Standalone | CMake + JUCE (`build_macos.sh`) |
 | **DSP** | Sampler, Reverse, Glide, Smear, Tone, Reverb, Width, Pan, ADSR | `Source/DSP/` |
 | **State** | APVTS, schema v1, preset XML, `sampleId` per preset | `Source/State/` |
-| **Factory bank** | 11 embedded WAV + 50 factory presets | `Resources/` |
+| **Factory bank** | ~110 per-preset embedded WAVs + factory presets | `Resources/` |
 | **User presets** | Save to `~/Documents/AviatorKeyz/Presets/` (macOS) | `PresetManager` |
 | **Host** | VST3 instrument category, project recall, automation | [README.md](../README.md) |
 
@@ -30,10 +30,15 @@ AviatorKeyz is a **VST3 instrument**, not a native host sound bank. Install the 
 
 **macOS install path:** `~/Library/Audio/Plug-Ins/VST3/AviatorKeyz.vst3`
 
-## Regenerate factory placeholders
+## Regenerate factory content
 
 ```bash
+# Import licensed WAVs from ContentImport/ (pitch-normalize to C4)
+python3 scripts/import_factory_bank.py --clean
+
+# Or bootstrap placeholder sine WAVs (dev only)
 python3 scripts/generate_factory_assets.py
+
 ./scripts/build_macos.sh
 ```
 

@@ -60,9 +60,9 @@ inline NormalizedRect zoneRect (ZoneId z) noexcept
 {
     switch (z)
     {
-        case ZoneId::leftMfd:          return { 0.015f, 0.50f, 0.185f, 0.84f };
-        case ZoneId::rightMfd:         return { 0.815f, 0.50f, 0.985f, 0.84f };
-        case ZoneId::radarAdsr:        return { 0.19f, 0.62f, 0.37f, 0.84f };
+        case ZoneId::leftMfd:          return { 0.015f, 0.48f, 0.195f, 0.84f };
+        case ZoneId::rightMfd:         return { 0.815f, 0.48f, 0.985f, 0.84f };
+        case ZoneId::radarAdsr:        return { 0.22f, 0.64f, 0.38f, 0.84f };
         case ZoneId::radarLfo:         return { 0.63f, 0.62f, 0.81f, 0.84f };
         case ZoneId::autopilotStrip:   return { 0.19f, 0.445f, 0.81f, 0.495f };
         case ZoneId::overhead:         return { 0.00f, 0.00f, 1.00f, 0.28f };

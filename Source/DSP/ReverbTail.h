@@ -38,9 +38,13 @@ public:
 
     // reverbAmount: smoothed 0.0–1.0 (wet level)
     // reverbSize:   0.0–1.0 (room size / decay)
+    // reverbOn:     bypass when false
+    // damping:      0.0–1.0 high-frequency damping
     void process (juce::AudioBuffer<float>& buffer,
                   float reverbAmount,
-                  float reverbSize);
+                  float reverbSize,
+                  bool reverbOn,
+                  float damping);
 
 private:
     juce::dsp::Reverb reverb;

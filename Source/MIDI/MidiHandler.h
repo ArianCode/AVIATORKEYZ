@@ -4,6 +4,7 @@
 #include <array>
 
 class SamplerEngine;
+class SynthEngine;
 
 // =============================================================================
 //  MidiHandler — audio-thread MIDI routing (no allocations).
@@ -17,8 +18,10 @@ public:
 
     void process (juce::MidiBuffer& midiBuffer,
                   SamplerEngine& samplerEngine,
+                  SynthEngine& synthEngine,
                   bool reverse,
-                  float glideTimeMs);
+                  float glideTimeMs,
+                  float sourceBlend);
 
     /** Bypass path: update sustain/key-held state only; do not start or stop voices. */
     void processBypassed (juce::MidiBuffer& midiBuffer);

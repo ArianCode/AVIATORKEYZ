@@ -17,22 +17,32 @@ namespace AviatorTokens
 
     static constexpr int kPanelPad      = 8;
     static constexpr int kTitleH        = 16;
-    static constexpr int kKnobCellW     = 76;
-    static constexpr int kKnobCellH     = 96;
+    static constexpr int kKnobCellW     = 72;
+    static constexpr int kKnobCellH     = 88;
     static constexpr int kGridGapX      = 6;
     static constexpr int kGridGapY      = 4;
 
-    inline float scaleFactor (int currentWidth) noexcept
+    inline float scaleFactor (int currentWidth, int currentHeight) noexcept
     {
-        return juce::jlimit (0.8f, 1.28f, (float) currentWidth / (float) kDesignWidth);
+        const float wScale = (float) currentWidth / (float) kDesignWidth;
+        const float hScale = (float) currentHeight / (float) kDesignHeight;
+        return juce::jlimit (0.42f, 1.05f, juce::jmin (wScale, hScale));
     }
 
     inline float scaleFor (const juce::Component& c) noexcept
     {
         int w = c.getWidth();
+        int h = c.getHeight();
         for (auto* p = c.getParentComponent(); p != nullptr; p = p->getParentComponent())
+        {
             w = juce::jmax (w, p->getWidth());
-        return scaleFactor (w > 0 ? w : kDesignWidth);
+            h = juce::jmax (h, p->getHeight());
+        }
+        if (w <= 0)
+            w = kDesignWidth;
+        if (h <= 0)
+            h = kDesignHeight;
+        return scaleFactor (w, h);
     }
 
     inline int scaled (int designPx, float s) noexcept

@@ -15,6 +15,7 @@
 #include <juce_core/juce_core.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "State/PresetManager.h"
+#include "State/ParameterLayout.h"
 #include "State/StateSchema.h"
 
 // ---------------------------------------------------------------------------
@@ -22,31 +23,7 @@
 // ---------------------------------------------------------------------------
 static juce::AudioProcessorValueTreeState::ParameterLayout makeTestLayout()
 {
-    using namespace AviatorKeyz;
-    using namespace juce;
-    std::vector<std::unique_ptr<RangedAudioParameter>> p;
-
-    auto add = [&] (const char* id, float lo, float hi, float def) {
-        p.push_back (std::make_unique<AudioParameterFloat> (
-            ParameterID { id, 1 }, id,
-            NormalisableRange<float> (lo, hi), def));
-    };
-
-    add (ParamID::INPUT_GAIN,    -24.0f, 12.0f,  0.0f);
-    add (ParamID::OUTPUT_GAIN,   -24.0f, 12.0f,  0.0f);
-    add (ParamID::GLIDE_TIME,      0.0f, 500.0f, 0.0f);
-    add (ParamID::SMEAR,           0.0f,   1.0f, 0.0f);
-    add (ParamID::TONE,           -1.0f,   1.0f, 0.0f);
-    add (ParamID::REVERB_AMOUNT,   0.0f,   1.0f, 0.0f);
-    add (ParamID::REVERB_SIZE,     0.0f,   1.0f, 0.5f);
-    add (ParamID::STEREO_WIDTH,    0.0f,   2.0f, 1.0f);
-    add (ParamID::ENV_ATTACK,      0.5f, 5000.f, 5.0f);
-    add (ParamID::ENV_RELEASE,     5.0f,10000.f, 150.0f);
-    add (ParamID::PAN,            -1.0f,   1.0f, 0.0f);
-    p.push_back (std::make_unique<juce::AudioParameterBool> (
-        juce::ParameterID { ParamID::REVERSE, 1 }, "Reverse", false));
-
-    return { p.begin(), p.end() };
+    return AviatorKeyz::createParameterLayout();
 }
 
 // ---------------------------------------------------------------------------
@@ -56,7 +33,7 @@ struct TestProcessor : juce::AudioProcessor
 {
     TestProcessor()
         : AudioProcessor (BusesProperties()),
-          apvts (*this, nullptr, "TestState", makeTestLayout())
+          apvts (*this, nullptr, "AviatorKeyzState", makeTestLayout())
     {}
 
     const juce::String getName() const override { return "Test"; }

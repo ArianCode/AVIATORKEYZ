@@ -6,34 +6,58 @@ AviatorKeyzEditor::AviatorKeyzEditor (AviatorKeyzProcessor& p)
     , processorRef (p)
 {
     setOpaque (true);
-    setSize (kDefaultWidth, kDefaultHeight);
     setResizable (true, true);
     setResizeLimits (kMinWidth, kMinHeight, kMaxWidth, kMaxHeight);
+    setSize (kDefaultWidth, kDefaultHeight);
 
-    if (auto* c = getConstrainer())
-        c->setFixedAspectRatio ((double) kDefaultWidth / (double) kDefaultHeight);
+    addAndMakeVisible (viewTabs);
+    viewTabs.onModeChanged = [this] (bool advanced) { setAdvancedView (advanced); };
 
     mainPanel = std::make_unique<MainPanel> (p);
     mainPanel->setOpaque (true);
     addAndMakeVisible (*mainPanel);
 
-    layoutMainPanel();
+    advancedPanel = std::make_unique<AdvancedPanel> (p);
+    advancedPanel->setVisible (false);
+    addAndMakeVisible (*advancedPanel);
+
+    viewTabs.setAdvancedSelected (false);
+    setAdvancedView (false);
+
+    layoutContent();
     repaint();
 }
 
 AviatorKeyzEditor::~AviatorKeyzEditor() = default;
 
-void AviatorKeyzEditor::layoutMainPanel()
+void AviatorKeyzEditor::setAdvancedView (bool advanced)
 {
-    if (mainPanel == nullptr)
-        return;
+    advancedView = advanced;
+    if (mainPanel != nullptr)
+        mainPanel->setVisible (! advanced);
+    if (advancedPanel != nullptr)
+        advancedPanel->setVisible (advanced);
+    layoutContent();
+}
 
+void AviatorKeyzEditor::layoutContent()
+{
     auto bounds = getLocalBounds();
     if (bounds.isEmpty())
         bounds = { 0, 0, kDefaultWidth, kDefaultHeight };
 
-    mainPanel->setBounds (bounds);
-    mainPanel->resized();
+    bounds.removeFromTop (AviatorTokens::scaledFor (*this, kTopChromePad));
+
+    const int tabH = AviatorTokens::scaledFor (*this, ViewModeTabBar::kDesignHeight);
+    viewTabs.setBounds (bounds.removeFromTop (tabH));
+
+    if (mainPanel != nullptr)
+        mainPanel->setBounds (bounds);
+
+    if (advancedPanel != nullptr)
+        advancedPanel->setBounds (bounds);
+
+    viewTabs.toFront (false);
 }
 
 void AviatorKeyzEditor::paint (juce::Graphics& g)
@@ -43,11 +67,11 @@ void AviatorKeyzEditor::paint (juce::Graphics& g)
 
 void AviatorKeyzEditor::resized()
 {
-    layoutMainPanel();
+    layoutContent();
 }
 
 void AviatorKeyzEditor::visibilityChanged()
 {
     if (isShowing())
-        layoutMainPanel();
+        layoutContent();
 }

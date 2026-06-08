@@ -1,5 +1,7 @@
 #include "PrecisionKnob.h"
 #include "DesignTokens.h"
+#include "Advanced/ModRoutingHub.h"
+#include "Advanced/ModAssignCallout.h"
 
 namespace
 {
@@ -23,14 +25,27 @@ PrecisionKnob::PrecisionKnob (juce::AudioProcessorValueTreeState& apvts,
                               const juce::String& paramID,
                               const juce::String& macroName,
                               const juce::String& sublabel,
-                              ValueFormat format)
-    : valueFormat (format)
+                              ValueFormat format,
+                              bool shouldAttachToParameter,
+                              bool enableModAssignment)
+    : apvtsRef (apvts)
+    , paramId (paramID)
+    , attachToParameter (shouldAttachToParameter)
+    , modAssignEnabled (enableModAssignment)
+    , valueFormat (format)
 {
     setOpaque (false);
     slider.setSliderStyle (juce::Slider::RotaryVerticalDrag);
     slider.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
-    slider.onValueChange = [this] { syncFromSlider(); };
-    addChildComponent (slider);
+    slider.onValueChange = [this]
+    {
+        syncFromSlider();
+
+        if (! attachToParameter && ! updatingFromParameter)
+            if (auto* param = dynamic_cast<juce::RangedAudioParameter*> (apvtsRef.getParameter (paramId)))
+                param->setValueNotifyingHost (slider.getNormalisableRange().convertTo0to1 (slider.getValue()));
+    };
+    addAndMakeVisible (slider);
 
     nameLabel.setText (macroName, juce::dontSendNotification);
     nameLabel.setJustificationType (juce::Justification::centred);
@@ -49,8 +64,66 @@ PrecisionKnob::PrecisionKnob (juce::AudioProcessorValueTreeState& apvts,
     valueLabel.setColour (juce::Label::textColourId, DesignTokens::textMuted());
     addAndMakeVisible (valueLabel);
 
-    attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
-        apvts, paramID, slider);
+    if (attachToParameter)
+    {
+        attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
+            apvts, paramID, slider);
+        syncFromSlider();
+    }
+    else
+    {
+        if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (apvts.getParameter (paramID)))
+        {
+            const auto r = ranged->getNormalisableRange();
+            slider.setNormalisableRange ({ (double) r.start, (double) r.end, (double) r.interval,
+                                            (double) r.skew, r.symmetricSkew });
+        }
+
+        apvts.addParameterListener (paramID, this);
+        syncFromParameter();
+    }
+
+    if (modAssignEnabled)
+        refreshModRing();
+}
+
+PrecisionKnob::~PrecisionKnob()
+{
+    if (! attachToParameter)
+        apvtsRef.removeParameterListener (paramId, this);
+}
+
+void PrecisionKnob::parameterChanged (const juce::String& parameterID, float newValue)
+{
+    if (parameterID != paramId)
+        return;
+
+    const auto apply = [self = juce::Component::SafePointer<PrecisionKnob> (this), newValue]
+    {
+        if (self == nullptr)
+            return;
+
+        self->updatingFromParameter = true;
+        self->slider.setValue (self->slider.getNormalisableRange().convertFrom0to1 (newValue),
+                               juce::dontSendNotification);
+        self->syncFromSlider();
+        self->updatingFromParameter = false;
+    };
+
+    if (juce::MessageManager::getInstance()->isThisTheMessageThread())
+        apply();
+    else
+        juce::MessageManager::callAsync (apply);
+}
+
+void PrecisionKnob::syncFromParameter()
+{
+    if (const auto* raw = apvtsRef.getRawParameterValue (paramId))
+    {
+        updatingFromParameter = true;
+        slider.setValue (raw->load(), juce::dontSendNotification);
+        updatingFromParameter = false;
+    }
 
     syncFromSlider();
 }
@@ -94,14 +167,57 @@ juce::String PrecisionKnob::getValueText() const
             const float db = (norm - 0.5f) * 16.f;
             return (db >= 0.f ? "+" : "") + juce::String (db, 1) + " dB";
         }
+        case ValueFormat::envelopeMs:
+        {
+            const float ms = (float) slider.getValue();
+            if (ms >= 1000.f)
+                return juce::String (ms / 1000.f, 2) + " s";
+            return juce::String (juce::roundToInt (ms)) + " ms";
+        }
     }
     return {};
 }
 
+void PrecisionKnob::refreshModRing()
+{
+    modState = ModRoutingHub::stateForParam (apvtsRef, paramId);
+    repaint();
+}
+
+void PrecisionKnob::paintModRing (juce::Graphics& g, float cx, float cy, float trackR, float scale) const
+{
+    if (! modState.active || modState.amount < 0.001f)
+        return;
+
+    constexpr float startDeg = 135.f;
+    constexpr float sweep = 270.f;
+    const float endDeg = startDeg + modState.amount * sweep;
+
+    juce::Path modPath;
+    addArc (modPath, cx, cy, trackR + 5.f * scale, startDeg, endDeg);
+    g.setColour (modState.colour.withAlpha (0.25f));
+    g.strokePath (modPath, juce::PathStrokeType (3.2f * scale, juce::PathStrokeType::curved,
+                                                   juce::PathStrokeType::rounded));
+    g.setColour (modState.colour.withAlpha (0.9f));
+    g.strokePath (modPath, juce::PathStrokeType (1.6f * scale, juce::PathStrokeType::curved,
+                                                   juce::PathStrokeType::rounded));
+}
+
+bool PrecisionKnob::hitModRing (juce::Point<float> pt, float cx, float cy, float trackR, float scale) const
+{
+    if (! modState.active)
+        return false;
+    const float r = trackR + 5.f * scale;
+    const float d = pt.getDistanceFrom ({ cx, cy });
+    return d >= r - 4.f * scale && d <= r + 6.f * scale;
+}
 void PrecisionKnob::syncFromSlider()
 {
     valueLabel.setText (getValueText(), juce::dontSendNotification);
-    repaint();
+    if (modAssignEnabled)
+        refreshModRing();
+    else
+        repaint();
 }
 
 void PrecisionKnob::paint (juce::Graphics& g)
@@ -185,6 +301,8 @@ void PrecisionKnob::paint (juce::Graphics& g)
     g.fillEllipse (cx - capR, cy - capR, capR * 2.f, capR * 2.f);
     g.setColour (juce::Colours::white.withAlpha (0.07f));
     g.fillEllipse (cx - 3.4f * s, cy - 3.4f * s, 2.8f * s, 2.8f * s);
+
+    paintModRing (g, cx, cy, trackR, s);
 }
 
 void PrecisionKnob::mouseDown (const juce::MouseEvent& e)
@@ -192,20 +310,52 @@ void PrecisionKnob::mouseDown (const juce::MouseEvent& e)
     if (! slider.getBounds().contains (e.getPosition()))
         return;
 
+    const float s = DesignTokens::scaleFactorFor (*this);
+    const auto knobBounds = slider.getBounds().toFloat();
+    const float cx = knobBounds.getCentreX();
+    const float cy = knobBounds.getCentreY();
+    const float trackR = 30.f * s;
+
+    if (modAssignEnabled && e.mods.isAltDown() && hitModRing (e.position, cx, cy, trackR, s))
+    {
+        draggingModAmount = true;
+        return;
+    }
+
     slider.mouseDown (e.getEventRelativeTo (&slider));
 }
 
 void PrecisionKnob::mouseDrag (const juce::MouseEvent& e)
 {
+    if (draggingModAmount && modState.row >= 0)
+    {
+        const float delta = e.getDistanceFromDragStartY() * -0.005f;
+        const auto& ids = ModRoutingHub::kRows[modState.row];
+        if (auto* p = apvtsRef.getParameter (ids.amount))
+        {
+            const float next = juce::jlimit (0.f, 1.f, modState.amount + delta);
+            p->setValueNotifyingHost (next);
+            refreshModRing();
+        }
+        return;
+    }
+
     slider.mouseDrag (e.getEventRelativeTo (&slider));
 }
 
 void PrecisionKnob::mouseUp (const juce::MouseEvent& e)
 {
+    draggingModAmount = false;
     slider.mouseUp (e.getEventRelativeTo (&slider));
 }
 
 void PrecisionKnob::mouseDoubleClick (const juce::MouseEvent& e)
 {
+    if (modAssignEnabled && slider.getBounds().contains (e.getPosition()))
+    {
+        ModAssignCallout::showForKnob (*this, apvtsRef, paramId);
+        return;
+    }
+
     slider.mouseDoubleClick (e.getEventRelativeTo (&slider));
 }

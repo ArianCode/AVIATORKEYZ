@@ -49,11 +49,14 @@ namespace PresetKey {
     static constexpr const char* AUTHOR      = "author";
     static constexpr const char* SCHEMA_VER  = "schemaVersion";
     static constexpr const char* SAMPLE_ID   = "sampleId";
+    /** MIDI note at which embedded sample plays at native pitch (default 60 = C4). */
+    static constexpr const char* ROOT_NOTE   = "rootNote";
 }
 
 // ---------------------------------------------------------------------------
 // Factory sample IDs — referenced by preset XML sampleId attribute.
-// v1.0: one embedded WAV per category + factory_default; replace WAV files before ship.
+// v1.0+: one embedded WAV per factory preset (factory_<category>_<slug>).
+// Legacy category IDs (factory_leads, etc.) remain as aliases for fallback lookup.
 // ---------------------------------------------------------------------------
 namespace SampleID {
     static constexpr const char* DEFAULT      = "factory_default";
@@ -116,9 +119,149 @@ namespace ParamID {
     // v1: output pan, -1.0 (L) to +1.0 (R), default 0
     static constexpr const char* PAN            = "pan";
 
-    // --- Future parameters go BELOW this line ---
-    // v2+: reserved for Chorus, Delay, Envelope, Filter, etc.
-    // Remember: never change existing IDs above.
+    // --- Advanced tab (v2) — LFO, extended FX, mod matrix ---
+    static constexpr const char* LFO1_RATE   = "lfo1_rate";
+    static constexpr const char* LFO1_DEPTH  = "lfo1_depth";
+    static constexpr const char* LFO1_SHAPE  = "lfo1_shape";
+    static constexpr const char* LFO1_SYNC   = "lfo1_sync";
+
+    static constexpr const char* LFO2_RATE   = "lfo2_rate";
+    static constexpr const char* LFO2_DEPTH  = "lfo2_depth";
+    static constexpr const char* LFO2_SHAPE  = "lfo2_shape";
+    static constexpr const char* LFO2_SYNC   = "lfo2_sync";
+
+    static constexpr const char* LFO3_RATE   = "lfo3_rate";
+    static constexpr const char* LFO3_DEPTH  = "lfo3_depth";
+    static constexpr const char* LFO3_SHAPE  = "lfo3_shape";
+    static constexpr const char* LFO3_SYNC   = "lfo3_sync";
+
+    static constexpr const char* FX_DELAY_ON        = "fx_delay_on";
+    static constexpr const char* FX_DELAY_TIME      = "fx_delay_time";
+    static constexpr const char* FX_DELAY_FEEDBACK  = "fx_delay_feedback";
+    static constexpr const char* FX_DELAY_MIX        = "fx_delay_mix";
+    static constexpr const char* FX_DELAY_SYNC      = "fx_delay_sync";
+
+    static constexpr const char* FX_CHORUS_ON    = "fx_chorus_on";
+    static constexpr const char* FX_CHORUS_RATE  = "fx_chorus_rate";
+    static constexpr const char* FX_CHORUS_DEPTH = "fx_chorus_depth";
+    static constexpr const char* FX_CHORUS_MIX   = "fx_chorus_mix";
+
+    static constexpr const char* FX_LOFI_ON     = "fx_lofi_on";
+    static constexpr const char* FX_LOFI_AMOUNT = "fx_lofi_amount";
+
+    static constexpr const char* FX_DIST_ON    = "fx_dist_on";
+    static constexpr const char* FX_DIST_DRIVE = "fx_dist_drive";
+
+    // Mod matrix — 8 rows × (enable, source, dest, amount)
+    static constexpr int MOD_MATRIX_ROWS = 8;
+
+    static constexpr const char* MOD0_ON      = "mod_0_on";
+    static constexpr const char* MOD0_SOURCE  = "mod_0_source";
+    static constexpr const char* MOD0_DEST    = "mod_0_dest";
+    static constexpr const char* MOD0_AMOUNT  = "mod_0_amount";
+    static constexpr const char* MOD1_ON      = "mod_1_on";
+    static constexpr const char* MOD1_SOURCE  = "mod_1_source";
+    static constexpr const char* MOD1_DEST    = "mod_1_dest";
+    static constexpr const char* MOD1_AMOUNT  = "mod_1_amount";
+    static constexpr const char* MOD2_ON      = "mod_2_on";
+    static constexpr const char* MOD2_SOURCE  = "mod_2_source";
+    static constexpr const char* MOD2_DEST    = "mod_2_dest";
+    static constexpr const char* MOD2_AMOUNT  = "mod_2_amount";
+    static constexpr const char* MOD3_ON      = "mod_3_on";
+    static constexpr const char* MOD3_SOURCE  = "mod_3_source";
+    static constexpr const char* MOD3_DEST    = "mod_3_dest";
+    static constexpr const char* MOD3_AMOUNT  = "mod_3_amount";
+    static constexpr const char* MOD4_ON      = "mod_4_on";
+    static constexpr const char* MOD4_SOURCE  = "mod_4_source";
+    static constexpr const char* MOD4_DEST    = "mod_4_dest";
+    static constexpr const char* MOD4_AMOUNT  = "mod_4_amount";
+    static constexpr const char* MOD5_ON      = "mod_5_on";
+    static constexpr const char* MOD5_SOURCE  = "mod_5_source";
+    static constexpr const char* MOD5_DEST    = "mod_5_dest";
+    static constexpr const char* MOD5_AMOUNT  = "mod_5_amount";
+    static constexpr const char* MOD6_ON      = "mod_6_on";
+    static constexpr const char* MOD6_SOURCE  = "mod_6_source";
+    static constexpr const char* MOD6_DEST    = "mod_6_dest";
+    static constexpr const char* MOD6_AMOUNT  = "mod_6_amount";
+    static constexpr const char* MOD7_ON      = "mod_7_on";
+    static constexpr const char* MOD7_SOURCE  = "mod_7_source";
+    static constexpr const char* MOD7_DEST    = "mod_7_dest";
+    static constexpr const char* MOD7_AMOUNT  = "mod_7_amount";
+
+    // --- Source engine (v3) ---
+    static constexpr const char* OSC1_TYPE   = "osc1_type";
+    static constexpr const char* OSC1_TUNE   = "osc1_tune";
+    static constexpr const char* OSC1_FINE   = "osc1_fine";
+    static constexpr const char* OSC1_SHAPE  = "osc1_shape";
+    static constexpr const char* OSC1_LEVEL  = "osc1_level";
+    static constexpr const char* OSC1_PAN    = "osc1_pan";
+    static constexpr const char* OSC2_TYPE   = "osc2_type";
+    static constexpr const char* OSC2_TUNE   = "osc2_tune";
+    static constexpr const char* OSC2_FINE   = "osc2_fine";
+    static constexpr const char* OSC2_SHAPE  = "osc2_shape";
+    static constexpr const char* OSC2_LEVEL  = "osc2_level";
+    static constexpr const char* OSC2_PAN    = "osc2_pan";
+    static constexpr const char* SOURCE_BLEND = "source_blend";
+
+    // --- Synth / filter (v3) ---
+    static constexpr const char* FILTER_CUTOFF    = "filter_cutoff";
+    static constexpr const char* FILTER_RESONANCE = "filter_resonance";
+    static constexpr const char* FILTER_TYPE      = "filter_type";
+    static constexpr const char* FILTER_DRIVE     = "filter_drive";
+    static constexpr const char* ENV_AMP_DECAY    = "env_amp_decay";
+    static constexpr const char* ENV_AMP_SUSTAIN  = "env_amp_sustain";
+    static constexpr const char* ENV_FLT_ATTACK   = "env_flt_attack";
+    static constexpr const char* ENV_FLT_DECAY    = "env_flt_decay";
+    static constexpr const char* ENV_FLT_SUSTAIN  = "env_flt_sustain";
+    static constexpr const char* ENV_FLT_RELEASE  = "env_flt_release";
+    static constexpr const char* ENV_FLT_AMOUNT   = "env_flt_amount";
+    static constexpr const char* VOICE_POLYPHONY  = "voice_polyphony";
+    static constexpr const char* VOICE_GLIDE_MODE = "voice_glide_mode";
+    static constexpr const char* VOICE_PLAY_MODE  = "voice_play_mode";
+    static constexpr const char* OUTPUT_LIMITER   = "output_limiter";
+
+    static constexpr const char* LFO1_PHASE = "lfo1_phase";
+    static constexpr const char* LFO2_PHASE = "lfo2_phase";
+    static constexpr const char* LFO3_PHASE = "lfo3_phase";
+
+    // --- Texture engine (v3) ---
+    static constexpr const char* TEX_ENABLED       = "tex_enabled";
+    static constexpr const char* TEX_AMOUNT        = "tex_amount";
+    static constexpr const char* TEX_WIDTH         = "tex_width";
+    static constexpr const char* TEX_FREEZE        = "tex_freeze";
+    static constexpr const char* TEX_GRAIN_SCAN    = "tex_grain_scan";
+    static constexpr const char* TEX_GRAIN_RATE    = "tex_grain_rate";
+    static constexpr const char* TEX_GRAIN_SIZE    = "tex_grain_size";
+    static constexpr const char* TEX_GRAIN_PITCH   = "tex_grain_pitch";
+    static constexpr const char* TEX_GRAIN_DENSITY  = "tex_grain_density";
+    static constexpr const char* TEX_GRAIN_SPREAD   = "tex_grain_spread";
+    static constexpr const char* TEX_GRAIN_PAN     = "tex_grain_pan";
+    static constexpr const char* TEX_MOTION        = "tex_motion";
+    static constexpr const char* TEX_DRIFT         = "tex_drift";
+    static constexpr const char* TEX_AIR           = "tex_air";
+    static constexpr const char* TEX_REVERSE       = "tex_reverse";
+
+    // --- Phrase engine (v3) ---
+    static constexpr const char* PHRASE_ENABLED      = "phrase_enabled";
+    static constexpr const char* PHRASE_TEMPO_SYNC   = "phrase_tempo_sync";
+    static constexpr const char* PHRASE_KEY_SYNC      = "phrase_key_sync";
+    static constexpr const char* PHRASE_TRIGGER_MODE  = "phrase_trigger_mode";
+    static constexpr const char* PHRASE_LOOP          = "phrase_loop";
+    static constexpr const char* PHRASE_START         = "phrase_start";
+    static constexpr const char* PHRASE_LENGTH        = "phrase_length";
+    static constexpr const char* PHRASE_PITCH         = "phrase_pitch";
+
+    // --- FX routing (v3) ---
+    static constexpr const char* FX_REVERB_DAMP  = "fx_reverb_damp";
+    static constexpr const char* FX_REVERB_ON    = "fx_reverb_on";
+    /** When true, preset state includes audio FX parameter edits. */
+    static constexpr const char* FX_EDITS_ON     = "fx_edits_on";
+
+    // --- Performance macros (matrix page) ---
+    static constexpr const char* PERF_MACRO_1 = "perf_macro_1";
+    static constexpr const char* PERF_MACRO_2 = "perf_macro_2";
+    static constexpr const char* PERF_MACRO_3 = "perf_macro_3";
+    static constexpr const char* PERF_MACRO_4 = "perf_macro_4";
 
 } // namespace ParamID
 

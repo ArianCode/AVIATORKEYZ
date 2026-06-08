@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<Preset category="Arps" name="OS_LM_70_sfx_arp_synth_Cm" schemaVersion="1" sampleId="factory_arps_os_lm_70_sfx_arp_synth_cm" author="AviatorKeyz" rootNote="60">
+  <AviatorKeyzState stateVersion="1">
+    <PARAM id="input_gain" value="0.0" />
+    <PARAM id="output_gain" value="0.0" />
+    <PARAM id="reverse" value="0" />
+    <PARAM id="glide_time" value="0.0" />
+    <PARAM id="smear" value="0.0" />
+    <PARAM id="tone" value="0.0" />
+    <PARAM id="reverb_amount" value="0.1" />
+    <PARAM id="reverb_size" value="0.5" />
+    <PARAM id="stereo_width" value="1.0" />
+    <PARAM id="env_attack" value="5.0" />
+    <PARAM id="env_release" value="150.0" />
+    <PARAM id="pan" value="0.0" />
+  </AviatorKeyzState>
+</Preset>

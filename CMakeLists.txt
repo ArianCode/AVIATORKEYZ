@@ -12,6 +12,12 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Address/Undefined Sanitizer (Debug + Clang — repro in Standalone, not FL)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang")
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address,undefined)
+endif()
+
 # ---------------------------------------------------------------------------
 # Options
 # ---------------------------------------------------------------------------
@@ -37,10 +43,12 @@ FetchContent_MakeAvailable(JUCE)
 
 # ---------------------------------------------------------------------------
 # Embedded factory assets (wav + preset XML). See StateSchema.h "Content pipeline".
-# Regenerate assets: python3 scripts/generate_factory_assets.py
+# Placeholders: python3 scripts/generate_factory_assets.py
+# Licensed bank: python3 scripts/import_factory_bank.py --copy-only --clean
 # ---------------------------------------------------------------------------
 file(GLOB_RECURSE AVIATORKEYZ_FACTORY_PRESETS CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/Resources/Presets/Factory/*.xml")
+    LIST_DIRECTORIES false
+    "${CMAKE_CURRENT_SOURCE_DIR}/Resources/Presets/Factory/*/*.xml")
 file(GLOB AVIATORKEYZ_FACTORY_SAMPLES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/Resources/Factory/*.wav")
 file(GLOB AVIATORKEYZ_COCKPIT_UI CONFIGURE_DEPENDS
@@ -99,21 +107,33 @@ target_sources(AviatorKeyz
 
         # State layer
         Source/State/PresetManager.cpp
+        Source/State/ApvtsStateHelpers.cpp
         Source/State/FactoryResources.cpp
         Source/State/SampleLibrary.cpp
+        Source/State/ParameterLayout.cpp
 
         # DSP layer (stubs — filled in during M1/M2)
         Source/DSP/SamplerEngine.cpp
+        Source/DSP/SynthEngine.cpp
+        Source/DSP/FilterProcessor.cpp
+        Source/DSP/TextureEngine.cpp
+        Source/DSP/OutputLimiter.cpp
+        Source/DSP/PerformanceMacroEngine.cpp
         Source/DSP/ToneShaper.cpp
         Source/DSP/SmearProcessor.cpp
         Source/DSP/GlideEngine.cpp
         Source/DSP/ReverbTail.cpp
+        Source/DSP/LfoEngine.cpp
+        Source/DSP/FxChain.cpp
+        Source/DSP/ModMatrix.cpp
         Source/DSP/ReversePlayer.cpp
+        Source/DSP/PitchProbe.cpp
 
         # GUI — photo-anchored cockpit
         Source/GUI/LuxuryLookAndFeel.cpp
         Source/GUI/MainPanel.cpp
         Source/GUI/FooterBar.cpp
+        Source/GUI/ViewModeTabBar.cpp
         Source/GUI/PrecisionKnob.cpp
         Source/GUI/ReverseToggle.cpp
         Source/GUI/PresetBrowser.cpp
@@ -121,6 +141,31 @@ target_sources(AviatorKeyz
         Source/GUI/Cockpit/CockpitPhotoBackground.cpp
         Source/GUI/Cockpit/PhotoAnchoredKnob.cpp
         Source/GUI/Cockpit/CockpitCrossworldPanel.cpp
+        Source/GUI/Cockpit/AviationGauge.cpp
+        Source/GUI/Cockpit/InstrumentPanelBar.cpp
+        Source/GUI/Cockpit/PresetHorizonReadout.cpp
+        Source/GUI/Cockpit/CockpitTopPresetBar.cpp
+        Source/GUI/Cockpit/PresetNavButton.cpp
+        Source/GUI/Cockpit/PresetCenterNavigator.cpp
+        Source/GUI/Cockpit/PresetSearchOverlay.cpp
+        Source/GUI/Cockpit/PresetIconButtons.cpp
+        Source/GUI/Cockpit/CockpitPresetControlBar.cpp
+        Source/GUI/Cockpit/SearchIconButton.cpp
+
+        Source/GUI/Advanced/AdvancedPanel.cpp
+        Source/GUI/Advanced/AdvancedPageContent.cpp
+        Source/GUI/Advanced/AdvancedParameterLayout.cpp
+        Source/GUI/Advanced/AdvancedPresetSidebar.cpp
+        Source/GUI/Advanced/BracketValueBox.cpp
+        Source/GUI/Advanced/TextureSectionComponent.cpp
+        Source/GUI/Advanced/TextureVisualizerComponent.cpp
+        Source/GUI/Advanced/PerformanceMacroStrip.cpp
+        Source/GUI/Advanced/ModAmountSlider.cpp
+        Source/GUI/Advanced/OscWaveformDisplay.cpp
+        Source/GUI/Advanced/FilterCurveGraph.cpp
+        Source/GUI/Advanced/LfoWaveformDisplay.cpp
+        Source/GUI/Advanced/ModRoutingHub.cpp
+        Source/GUI/Advanced/ModAssignCallout.cpp
 
         # MIDI layer
         Source/MIDI/MidiHandler.cpp

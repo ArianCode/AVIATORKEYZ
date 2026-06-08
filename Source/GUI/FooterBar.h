@@ -24,7 +24,7 @@ private:
     juce::Label statusLabel;
     juce::Label metaLabel;
     juce::Label hostLabel;
-    juce::TextButton settingsButton { "Settings" };
+    juce::TextButton settingsButton { "Presets" };
     juce::TextButton aboutButton { "About" };
     juce::Label versionLabel;
 

@@ -81,7 +81,7 @@ public:
             TestSampleSnapshot snap;
             snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
             engine.setSampleSnapshot (&snap.snapshot);
-            engine.setEnvelopeTimesMs (0.5f, 50.0f);
+            engine.setEnvelopeTimesMs (0.5f, 300.f, 1.f, 50.0f);
             engine.noteOn (60, 1.0f, false, 0.0f);
 
             juce::AudioBuffer<float> buf (2, 512);
@@ -105,7 +105,7 @@ public:
             TestSampleSnapshot snap;
             snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
             engine.setSampleSnapshot (&snap.snapshot);
-            engine.setEnvelopeTimesMs (0.5f, 50.0f);
+            engine.setEnvelopeTimesMs (0.5f, 300.f, 1.f, 50.0f);
 
             juce::AudioBuffer<float> buf (2, 256);
 
@@ -144,7 +144,7 @@ public:
             TestSampleSnapshot snap;
             snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
             engine.setSampleSnapshot (&snap.snapshot);
-            engine.setEnvelopeTimesMs (0.5f, 500.0f);
+            engine.setEnvelopeTimesMs (0.5f, 300.f, 1.f, 500.0f);
 
             for (int n = 60; n < 68; ++n)
                 engine.noteOn (n, 0.8f, false, 0.0f);
@@ -172,7 +172,7 @@ public:
             TestSampleSnapshot snap;
             snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
             engine.setSampleSnapshot (&snap.snapshot);
-            engine.setEnvelopeTimesMs (0.5f, 200.0f);  // 200ms release
+            engine.setEnvelopeTimesMs (0.5f, 300.f, 1.f, 200.0f);  // 200ms release
 
             engine.noteOn (60, 1.0f, false, 0.0f);
 
@@ -201,7 +201,7 @@ public:
             TestSampleSnapshot snap;
             snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
             engine.setSampleSnapshot (&snap.snapshot);
-            engine.setEnvelopeTimesMs (0.5f, 100.0f);
+            engine.setEnvelopeTimesMs (0.5f, 300.f, 1.f, 100.0f);
 
             for (int n = 48; n < 64; ++n)  // 16 = kMaxVoices
                 engine.noteOn (n, 0.5f, false, 0.0f);
@@ -221,7 +221,7 @@ public:
             TestSampleSnapshot snap;
             snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
             engine.setSampleSnapshot (&snap.snapshot);
-            engine.setEnvelopeTimesMs (0.5f, 100.0f);
+            engine.setEnvelopeTimesMs (0.5f, 300.f, 1.f, 100.0f);
 
             for (int n = 40; n < 57; ++n)  // 17 notes — steals one
                 engine.noteOn (n, 0.5f, false, 0.0f);
@@ -252,7 +252,7 @@ public:
             TestSampleSnapshot snap;
             snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
             engine.setSampleSnapshot (&snap.snapshot);
-            engine.setEnvelopeTimesMs (0.5f, 50.0f);
+            engine.setEnvelopeTimesMs (0.5f, 300.f, 1.f, 50.0f);
 
             engine.noteOn (60, 1.0f, true, 0.0f);  // reverse=true
 
@@ -279,7 +279,7 @@ public:
                 TestSampleSnapshot snap;
             snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
             engine.setSampleSnapshot (&snap.snapshot);
-                engine.setEnvelopeTimesMs (0.5f, 50.0f);
+                engine.setEnvelopeTimesMs (0.5f, 300.f, 1.f, 50.0f);
                 engine.noteOn (60, 1.0f, false, 0.0f);
                 fwdBuf.clear();
                 engine.process (fwdBuf);
@@ -292,7 +292,7 @@ public:
                 TestSampleSnapshot snap;
             snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
             engine.setSampleSnapshot (&snap.snapshot);
-                engine.setEnvelopeTimesMs (0.5f, 50.0f);
+                engine.setEnvelopeTimesMs (0.5f, 300.f, 1.f, 50.0f);
                 engine.noteOn (60, 1.0f, true, 0.0f);  // reversed
                 revBuf.clear();
                 engine.process (revBuf);
@@ -326,7 +326,7 @@ public:
             TestSampleSnapshot snap;
             snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
             engine.setSampleSnapshot (&snap.snapshot);
-            engine.setEnvelopeTimesMs (0.5f, 50.0f);
+            engine.setEnvelopeTimesMs (0.5f, 300.f, 1.f, 50.0f);
 
             engine.noteOn (60, 1.0f, false, 0.0f);
 
@@ -352,7 +352,7 @@ public:
             TestSampleSnapshot snap;
             snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
             engine.setSampleSnapshot (&snap.snapshot);
-            engine.setEnvelopeTimesMs (0.5f, 50.0f);
+            engine.setEnvelopeTimesMs (0.5f, 300.f, 1.f, 50.0f);
 
             engine.noteOn (60, 1.0f, false, 0.0f);
             juce::AudioBuffer<float> buf (2, 256);
@@ -385,7 +385,7 @@ public:
             juce::dsp::ProcessSpec spec { 44100.0, 512, 2 };
             engine.prepare (spec);
             // Deliberately do NOT set a sample table
-            engine.setEnvelopeTimesMs (0.5f, 50.0f);
+            engine.setEnvelopeTimesMs (0.5f, 300.f, 1.f, 50.0f);
             engine.noteOn (60, 1.0f, false, 0.0f);
 
             juce::AudioBuffer<float> buf (2, 512);
@@ -409,7 +409,7 @@ public:
             TestSampleSnapshot snap;
             snap.setMono (nullptr, 0, 60);
             engine.setSampleSnapshot (&snap.snapshot);
-            engine.setEnvelopeTimesMs (0.5f, 50.0f);
+            engine.setEnvelopeTimesMs (0.5f, 300.f, 1.f, 50.0f);
             engine.noteOn (69, 1.0f, false, 0.0f);  // A4
 
             juce::AudioBuffer<float> buf (2, 256);

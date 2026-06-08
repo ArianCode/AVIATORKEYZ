@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for factory WAV files — presence, headers, and audio content."""
+"""Tests for factory WAV files — per-preset embedded bank."""
 
 from __future__ import annotations
 
@@ -11,19 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 FACTORY_DIR = ROOT / "Resources" / "Factory"
 
-EXPECTED_SAMPLE_IDS = {
-    "factory_default",
-    "factory_leads",
-    "factory_brass",
-    "factory_ensembles",
-    "factory_strings",
-    "factory_pads",
-    "factory_chords",
-    "factory_synths",
-    "factory_arps",
-    "factory_vocals",
-    "factory_bells",
-}
+MIN_FACTORY_WAV_COUNT = 100
 
 
 class TestFactoryWAVPresence(unittest.TestCase):
@@ -32,34 +20,31 @@ class TestFactoryWAVPresence(unittest.TestCase):
         self.assertTrue(FACTORY_DIR.exists(),
                         f"Resources/Factory directory is missing: {FACTORY_DIR}")
 
-    def test_all_expected_wavs_present(self):
-        missing = []
-        for sid in sorted(EXPECTED_SAMPLE_IDS):
-            wav_path = FACTORY_DIR / f"{sid}.wav"
-            if not wav_path.exists():
-                missing.append(f"{sid}.wav")
-        self.assertEqual(missing, [],
-                         "Missing factory WAV files:\n  " + "\n  ".join(missing))
+    def test_factory_default_wav_present(self):
+        path = FACTORY_DIR / "factory_default.wav"
+        self.assertTrue(path.exists(),
+                        "factory_default.wav is required as sampler fallback")
 
-    def test_no_unexpected_wav_files(self):
-        actual_ids = {p.stem for p in FACTORY_DIR.glob("*.wav")}
-        extra = actual_ids - EXPECTED_SAMPLE_IDS
-        self.assertEqual(extra, set(),
-                         f"Unexpected WAV files found (update EXPECTED_SAMPLE_IDS?): {extra}")
-
-    def test_exactly_11_wav_files(self):
+    def test_minimum_factory_wav_count(self):
         count = len(list(FACTORY_DIR.glob("*.wav")))
-        self.assertEqual(count, 11,
-                         f"Expected 11 factory WAV files, found {count}")
+        self.assertGreaterEqual(
+            count, MIN_FACTORY_WAV_COUNT,
+            f"Expected at least {MIN_FACTORY_WAV_COUNT} factory WAV files, found {count}",
+        )
+
+    def test_all_wavs_use_factory_prefix(self):
+        bad = [p.name for p in FACTORY_DIR.glob("*.wav") if not p.stem.startswith("factory_")]
+        self.assertEqual(bad, [],
+                         "All factory WAV stems must start with 'factory_':\n  "
+                         + "\n  ".join(bad))
+
+    def test_no_duplicate_wav_stems(self):
+        stems = [p.stem for p in FACTORY_DIR.glob("*.wav")]
+        self.assertEqual(len(stems), len(set(stems)),
+                         "Duplicate factory WAV stems detected")
 
 
 class TestFactoryWAVValidity(unittest.TestCase):
-
-    def _open_wav(self, name: str):
-        path = FACTORY_DIR / name
-        if not path.exists():
-            self.skipTest(f"{name} not present")
-        return path
 
     def _read_wav_info(self, path: Path):
         with wave.open(str(path), "rb") as wf:
@@ -119,7 +104,6 @@ class TestFactoryWAVValidity(unittest.TestCase):
         self.assertEqual(bad, [], "\n  ".join(bad))
 
     def test_all_factory_wavs_have_nonzero_audio(self):
-        """WAVs must have at least some non-silent samples."""
         silent = []
         for wav in FACTORY_DIR.glob("*.wav"):
             try:
@@ -129,8 +113,7 @@ class TestFactoryWAVValidity(unittest.TestCase):
             except Exception:
                 pass
         self.assertEqual(silent, [],
-                         "Completely silent WAV files — likely placeholder stubs that need "
-                         "replacing with real audio before release:\n  " + "\n  ".join(silent))
+                         "Completely silent WAV files:\n  " + "\n  ".join(silent))
 
     def test_all_factory_wavs_have_valid_sample_rate(self):
         bad = []
@@ -151,22 +134,12 @@ class TestFactoryWAVValidity(unittest.TestCase):
                 info = self._read_wav_info(wav)
                 duration = info["nframes"] / max(info["framerate"], 1)
                 if duration < 0.05:
-                    bad.append(f"{wav.name}: very short ({duration:.3f}s) — less than 50ms")
+                    bad.append(f"{wav.name}: very short ({duration:.3f}s)")
                 if duration > 120.0:
-                    bad.append(f"{wav.name}: very long ({duration:.1f}s) — over 2 minutes")
+                    bad.append(f"{wav.name}: very long ({duration:.1f}s)")
             except Exception as exc:
                 bad.append(f"{wav.name}: {exc}")
         self.assertEqual(bad, [], "\n  ".join(bad))
-
-    def test_factory_default_wav_is_valid(self):
-        path = FACTORY_DIR / "factory_default.wav"
-        if not path.exists():
-            self.fail("factory_default.wav is missing — required as sampler fallback")
-        try:
-            info = self._read_wav_info(path)
-            self.assertGreater(info["nframes"], 0, "factory_default.wav has no audio frames")
-        except wave.Error as exc:
-            self.fail(f"factory_default.wav is not a valid WAV: {exc}")
 
     def test_all_wavs_have_supported_channel_count(self):
         bad = []
@@ -174,7 +147,7 @@ class TestFactoryWAVValidity(unittest.TestCase):
             try:
                 info = self._read_wav_info(wav)
                 if info["nchannels"] not in (1, 2):
-                    bad.append(f"{wav.name}: {info['nchannels']} channels (only mono/stereo supported)")
+                    bad.append(f"{wav.name}: {info['nchannels']} channels")
             except Exception as exc:
                 bad.append(f"{wav.name}: {exc}")
         self.assertEqual(bad, [], "\n  ".join(bad))
@@ -186,7 +159,7 @@ class TestFactoryWAVValidity(unittest.TestCase):
                 info = self._read_wav_info(wav)
                 bits = info["sampwidth"] * 8
                 if bits not in (16, 24, 32):
-                    bad.append(f"{wav.name}: {bits}-bit (expected 16, 24, or 32-bit)")
+                    bad.append(f"{wav.name}: {bits}-bit")
             except Exception as exc:
                 bad.append(f"{wav.name}: {exc}")
         self.assertEqual(bad, [], "\n  ".join(bad))
