@@ -109,6 +109,27 @@ const SampleLibrary::AudioRegion* SampleLibrary::findRegionForNote (const AudioS
     return &snapshot.regions.front();
 }
 
+bool SampleLibrary::normalizeSampleBuffer (juce::AudioBuffer<float>& sample,
+                                           float targetPeakDb)
+{
+    if (sample.getNumSamples() == 0 || sample.getNumChannels() == 0)
+        return false;
+
+    float peak = 0.0f;
+
+    for (int channel = 0; channel < sample.getNumChannels(); ++channel)
+        peak = std::max (peak, sample.getMagnitude (channel, 0, sample.getNumSamples()));
+
+    constexpr float silenceThreshold = 1.0e-7f;
+
+    if (! std::isfinite (peak) || peak <= silenceThreshold)
+        return false;
+
+    const float targetPeak = juce::Decibels::decibelsToGain (targetPeakDb);
+    sample.applyGain (targetPeak / peak);
+    return true;
+}
+
 bool SampleLibrary::loadFromMemory (const void* data,
                                      size_t numBytes,
                                      const juce::String& displayName,
@@ -146,6 +167,13 @@ bool SampleLibrary::loadFromMemory (const void* data,
     if (! reader->read (&region.buffer, 0, numSamples, 0, true, true))
     {
         lastError = "Failed to read embedded sample: " + displayName;
+        return false;
+    }
+
+    if (! normalizeSampleBuffer (region.buffer, -1.0f))
+    {
+        AK_LOG ("Sample normalization failed: empty or silent sample — " + displayName);
+        lastError = "Sample is empty or silent: " + displayName;
         return false;
     }
 
@@ -208,6 +236,13 @@ bool SampleLibrary::loadSample (const juce::File& file,
     if (! reader->read (&region.buffer, 0, numSamples, 0, true, true))
     {
         lastError = "Failed to read audio data from: " + file.getFileName();
+        return false;
+    }
+
+    if (! normalizeSampleBuffer (region.buffer, -1.0f))
+    {
+        AK_LOG ("Sample normalization failed: empty or silent sample — " + file.getFileName());
+        lastError = "Sample is empty or silent: " + file.getFileName();
         return false;
     }
 

@@ -22,7 +22,7 @@ ADVANCED_LAYOUT_CPP = ROOT / "Source" / "GUI" / "Advanced" / "AdvancedParameterL
 PROCESSOR_CPP = ROOT / "Source" / "PluginProcessor.cpp"
 PRESETS_DIR = ROOT / "Resources" / "Presets" / "Factory"
 
-EXPECTED_PARAM_COUNT = 130
+EXPECTED_PARAM_COUNT = 132
 
 
 def _extract_param_ids_from_schema() -> set[str]:

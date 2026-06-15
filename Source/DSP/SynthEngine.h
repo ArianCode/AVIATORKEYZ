@@ -35,6 +35,8 @@ public:
     void allNotesOff() noexcept;
     void allSoundOff() noexcept;
 
+    bool hasActiveVoices() const noexcept { return activeVoiceCount > 0; }
+
     /** Per-block filter envelope level (0–1) for global filter modulation. */
     float getFilterEnvLevel() const noexcept { return filterEnvLevel; }
 
@@ -64,8 +66,6 @@ private:
 
     static float midiNoteToHz (float note) noexcept;
     static float oscSample (int type, float shape01, float phase01, float& noiseSeed) noexcept;
-    static float constantPowerPanL (float pan) noexcept;
-    static float constantPowerPanR (float pan) noexcept;
 
     void startVoice (Voice& v, int midiNote, float velocity, float glideTimeMs) noexcept;
     void enterRelease (Voice& v) noexcept;
@@ -81,6 +81,7 @@ private:
     Voice voices[kMaxVoices];
     double sampleRate { 44100.0 };
     int maxVoices { 8 };
+    int activeVoiceCount { 0 };
     PlayMode playMode { PlayMode::poly };
     GlideMode glideMode { GlideMode::off };
     int lastNote { -1 };
@@ -94,6 +95,8 @@ private:
         float shape = 0.3f;
         float level = 0.7f;
         float pan = 0.f;
+        float panL = 0.707f;
+        float panR = 0.707f;
     };
 
     OscParams osc1 {};

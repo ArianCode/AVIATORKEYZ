@@ -42,12 +42,19 @@ void FxChain::process (juce::AudioBuffer<float>& buffer,
     if (! prepared || buffer.getNumChannels() < 2)
         return;
 
+    const float dMix = juce::jlimit (0.f, 1.f, delayMix);
+    const bool anyFx = (delayOn && dMix > 0.001f)
+                       || (chorusOn && chorusMix > 0.001f)
+                       || (lofiOn && lofiAmount > 0.001f)
+                       || (distOn && distDrive > 0.001f);
+    if (! anyFx)
+        return;
+
     auto* L = buffer.getWritePointer (0);
     auto* R = buffer.getWritePointer (1);
     const int n = buffer.getNumSamples();
 
     const float fb = juce::jlimit (0.f, 0.95f, delayFeedback);
-    const float dMix = juce::jlimit (0.f, 1.f, delayMix);
     float delaySec = juce::jlimit (0.01f, 2.f, delayTimeSec);
     if (delaySync)
         delaySec = syncedDelaySeconds (delayTimeSec / 2.f, hostBpm);
@@ -119,10 +126,11 @@ void FxChain::process (juce::AudioBuffer<float>& buffer,
     if (distOn && distDrive > 0.001f)
     {
         const float gain = 1.f + distDrive * 12.f;
+        const float norm = 1.f / std::tanh (gain);
         for (int i = 0; i < n; ++i)
         {
-            L[i] = std::tanh (L[i] * gain) / std::tanh (gain);
-            R[i] = std::tanh (R[i] * gain) / std::tanh (gain);
+            L[i] = std::tanh (L[i] * gain) * norm;
+            R[i] = std::tanh (R[i] * gain) * norm;
         }
     }
 }

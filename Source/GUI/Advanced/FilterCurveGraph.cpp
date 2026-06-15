@@ -4,11 +4,13 @@
 FilterCurveGraph::FilterCurveGraph (juce::AudioProcessorValueTreeState& apvts,
                                     const char* cutoffParamId,
                                     const char* resonanceParamId,
-                                    const char* typeParamId)
+                                    const char* typeParamId,
+                                    const char* enableParamId)
     : apvtsRef (apvts)
     , cutoffId (cutoffParamId)
     , resonanceId (resonanceParamId)
     , typeId (typeParamId)
+    , enableId (enableParamId != nullptr ? juce::String (enableParamId) : juce::String())
 {
     apvtsRef.addParameterListener (cutoffId, this);
     apvtsRef.addParameterListener (resonanceId, this);
@@ -169,8 +171,29 @@ juce::String FilterCurveGraph::formatResonance (float reso) const
     return juce::String (juce::roundToInt (reso * 100.f)) + "%";
 }
 
+void FilterCurveGraph::ensureFilterEnabledOnUserEdit()
+{
+    if (enableId.isEmpty())
+        return;
+
+    if (auto* param = apvtsRef.getParameter (enableId))
+        param->setValueNotifyingHost (1.f);
+}
+
+bool FilterCurveGraph::readFilterEnabled() const
+{
+    if (enableId.isEmpty())
+        return true;
+
+    if (auto* raw = apvtsRef.getRawParameterValue (enableId))
+        return raw->load() > 0.5f;
+
+    return true;
+}
+
 void FilterCurveGraph::paint (juce::Graphics& g)
 {
+    const bool enabled = readFilterEnabled();
     const auto bounds = getLocalBounds().toFloat();
     const auto plot   = plotArea();
     const auto gold   = AviatorTokens::champagneGold();
@@ -244,19 +267,32 @@ void FilterCurveGraph::paint (juce::Graphics& g)
     g.drawText (formatCutoff (readCutoffHz()) + "  " + formatResonance (readResonance()),
                 getLocalBounds().removeFromBottom (12),
                 juce::Justification::centred);
+
+    if (! enabled)
+    {
+        g.setColour (juce::Colours::white.withAlpha (0.55f));
+        g.setFont (AviatorTokens::hudBold (10.f));
+        g.drawText ("FILTER BYPASSED", getLocalBounds(), juce::Justification::centred);
+    }
 }
 
 void FilterCurveGraph::mouseDown (const juce::MouseEvent& e)
 {
     dragging = plotArea().contains (e.position);
     if (dragging)
+    {
+        ensureFilterEnabledOnUserEdit();
         applyDrag (e.position);
+    }
 }
 
 void FilterCurveGraph::mouseDrag (const juce::MouseEvent& e)
 {
     if (dragging)
+    {
+        ensureFilterEnabledOnUserEdit();
         applyDrag (e.position);
+    }
 }
 
 void FilterCurveGraph::mouseUp (const juce::MouseEvent&)

@@ -78,6 +78,10 @@ public:
 
     juce::String getLastError() const noexcept { return lastError; }
 
+    /** Peak-normalize to targetPeakDb (default −1 dBFS). Message thread only. */
+    static bool normalizeSampleBuffer (juce::AudioBuffer<float>& sample,
+                                       float targetPeakDb = -1.0f);
+
     static const AudioRegion* findRegionForNote (const AudioSnapshot& snapshot,
                                                  int midiNote,
                                                  float velocity) noexcept;

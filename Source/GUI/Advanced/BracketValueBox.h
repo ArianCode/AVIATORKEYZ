@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../AviatorTokens.h"
+#include <functional>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_basics/juce_gui_basics.h>
 
@@ -36,6 +37,9 @@ public:
     void mouseDrag (const juce::MouseEvent& e) override;
     void mouseUp (const juce::MouseEvent& e) override;
     void mouseDoubleClick (const juce::MouseEvent& e) override;
+
+    /** Optional — invoked when the user drags or types a new value. */
+    std::function<void()> onUserAdjust;
 
     static constexpr int kDefaultW = 58;
     static constexpr int kDefaultH = 50;

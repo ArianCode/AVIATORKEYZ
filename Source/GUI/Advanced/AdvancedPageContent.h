@@ -91,6 +91,7 @@ private:
     std::unique_ptr<AdvancedWidgets::ChoiceToggleRow> osc2Types;
 
     std::unique_ptr<FilterCurveGraph> filterCurve;
+    std::unique_ptr<AdvancedWidgets::FlatToggle> filterEnabled;
 
     std::unique_ptr<LfoWaveformDisplay> lfo1Wave;
     std::unique_ptr<LfoWaveformDisplay> lfo2Wave;

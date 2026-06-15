@@ -14,6 +14,8 @@ Automated checks run as part of plan implementation.
 
 ## Manual DAW (requires user)
 
+Primary macOS host for FL Studio tests: **FL Studio 2025 25.2.3.4889** on macOS 15.7.4 (see [HOST_TEST_CONFIG.md](HOST_TEST_CONFIG.md)).
+
 These cannot be fully automated in CI without a licensed DAW session:
 
 - T-M1-01–08 — MIDI playback, polyphony, sustain, buffer/SR changes

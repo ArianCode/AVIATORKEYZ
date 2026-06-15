@@ -2,8 +2,6 @@
 
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_dsp/juce_dsp.h>
-#include <array>
-#include <vector>
 
 /**
  * Parallel granular texture engine.
@@ -55,18 +53,17 @@ private:
     void writeCapture (const juce::AudioBuffer<float>& buffer) noexcept;
     void spawnGrain (float rate01, float size01, int pitchSemis, float spread01, float pan01, bool reverse, float scan01) noexcept;
     float readBuffer (float pos, int channel) const noexcept;
-    float hannWindow (float phase01) const noexcept;
     float tempoGrainRateHz (float rate01, double bpm) const noexcept;
     float grainLengthSamples (float size01) const noexcept;
 
-    std::vector<float> captureL;
-    std::vector<float> captureR;
+    juce::HeapBlock<float> captureL;
+    juce::HeapBlock<float> captureR;
     int captureLength = 0;
     int writeIndex = 0;
     bool frozen = false;
     int frozenWriteIndex = 0;
 
-    std::array<Grain, kMaxGrains> grains {};
+    Grain grains[kMaxGrains] {};
     double sampleRate { 44100.0 };
     float spawnAccumulator = 0.f;
     float scanPos = 0.f;

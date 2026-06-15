@@ -28,7 +28,8 @@ SourcePanelComponent::SourcePanelComponent (juce::AudioProcessorValueTreeState& 
     knobs.push_back (AdvancedKnobHelpers::makeKnob (apvts, P::OSC2_SHAPE, "SHAPE", {}, PF::percent, *this));
     knobs.push_back (AdvancedKnobHelpers::makeKnob (apvts, P::OSC2_LEVEL,  "LEVEL", {}, PF::percent, *this));
     knobs.push_back (AdvancedKnobHelpers::makeKnob (apvts, P::SOURCE_BLEND, "BLEND", "Sample/Synth", PF::percent, *this));
-    knobs.push_back (AdvancedKnobHelpers::makeKnob (apvts, P::INPUT_GAIN, "DRIVE", "Sample", PF::percent, *this));
+    knobs.push_back (AdvancedKnobHelpers::makeKnob (apvts, P::INPUT_GAIN, "GAIN", "Sample", PF::decibels, *this));
+    knobs.push_back (AdvancedKnobHelpers::makeKnob (apvts, P::VELOCITY_SENSITIVITY, "VEL", "0=Full", PF::percent, *this));
 }
 
 void SourcePanelComponent::paint (juce::Graphics& g)

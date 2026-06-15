@@ -53,7 +53,7 @@ void FilterProcessor::setParameters (float cutoffHz,
     filterR.setCutoffFrequency (modCutoff);
     filterL.setResonance (q);
     filterR.setResonance (q);
-    drive01 = juce::jlimit (0.f, 1.f, drive);
+    this->drive01 = juce::jlimit (0.f, 1.f, drive01);
     currentType = type;
 }
 
@@ -66,6 +66,8 @@ void FilterProcessor::process (juce::AudioBuffer<float>& buffer)
     auto* R = buffer.getWritePointer (1);
     const int n = buffer.getNumSamples();
     const bool notchMode = currentType == Type::notch;
+    const float drive = 1.f + drive01 * 4.f;
+    const float driveNorm = drive01 > 0.001f ? (1.f / std::tanh (drive)) : 1.f;
 
     for (int i = 0; i < n; ++i)
     {
@@ -80,7 +82,15 @@ void FilterProcessor::process (juce::AudioBuffer<float>& buffer)
             outR = inR - outR;
         }
 
-        L[i] = applyDrive (outL, drive01);
-        R[i] = applyDrive (outR, drive01);
+        if (drive01 > 0.001f)
+        {
+            L[i] = std::tanh (outL * drive) * driveNorm;
+            R[i] = std::tanh (outR * drive) * driveNorm;
+        }
+        else
+        {
+            L[i] = outL;
+            R[i] = outR;
+        }
     }
 }

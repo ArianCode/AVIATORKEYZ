@@ -36,11 +36,9 @@ juce::StringArray ModMatrix::destNames()
 
 namespace
 {
-int choiceIndex (const juce::AudioProcessorValueTreeState& apvts, const char* id)
+int choiceIndex (const juce::AudioProcessorValueTreeState& apvts, const char* id) noexcept
 {
-    if (auto* p = dynamic_cast<juce::AudioParameterChoice*> (apvts.getParameter (id)))
-        return p->getIndex();
-    return static_cast<int> (apvts.getRawParameterValue (id)->load());
+    return static_cast<juce::AudioParameterChoice*> (apvts.getParameter (id))->getIndex();
 }
 } // namespace
 

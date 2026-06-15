@@ -1,6 +1,11 @@
 #include "MidiHandler.h"
 #include "../DSP/SamplerEngine.h"
 #include "../DSP/SynthEngine.h"
+#include <cstring>
+
+#if JUCE_DEBUG
+ #include <juce_core/juce_core.h>
+#endif
 
 namespace
 {
@@ -41,7 +46,7 @@ void MidiHandler::processBypassed (juce::MidiBuffer& midiBuffer)
         }
         else if (message.isAllNotesOff() || message.isAllSoundOff())
         {
-            keyHeld.fill (false);
+            std::memset (keyHeld, 0, sizeof (keyHeld));
             sustainPedal = false;
         }
     }
@@ -58,6 +63,21 @@ void MidiHandler::process (juce::MidiBuffer& midiBuffer,
 {
     const bool useSampler = sourceBlend < 0.999f;
     const bool useSynth = sourceBlend > 0.001f;
+
+#if JUCE_DEBUG
+    for (const auto metadata : midiBuffer)
+    {
+        const auto message = metadata.getMessage();
+
+        if (message.isNoteOn() && message.getVelocity() > 0)
+        {
+            DBG ("Note on: "
+                 + juce::String (message.getNoteNumber())
+                 + ", velocity: "
+                 + juce::String (message.getFloatVelocity()));
+        }
+    }
+#endif
 
     for (const auto metadata : midiBuffer)
     {
@@ -121,7 +141,7 @@ void MidiHandler::process (juce::MidiBuffer& midiBuffer,
         }
         else if (message.isAllNotesOff() || message.isAllSoundOff())
         {
-            keyHeld.fill (false);
+            std::memset (keyHeld, 0, sizeof (keyHeld));
             sustainPedal = false;
             if (message.isAllSoundOff())
             {

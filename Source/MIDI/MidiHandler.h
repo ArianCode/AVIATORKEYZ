@@ -1,7 +1,6 @@
 #pragma once
 
 #include <juce_audio_basics/juce_audio_basics.h>
-#include <array>
 
 class SamplerEngine;
 class SynthEngine;
@@ -31,7 +30,7 @@ public:
 private:
     int midiChannel { 0 };
     bool sustainPedal { false };
-    std::array<bool, 128> keyHeld {};
+    bool keyHeld[128] {};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MidiHandler)
 };

@@ -106,8 +106,8 @@ void appendCoreParameters (std::vector<std::unique_ptr<RangedAudioParameter>>& p
     params.push_back (std::make_unique<AudioParameterFloat> (
         ParameterID { ParamID::ENV_ATTACK, 1 },
         "Attack",
-        NormalisableRange<float> (0.5f, 5000.0f, 0.1f, 0.4f),
-        5.0f,
+        NormalisableRange<float> (0.0f, 5000.0f, 0.1f, 0.4f),
+        0.0f,
         AudioParameterFloatAttributes()
             .withLabel ("ms")
             .withStringFromValueFunction ([] (float v, int) {
@@ -117,8 +117,8 @@ void appendCoreParameters (std::vector<std::unique_ptr<RangedAudioParameter>>& p
     params.push_back (std::make_unique<AudioParameterFloat> (
         ParameterID { ParamID::ENV_RELEASE, 1 },
         "Release",
-        NormalisableRange<float> (5.0f, 10000.0f, 0.1f, 0.35f),
-        150.0f,
+        NormalisableRange<float> (0.01f, 10000.0f, 0.01f, 0.35f),
+        10.0f,
         AudioParameterFloatAttributes()
             .withLabel ("ms")
             .withStringFromValueFunction ([] (float v, int) {

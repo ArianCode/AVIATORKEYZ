@@ -46,11 +46,13 @@ inline juce::StringArray allSchemaParamIDs()
         ParamID::OSC2_SHAPE, ParamID::OSC2_LEVEL, ParamID::OSC2_PAN,
         ParamID::SOURCE_BLEND,
 
+        ParamID::FILTER_ENABLED,
         ParamID::FILTER_CUTOFF, ParamID::FILTER_RESONANCE,
         ParamID::FILTER_TYPE, ParamID::FILTER_DRIVE,
         ParamID::ENV_AMP_DECAY, ParamID::ENV_AMP_SUSTAIN,
         ParamID::ENV_FLT_ATTACK, ParamID::ENV_FLT_DECAY,
         ParamID::ENV_FLT_SUSTAIN, ParamID::ENV_FLT_RELEASE, ParamID::ENV_FLT_AMOUNT,
+        ParamID::VELOCITY_SENSITIVITY,
         ParamID::VOICE_POLYPHONY, ParamID::VOICE_GLIDE_MODE, ParamID::VOICE_PLAY_MODE,
         ParamID::OUTPUT_LIMITER,
 
@@ -72,4 +74,4 @@ inline juce::StringArray allSchemaParamIDs()
     };
 }
 
-inline constexpr int kExpectedSchemaParamCount = 130;
+inline constexpr int kExpectedSchemaParamCount = 132;

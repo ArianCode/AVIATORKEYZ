@@ -26,6 +26,9 @@ public:
 
     void setEnvelopeTimesMs (float attackMs, float decayMs, float sustain01, float releaseMs) noexcept;
 
+    /** 0 = ignore MIDI velocity (full level); 1 = scale by velocity. */
+    void setVelocitySensitivity (float sensitivity01) noexcept;
+
     void setPolyphony (int voices) noexcept;
     void setPlayMode (int mode) noexcept;
     void setGlideMode (int mode) noexcept;
@@ -43,6 +46,18 @@ public:
     void noteOff (int midiNote) noexcept;
     void allNotesOff() noexcept;
     void allSoundOff() noexcept;
+
+    /** True when neutral one-shot envelope: note-off does not cut playback early. */
+    bool isOneShotPlayback() const noexcept;
+
+    bool hasActiveVoices() const noexcept { return activeVoiceCount > 0; }
+    int  getNumActiveVoices() const noexcept;
+
+    /** Message thread: sanity-check snapshot, voices, and envelope after preset load. */
+    bool validateCurrentState() const noexcept;
+
+    /** sensitivity 0 = full level; 1 = linear velocity scaling. */
+    static float calculateVelocityGain (float velocity, float sensitivity) noexcept;
 
     void process (juce::AudioBuffer<float>& buffer);
 
@@ -79,6 +94,9 @@ private:
         const float* sampleData = nullptr;
         int          sampleNumFrames = 0;
         int          sampleRootNote = 60;
+        float        pitchRatio = 1.f;
+        int          phraseStartFrame = 0;
+        int          phraseEndFrame = 0;
     };
 
     void startVoice (Voice& v,
@@ -91,6 +109,7 @@ private:
     float renderVoiceSample (Voice& v) noexcept;
     void advanceEnvelope (Voice& v) noexcept;
     void advanceGlide (Voice& v) noexcept;
+    void updateVoicePitchRatio (Voice& v) noexcept;
     int   findFreeOrStealVoice() noexcept;
 
     static float midiNoteToHz (float note) noexcept;
@@ -102,12 +121,14 @@ private:
 
     const SampleLibrary::AudioSnapshot* sampleSnapshot = nullptr;
 
-    float attackMs = 5.f;
-    float decayMs = 300.f;
+    float attackMs = 0.f;
+    float decayMs = 0.f;
     float sustainLevel = 1.f;
-    float releaseMs = 150.f;
+    float releaseMs = 10.f;
+    float velocitySensitivity { 0.f };
 
     int maxVoices { 16 };
+    int activeVoiceCount { 0 };
     PlayMode playMode { PlayMode::poly };
     GlideMode glideMode { GlideMode::off };
     int lastNoteForGlide = -1;

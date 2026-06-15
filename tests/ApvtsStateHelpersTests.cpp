@@ -152,10 +152,10 @@ public:
 
             expectWithinAbsoluteError (
                 proc.apvts.getRawParameterValue (AviatorKeyz::ParamID::TONE)->load(),
-                0.1f, 0.001f);
+                0.0f, 0.001f);
             expectWithinAbsoluteError (
                 proc.apvts.getRawParameterValue (AviatorKeyz::ParamID::REVERB_AMOUNT)->load(),
-                0.1f, 0.001f);
+                0.0f, 0.001f);
         }
     }
 };

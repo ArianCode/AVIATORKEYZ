@@ -4,13 +4,17 @@
 #
 #  Usage:
 #    ./scripts/build_macos.sh              Release build
-#    ./scripts/build_macos.sh debug        Debug build
-#    ./scripts/build_macos.sh install      Release + copy VST3 to user folder
-#    ./scripts/build_macos.sh clean        Delete build directory
+#    ./scripts/build_macos.sh debug        Debug build (host-loadable, no sanitizers)
+#    ./scripts/build_macos.sh relwithdebinfo
+#    ./scripts/build_macos.sh install      Release + verify + install VST3
+#    ./scripts/build_macos.sh sanitizer-tests
+#                                          tests-only ASan/UBSan tree in build-asan/
+#    ./scripts/build_macos.sh clean        Delete default build directory
 #
 #  Optional env:
-#    BUILD_DIR=build   CMAKE build tree
-#    GENERATOR=Ninja   Force generator (Ninja or Xcode)
+#    BUILD_DIR=build                  CMake build tree
+#    GENERATOR=Ninja                  Force generator (Ninja or Xcode)
+#    AVIATORKEYZ_CODESIGN_IDENTITY=   Developer ID for release; default ad-hoc (-)
 # =============================================================================
 
 set -euo pipefail
@@ -21,21 +25,42 @@ cd "$ROOT"
 BUILD_DIR="${BUILD_DIR:-build}"
 CONFIG="Release"
 DO_INSTALL=0
+ENABLE_SANITIZERS=OFF
+BUILD_PLUGIN=ON
+BUILD_TESTS=ON
+MODE="plugin"
 
 usage() {
-  sed -n '4,12p' "$0" | sed 's/^# \{0,2\}//'
+  sed -n '4,18p' "$0" | sed 's/^# \{0,2\}//'
 }
 
 case "${1:-}" in
   -h|--help) usage; exit 0 ;;
-  debug|Debug) CONFIG=Debug ;;
+  debug|Debug)
+    CONFIG=Debug
+    ;;
+  relwithdebinfo|RelWithDebInfo)
+    CONFIG=RelWithDebInfo
+    ;;
   clean)
     echo "Cleaning ${BUILD_DIR}..."
     rm -rf "${BUILD_DIR}"
     echo "Done."
     exit 0
     ;;
-  install) DO_INSTALL=1 ;;
+  install)
+    DO_INSTALL=1
+    ;;
+  sanitizer-tests)
+    MODE="sanitizer-tests"
+    BUILD_DIR="build-asan"
+    CONFIG=Debug
+    ENABLE_SANITIZERS=ON
+    BUILD_PLUGIN=OFF
+    BUILD_TESTS=ON
+    echo "Removing stale ${BUILD_DIR} tree (tests-only sanitizer builds must not retain old plugin bundles)."
+    rm -rf "${ROOT}/${BUILD_DIR}"
+    ;;
   "") ;;
   *)
     echo "Unknown argument: $1" >&2
@@ -58,26 +83,62 @@ pick_generator() {
 
 GENERATOR="$(pick_generator)"
 
-echo "=== AviatorKeyz Build (${CONFIG}, ${GENERATOR}) ==="
+echo "=== AviatorKeyz Build (${CONFIG}, ${GENERATOR}, sanitizers=${ENABLE_SANITIZERS}, plugin=${BUILD_PLUGIN}) ==="
 echo
 
 if [[ -f "${BUILD_DIR}/CMakeCache.txt" ]]; then
   cached_gen="$(grep '^CMAKE_GENERATOR:INTERNAL=' "${BUILD_DIR}/CMakeCache.txt" 2>/dev/null | cut -d= -f2- || true)"
+  cached_san="$(grep '^AVIATORKEYZ_ENABLE_SANITIZERS:BOOL=' "${BUILD_DIR}/CMakeCache.txt" 2>/dev/null | cut -d= -f2- || true)"
+  cached_plugin="$(grep '^AVIATORKEYZ_BUILD_PLUGIN:BOOL=' "${BUILD_DIR}/CMakeCache.txt" 2>/dev/null | cut -d= -f2- || true)"
   if [[ -n "$cached_gen" && "$cached_gen" != "$GENERATOR" ]]; then
     echo "Existing ${BUILD_DIR} used ${cached_gen}; removing tree for ${GENERATOR}."
+    rm -rf "${BUILD_DIR}"
+  elif [[ -n "$cached_san" && "$cached_san" != "$ENABLE_SANITIZERS" ]]; then
+    echo "Existing ${BUILD_DIR} had AVIATORKEYZ_ENABLE_SANITIZERS=${cached_san}; removing tree."
+    rm -rf "${BUILD_DIR}"
+  elif [[ -n "$cached_plugin" && "$cached_plugin" != "$BUILD_PLUGIN" ]]; then
+    echo "Existing ${BUILD_DIR} had AVIATORKEYZ_BUILD_PLUGIN=${cached_plugin}; removing tree."
     rm -rf "${BUILD_DIR}"
   fi
 fi
 
 echo "[1/3] Configuring CMake..."
+CMAKE_ARGS=(
+  -S .
+  -B "${BUILD_DIR}"
+  -DAVIATORKEYZ_ENABLE_SANITIZERS="${ENABLE_SANITIZERS}"
+  -DAVIATORKEYZ_BUILD_PLUGIN="${BUILD_PLUGIN}"
+  -DAVIATORKEYZ_BUILD_TESTS="${BUILD_TESTS}"
+  -DAVIATORKEYZ_COPY_AFTER_BUILD=OFF
+)
 if [[ "$GENERATOR" == "Ninja" ]]; then
-  cmake -S . -B "${BUILD_DIR}" -G Ninja -DCMAKE_BUILD_TYPE="${CONFIG}"
+  CMAKE_ARGS+=(-G Ninja -DCMAKE_BUILD_TYPE="${CONFIG}")
 else
-  cmake -S . -B "${BUILD_DIR}" -G Xcode
+  CMAKE_ARGS+=(-G Xcode)
 fi
+cmake "${CMAKE_ARGS[@]}"
 
 echo
 echo "[2/3] Building..."
+if [[ "$MODE" == "sanitizer-tests" ]]; then
+  if [[ "$GENERATOR" == "Ninja" ]]; then
+    cmake --build "${BUILD_DIR}" --target AviatorKeyzSanitizerTests --parallel
+  else
+    cmake --build "${BUILD_DIR}" --config "${CONFIG}" --target AviatorKeyzSanitizerTests --parallel
+  fi
+  TEST_BIN="$(find "${BUILD_DIR}/tests" -name 'AviatorKeyzSanitizerTests' -type f 2>/dev/null | head -1 || true)"
+  echo
+  echo "==================================================="
+  echo " SANITIZER TEST BUILD SUCCEEDED"
+  if [[ -n "$TEST_BIN" ]]; then
+    echo " Tests: ${TEST_BIN}"
+    echo " Run:   \"${TEST_BIN}\""
+  fi
+  echo " NOTE: build-asan is tests-only. Never install from this tree."
+  echo "==================================================="
+  exit 0
+fi
+
 if [[ "$GENERATOR" == "Ninja" ]]; then
   cmake --build "${BUILD_DIR}" --parallel
 else
@@ -118,21 +179,28 @@ if [[ -n "$VST3" ]]; then
   fi
   echo "==================================================="
   echo
+  if [[ -x "${ROOT}/scripts/finalize_production_bundle.sh" ]]; then
+    "${ROOT}/scripts/finalize_production_bundle.sh" \
+      "$VST3" \
+      "${VST3}/Contents/MacOS/AviatorKeyz" \
+      "built VST3" \
+      "${AVIATORKEYZ_CODESIGN_IDENTITY:--}"
+  fi
+  echo
   echo "Install VST3 for DAW testing:"
-  echo "  cp -R \"${VST3}\" \"\$HOME/Library/Audio/Plug-Ins/VST3/\""
+  echo "  ./scripts/install_vst3.sh \"${VST3}\""
+  echo
+  echo "Or:"
+  echo "  ./scripts/build_macos.sh install"
   echo
   echo "Fast dev loop (no DAW):"
   echo "  open \"${STANDALONE}\""
 else
-  echo "WARNING: VST3 not found at: ${VST3}" >&2
+  echo "WARNING: VST3 not found." >&2
   echo "Check build output for the actual artefact path." >&2
   exit 1
 fi
 
 if [[ "$DO_INSTALL" -eq 1 ]]; then
-  DEST="${HOME}/Library/Audio/Plug-Ins/VST3"
-  mkdir -p "${DEST}"
-  rm -rf "${DEST}/AviatorKeyz.vst3"
-  cp -R "${VST3}" "${DEST}/"
-  echo "Installed to ${DEST}/AviatorKeyz.vst3"
+  "${ROOT}/scripts/install_vst3.sh" "$VST3"
 fi

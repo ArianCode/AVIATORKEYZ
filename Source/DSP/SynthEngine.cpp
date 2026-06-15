@@ -1,4 +1,5 @@
 #include "SynthEngine.h"
+#include "FastMath.h"
 #include <cmath>
 
 void SynthEngine::prepare (const juce::dsp::ProcessSpec& spec)
@@ -44,6 +45,7 @@ void SynthEngine::setOscParams (int oscIndex,
     o.shape = juce::jlimit (0.f, 1.f, shape01);
     o.level = juce::jlimit (0.f, 1.f, level01);
     o.pan = juce::jlimit (-1.f, 1.f, pan);
+    AviatorFastMath::constantPowerPan (o.pan, o.panL, o.panR);
 }
 
 void SynthEngine::setAmpEnvelopeMs (float attackMs, float decayMs, float sustain01, float releaseMs) noexcept
@@ -64,19 +66,7 @@ void SynthEngine::setFilterEnvelopeMs (float attackMs, float decayMs, float sust
 
 float SynthEngine::midiNoteToHz (float note) noexcept
 {
-    return 440.f * std::pow (2.f, (note - 69.f) / 12.f);
-}
-
-float SynthEngine::constantPowerPanL (float pan) noexcept
-{
-    const float ang = (pan + 1.f) * (juce::MathConstants<float>::halfPi * 0.25f);
-    return std::cos (ang);
-}
-
-float SynthEngine::constantPowerPanR (float pan) noexcept
-{
-    const float ang = (pan + 1.f) * (juce::MathConstants<float>::halfPi * 0.25f);
-    return std::sin (ang);
+    return AviatorFastMath::midiNoteToHz (note);
 }
 
 float SynthEngine::oscSample (int type, float shape01, float phase01, float& noiseSeed) noexcept
@@ -91,7 +81,7 @@ float SynthEngine::oscSample (int type, float shape01, float phase01, float& noi
         case 2: // triangle
             return phase01 < 0.5f ? phase01 * 4.f - 1.f : 3.f - phase01 * 4.f;
         case 3: // sine
-            return std::sin (phase01 * juce::MathConstants<float>::twoPi);
+            return AviatorFastMath::fastSinPhase01 (phase01);
         case 4: // noise
             noiseSeed = noiseSeed * 1664525.f + 1013904223.f;
             return (noiseSeed / static_cast<float> (0x7fffffff)) - 1.f;
@@ -100,19 +90,19 @@ float SynthEngine::oscSample (int type, float shape01, float phase01, float& noi
         default:
         {
             const float saw = phase01 * 2.f - 1.f;
-            const float sine = std::sin (phase01 * juce::MathConstants<float>::twoPi);
+            const float sine = AviatorFastMath::fastSinPhase01 (phase01);
             return juce::jmap (shape01, saw, sine);
         }
         case 6: // FM — modulated sine
         {
-            const float mod = std::sin (phase01 * juce::MathConstants<float>::twoPi * (2.f + shape01 * 6.f));
-            return std::sin (phase01 * juce::MathConstants<float>::twoPi + mod * shape01 * 3.f);
+            const float mod = AviatorFastMath::fastSinPhase01 (phase01 * (2.f + shape01 * 6.f));
+            return AviatorFastMath::fastSin (phase01 * juce::MathConstants<float>::twoPi + mod * shape01 * 3.f);
         }
         case 7: // chord — detuned stack
         {
-            const float s1 = std::sin (phase01 * juce::MathConstants<float>::twoPi);
-            const float s2 = std::sin (phase01 * juce::MathConstants<float>::twoPi * 1.002f);
-            const float s3 = std::sin (phase01 * juce::MathConstants<float>::twoPi * 0.998f);
+            const float s1 = AviatorFastMath::fastSinPhase01 (phase01);
+            const float s2 = AviatorFastMath::fastSinPhase01 (phase01 * 1.002f);
+            const float s3 = AviatorFastMath::fastSinPhase01 (phase01 * 0.998f);
             return (s1 + s2 + s3) / 3.f;
         }
     }
@@ -147,7 +137,10 @@ int SynthEngine::findMonoVoice() noexcept
 
 void SynthEngine::startVoice (Voice& v, int midiNote, float velocity, float glideTimeMs) noexcept
 {
+    const bool wasActive = v.active;
     v.active = true;
+    if (! wasActive)
+        ++activeVoiceCount;
     v.noteNumber = midiNote;
     v.velocity = juce::jlimit (0.f, 1.f, velocity);
     v.targetPitch = static_cast<float> (midiNote);
@@ -215,7 +208,11 @@ void SynthEngine::enterRelease (Voice& v) noexcept
     const double relS = ampReleaseMs * 0.001;
     if (relS <= 0.0 || v.ampLevel <= 0.f)
     {
-        v.active = false;
+        if (v.active)
+        {
+            v.active = false;
+            --activeVoiceCount;
+        }
         v.ampStage = EnvStage::idle;
         v.ampLevel = 0.f;
         return;
@@ -264,7 +261,11 @@ void SynthEngine::advanceAmpEnv (Voice& v) noexcept
             if (--v.ampSegLeft <= 0 || v.ampLevel <= 0.f)
             {
                 v.ampLevel = 0.f;
-                v.active = false;
+                if (v.active)
+                {
+                    v.active = false;
+                    --activeVoiceCount;
+                }
                 v.ampStage = EnvStage::idle;
             }
             break;
@@ -398,6 +399,7 @@ void SynthEngine::allSoundOff() noexcept
         v.ampStage = EnvStage::idle;
         v.ampLevel = 0.f;
     }
+    activeVoiceCount = 0;
     filterEnvStage = EnvStage::idle;
     filterEnvLevel = 0.f;
     lastNote = -1;
@@ -406,6 +408,9 @@ void SynthEngine::allSoundOff() noexcept
 
 void SynthEngine::process (juce::AudioBuffer<float>& buffer)
 {
+    if (activeVoiceCount <= 0)
+        return;
+
     const int numCh = buffer.getNumChannels();
     const int n = buffer.getNumSamples();
     if (numCh < 1 || n <= 0)
@@ -419,16 +424,17 @@ void SynthEngine::process (juce::AudioBuffer<float>& buffer)
         float sumL = 0.f;
         float sumR = 0.f;
 
-        for (auto& v : voices)
+        for (int i = 0; i < maxVoices; ++i)
         {
+            auto& v = voices[i];
             if (! v.active)
                 continue;
 
             const float mono = renderVoice (v);
-            sumL += mono * constantPowerPanL (osc1.pan);
-            sumR += mono * constantPowerPanR (osc1.pan);
-            sumL += mono * constantPowerPanL (osc2.pan) * 0.5f;
-            sumR += mono * constantPowerPanR (osc2.pan) * 0.5f;
+            sumL += mono * osc1.panL;
+            sumR += mono * osc1.panR;
+            sumL += mono * osc2.panL * 0.5f;
+            sumR += mono * osc2.panR * 0.5f;
         }
 
         advanceFilterEnv (filterEnvStage);

@@ -1,19 +1,23 @@
 #include "TextureEngine.h"
+#include "FastMath.h"
+#include <cmath>
+#include <cstring>
 
 void TextureEngine::prepare (const juce::dsp::ProcessSpec& spec)
 {
     sampleRate = spec.sampleRate;
     captureLength = juce::jmax (1, static_cast<int> (sampleRate * kMaxBufferSec));
-    captureL.assign (static_cast<size_t> (captureLength), 0.f);
-    captureR.assign (static_cast<size_t> (captureLength), 0.f);
+    captureL.malloc (static_cast<size_t> (captureLength));
+    captureR.malloc (static_cast<size_t> (captureLength));
     reset();
     prepared = true;
 }
 
 void TextureEngine::reset()
 {
-    std::fill (captureL.begin(), captureL.end(), 0.f);
-    std::fill (captureR.begin(), captureR.end(), 0.f);
+    const auto bytes = static_cast<size_t> (captureLength) * sizeof (float);
+    std::memset (captureL.getData(), 0, bytes);
+    std::memset (captureR.getData(), 0, bytes);
     writeIndex = 0;
     frozenWriteIndex = 0;
     frozen = false;
@@ -21,13 +25,8 @@ void TextureEngine::reset()
     scanPos = 0.f;
     driftPhase = 0.f;
 
-    for (auto& g : grains)
-        g.active = false;
-}
-
-float TextureEngine::hannWindow (float phase01) const noexcept
-{
-    return 0.5f * (1.f - std::cos (phase01 * juce::MathConstants<float>::twoPi));
+    for (int i = 0; i < kMaxGrains; ++i)
+        grains[i].active = false;
 }
 
 float TextureEngine::tempoGrainRateHz (float rate01, double bpm) const noexcept
@@ -54,8 +53,8 @@ float TextureEngine::readBuffer (float pos, int channel) const noexcept
         pos -= static_cast<float> (captureLength);
 
     const int i0 = static_cast<int> (pos) % captureLength;
-    const float frac = pos - std::floor (pos);
-    const auto& buf = channel == 0 ? captureL : captureR;
+    const float frac = pos - static_cast<float> (i0);
+    const float* buf = channel == 0 ? captureL.getData() : captureR.getData();
 
     // Do not interpolate across the ring seam — i0 and index 0 are ~4 s apart in time.
     if (i0 + 1 >= captureLength)
@@ -74,23 +73,30 @@ void TextureEngine::writeCapture (const juce::AudioBuffer<float>& buffer) noexce
     const float* inL = buffer.getReadPointer (0);
     const float* inR = buffer.getNumChannels() > 1 ? buffer.getReadPointer (1) : inL;
 
+    float* capL = captureL.getData();
+    float* capR = captureR.getData();
+
     if (frozen)
     {
+        int w = frozenWriteIndex;
         for (int i = 0; i < n; ++i)
         {
-            captureL[static_cast<size_t> (frozenWriteIndex)] = inL[i];
-            captureR[static_cast<size_t> (frozenWriteIndex)] = inR[i];
-            frozenWriteIndex = (frozenWriteIndex + 1) % captureLength;
+            capL[static_cast<size_t> (w)] = inL[i];
+            capR[static_cast<size_t> (w)] = inR[i];
+            w = (w + 1) % captureLength;
         }
+        frozenWriteIndex = w;
         return;
     }
 
+    int w = writeIndex;
     for (int i = 0; i < n; ++i)
     {
-        captureL[static_cast<size_t> (writeIndex)] = inL[i];
-        captureR[static_cast<size_t> (writeIndex)] = inR[i];
-        writeIndex = (writeIndex + 1) % captureLength;
+        capL[static_cast<size_t> (w)] = inL[i];
+        capR[static_cast<size_t> (w)] = inR[i];
+        w = (w + 1) % captureLength;
     }
+    writeIndex = w;
 }
 
 void TextureEngine::spawnGrain (float rate01,
@@ -101,8 +107,9 @@ void TextureEngine::spawnGrain (float rate01,
                                 bool reverse,
                                 float scan01) noexcept
 {
-    for (auto& g : grains)
+    for (int i = 0; i < kMaxGrains; ++i)
     {
+        auto& g = grains[i];
         if (g.active)
             continue;
 
@@ -122,12 +129,10 @@ void TextureEngine::spawnGrain (float rate01,
         g.readPos = scanPos;
         g.windowPhase = 0.f;
         g.windowInc = 1.f / len;
-        const float pitchRatio = std::pow (2.f, pitchSemis / 12.f);
+        const float pitchRatio = AviatorFastMath::semitoneRatio (static_cast<float> (pitchSemis));
         g.increment = (reverse ? -1.f : 1.f) * pitchRatio;
         const float pan = juce::jlimit (-1.f, 1.f, pan01 + (rng.nextFloat() * 2.f - 1.f) * spread01 * 0.5f);
-        const float ang = (pan + 1.f) * (juce::MathConstants<float>::halfPi * 0.25f);
-        g.panL = std::cos (ang);
-        g.panR = std::sin (ang);
+        AviatorFastMath::constantPowerPan (pan, g.panL, g.panR);
         g.gain = juce::jmap (rate01, 0.4f, 1.f);
         juce::ignoreUnused (size01);
         return;
@@ -164,8 +169,8 @@ void TextureEngine::process (juce::AudioBuffer<float>& buffer,
 
     if (! active)
     {
-        for (auto& g : grains)
-            g.active = false;
+        for (int i = 0; i < kMaxGrains; ++i)
+            grains[i].active = false;
         spawnAccumulator = 0.f;
         return;
     }
@@ -182,6 +187,8 @@ void TextureEngine::process (juce::AudioBuffer<float>& buffer,
     const float spawnRate = rateHz * juce::jlimit (0.f, 1.f, density) * wet;
     const int n = buffer.getNumSamples();
     const float blockSec = static_cast<float> (n) / static_cast<float> (sampleRate);
+    const float width = juce::jlimit (0.f, 1.f, stereoWidth);
+    const float airScale = air * wet * 0.15f;
 
     spawnAccumulator += spawnRate * blockSec;
     while (spawnAccumulator >= 1.f)
@@ -207,12 +214,13 @@ void TextureEngine::process (juce::AudioBuffer<float>& buffer,
         float wetL = 0.f;
         float wetR = 0.f;
 
-        for (auto& g : grains)
+        for (int gi = 0; gi < kMaxGrains; ++gi)
         {
+            auto& g = grains[gi];
             if (! g.active)
                 continue;
 
-            const float win = hannWindow (g.windowPhase);
+            const float win = AviatorFastMath::hannWindow (g.windowPhase);
             const float sampleL = readBuffer (g.readPos, 0);
             const float sampleR = readBuffer (g.readPos, 1);
             const float grain = win * g.gain;
@@ -232,7 +240,7 @@ void TextureEngine::process (juce::AudioBuffer<float>& buffer,
         }
 
         const float dryMag = juce::jmax (std::abs (dryL), std::abs (dryR));
-        const float airAmt = air * wet * 0.15f * juce::jmin (1.f, dryMag * 8.f);
+        const float airAmt = airScale * juce::jmin (1.f, dryMag * 8.f);
         if (airAmt > 0.f)
         {
             wetL += airAmt * (rng.nextFloat() * 2.f - 1.f);
@@ -240,11 +248,11 @@ void TextureEngine::process (juce::AudioBuffer<float>& buffer,
         }
 
         const float m = 0.5f * (wetL + wetR);
-        const float side = 0.5f * (wetL - wetR) * juce::jlimit (0.f, 1.f, stereoWidth);
+        const float side = 0.5f * (wetL - wetR) * width;
         wetL = m + side;
         wetR = m - side;
 
-        const float driftMod = 1.f + std::sin (driftPhase + s * 0.001f) * drift * 0.05f;
+        const float driftMod = 1.f + std::sin (driftPhase + static_cast<float> (s) * 0.001f) * drift * 0.05f;
         L[s] = dryL * dry + wetL * wet * driftMod;
         R[s] = dryR * dry + wetR * wet * driftMod;
     }

@@ -40,10 +40,21 @@ AdvancedPageContent::AdvancedPageContent (juce::AudioProcessorValueTreeState& ap
     addBox (P::OSC2_LEVEL, "LEVEL", Fmt::percent);
     addBox (P::OSC2_PAN,   "PAN",   Fmt::pan);
     addBox (P::SOURCE_BLEND, "BLEND", Fmt::percent);
-    addBox (P::INPUT_GAIN, "DRIVE", Fmt::percent);
+    addBox (P::INPUT_GAIN, "GAIN", Fmt::decibels);
+    addBox (P::VELOCITY_SENSITIVITY, "VEL", Fmt::percent);
 
-    filterCurve = std::make_unique<FilterCurveGraph> (apvts, P::FILTER_CUTOFF, P::FILTER_RESONANCE, P::FILTER_TYPE);
+    filterCurve = std::make_unique<FilterCurveGraph> (apvts,
+                                                      P::FILTER_CUTOFF,
+                                                      P::FILTER_RESONANCE,
+                                                      P::FILTER_TYPE,
+                                                      P::FILTER_ENABLED);
     addAndMakeVisible (*filterCurve);
+
+    filterEnabled = std::make_unique<AdvancedWidgets::FlatToggle> (apvts,
+                                                                   P::FILTER_ENABLED,
+                                                                   "FILTER ON",
+                                                                   "FILTER OFF");
+    addAndMakeVisible (*filterEnabled);
 
     addBox (P::FILTER_DRIVE,     "DRIVE", Fmt::percent);
     addBox (P::ENV_FLT_AMOUNT,   "FLT",   Fmt::percent);
@@ -224,6 +235,16 @@ AdvancedPageContent::AdvancedPageContent (juce::AudioProcessorValueTreeState& ap
 
     fxEditsToggle = std::make_unique<AdvancedWidgets::FlatToggle> (apvts, P::FX_EDITS_ON, "FX ON", "FX OFF");
     addAndMakeVisible (*fxEditsToggle);
+
+    const auto enableFilterOnUserEdit = [this]
+    {
+        if (auto* param = apvtsRef.getParameter (P::FILTER_ENABLED))
+            param->setValueNotifyingHost (1.f);
+    };
+
+    for (const char* id : { P::FILTER_DRIVE, P::ENV_FLT_AMOUNT })
+        if (auto* b = box (id))
+            b->onUserAdjust = enableFilterOnUserEdit;
 
     setSection (Section::textureEngine);
     startTimerHz (12);
@@ -542,8 +563,11 @@ void AdvancedPageContent::resized()
             filterCurve->setVisible (false);
         }
         for (const char* id : { P::FILTER_DRIVE, P::ENV_FLT_AMOUNT,
-                                P::ENV_ATTACK, P::ENV_AMP_DECAY, P::ENV_AMP_SUSTAIN, P::ENV_RELEASE, P::GLIDE_TIME })
+                                P::ENV_ATTACK, P::ENV_AMP_DECAY, P::ENV_AMP_SUSTAIN, P::ENV_RELEASE, P::GLIDE_TIME,
+                                P::VELOCITY_SENSITIVITY })
             placeBox (box (id), {});
+        if (filterEnabled != nullptr)
+            filterEnabled->setBounds ({});
     };
     auto hideLfoDetail = [&]
     {
@@ -650,8 +674,8 @@ void AdvancedPageContent::resized()
         regions.push_back ({ "SOURCE BLEND", blendArea });
         {
             auto b = blendArea.reduced (8, 0).withTrimmedTop (14);
-            const int bw = rh (50);
-            placeRow (b.removeFromTop (rh (36)), { box (P::SOURCE_BLEND), box (P::INPUT_GAIN) }, bw, rh (4));
+            const int bw = juce::jmin (rh (48), (b.getWidth() - rh (2)) / 2);
+            placeRow (b.removeFromTop (rh (36)), { box (P::SOURCE_BLEND), box (P::INPUT_GAIN), box (P::VELOCITY_SENSITIVITY) }, bw, rh (2));
         }
 
         int ry = bounds.getY();
@@ -660,6 +684,9 @@ void AdvancedPageContent::resized()
         {
             filterCurve->setVisible (true);
             auto b = filterArea.reduced (8, 0).withTrimmedTop (14);
+            if (filterEnabled != nullptr)
+                filterEnabled->setBounds (b.removeFromTop (rh (18)));
+            b.removeFromTop (rh (2));
             filterCurve->setBounds (b.removeFromTop (rh (72)));
             b.removeFromTop (rh (4));
             const int bw = juce::jmin (rh (48), (b.getWidth() - rh (2)) / 2);

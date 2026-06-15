@@ -1,7 +1,6 @@
 #pragma once
 
 #include <juce_audio_basics/juce_audio_basics.h>
-#include <array>
 
 /** Three independent LFOs for the Advanced modulation engine. */
 class LfoEngine
@@ -36,17 +35,18 @@ public:
     float getValue (int lfoIndex) const noexcept;
 
 private:
-    static float shapeSample (Shape shape, float phase01, float& randomHold) noexcept;
+    static float shapeSample (Shape shape, float phase01, float& randomHold, uint32_t& rng) noexcept;
 
     double sampleRate { 44100.0 };
-    std::array<float, kNumLfos> rateHz {};
-    std::array<float, kNumLfos> depth {};
-    std::array<Shape, kNumLfos> shapes {};
-    std::array<bool, kNumLfos> syncEnabled {};
-    std::array<float, kNumLfos> phaseOffset {};
-    std::array<float, kNumLfos> phase {};
-    std::array<float, kNumLfos> output {};
-    std::array<float, kNumLfos> randomHold {};
+    float rateHz[kNumLfos] {};
+    float depth[kNumLfos] {};
+    Shape shapes[kNumLfos] {};
+    bool syncEnabled[kNumLfos] {};
+    float phaseOffset[kNumLfos] {};
+    float phase[kNumLfos] {};
+    float output[kNumLfos] {};
+    float randomHold[kNumLfos] {};
+    uint32_t rngState[kNumLfos] { 0x12345678u, 0x9abcdef0u, 0x0fedcba9u };
     double hostBpm { 120.0 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LfoEngine)

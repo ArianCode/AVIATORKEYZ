@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pre-release checks: factory content, optional build artifact.
+# Pre-release checks: factory content, optional build artifact, sanitizer-free plugin binary.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -13,6 +13,7 @@ find_vst3() {
   local candidates=(
     "$ROOT/build/AviatorKeyz_artefacts/VST3/AviatorKeyz.vst3"
     "$ROOT/build/AviatorKeyz_artefacts/Release/VST3/AviatorKeyz.vst3"
+    "$ROOT/build/AviatorKeyz_artefacts/RelWithDebInfo/VST3/AviatorKeyz.vst3"
     "$ROOT/build/AviatorKeyz_artefacts/Debug/VST3/AviatorKeyz.vst3"
   )
   for path in "${candidates[@]}"; do
@@ -26,6 +27,13 @@ find_vst3() {
 
 if VST3="$(find_vst3)"; then
   echo "VST3 bundle: $VST3"
+  if [[ -x "$ROOT/scripts/finalize_production_bundle.sh" ]]; then
+    "$ROOT/scripts/finalize_production_bundle.sh" \
+      "$VST3" \
+      "$VST3/Contents/MacOS/AviatorKeyz" \
+      "release candidate VST3" \
+      "${AVIATORKEYZ_CODESIGN_IDENTITY:--}"
+  fi
 else
   echo "WARN: VST3 not built yet. Run: ./scripts/build_macos.sh"
 fi

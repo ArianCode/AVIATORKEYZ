@@ -153,6 +153,34 @@
 
 ---
 
+## Post-DSP Wiring — Host Smoke (run after unit tests pass)
+
+**Primary FL Studio test host:** FL Studio 2025 **25.2.3.4889**, ARM64 native, macOS 15.7.4 — [docs/HOST_TEST_CONFIG.md](docs/HOST_TEST_CONFIG.md)
+
+Run automated checks first:
+
+```bash
+cmake --build build --target AviatorKeyzTests && \
+  ./build/tests/AviatorKeyzTests_artefacts/Release/AviatorKeyzTests
+python3 -m unittest tests/test_state_schema.py -v
+cp -R "build/AviatorKeyz_artefacts/Release/VST3/AviatorKeyz.vst3" "$HOME/Library/Audio/Plug-Ins/VST3/"
+```
+
+### T-DSP-01: FL Studio scan + note-on
+- Rescan plugins in FL Studio **25.2.3.4889**; load AviatorKeyz on an instrument track
+- Play one MIDI note while monitoring CPU
+- Expected: audio output, no crash, no CPU spike on note-on
+
+### T-DSP-02: Preset change under playback
+- While holding a note or looping MIDI, change factory presets across categories
+- Expected: no crash, sample reloads, playback continues
+
+### T-DSP-03: `source_blend` automation stress
+- Automate **Source Blend** (`source_blend`) from 0 → 1 over 2 bars while audio plays
+- Expected: smooth crossfade between sample and synth; no zipper noise, pops, or hang
+
+---
+
 ## M5 — Polish & Host Certification
 
 ### T-M5-01: Multiple instances (macOS)

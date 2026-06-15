@@ -204,6 +204,8 @@ namespace ParamID {
     static constexpr const char* SOURCE_BLEND = "source_blend";
 
     // --- Synth / filter (v3) ---
+    /** When false, the shared filter is hard-bypassed (no LP/HP coloring at default cutoff). */
+    static constexpr const char* FILTER_ENABLED   = "filter_enabled";
     static constexpr const char* FILTER_CUTOFF    = "filter_cutoff";
     static constexpr const char* FILTER_RESONANCE = "filter_resonance";
     static constexpr const char* FILTER_TYPE      = "filter_type";
@@ -215,6 +217,8 @@ namespace ParamID {
     static constexpr const char* ENV_FLT_SUSTAIN  = "env_flt_sustain";
     static constexpr const char* ENV_FLT_RELEASE  = "env_flt_release";
     static constexpr const char* ENV_FLT_AMOUNT   = "env_flt_amount";
+    /** 0 = full-level playback regardless of MIDI velocity; 1 = normal velocity scaling. */
+    static constexpr const char* VELOCITY_SENSITIVITY = "velocity_sensitivity";
     static constexpr const char* VOICE_POLYPHONY  = "voice_polyphony";
     static constexpr const char* VOICE_GLIDE_MODE = "voice_glide_mode";
     static constexpr const char* VOICE_PLAY_MODE  = "voice_play_mode";

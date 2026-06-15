@@ -111,7 +111,7 @@ void CockpitCrossworldPanel::buildInstrumentGauges()
 
     const GaugeSpec specs[] {
         { P::GLIDE_TIME,    "THROTTLE",   "Glide",     GF::glideSeconds, false },
-        { P::INPUT_GAIN,    "ENGINE",     "Drive",     GF::decibels,     false },
+        { P::INPUT_GAIN,    "ENGINE",     "Gain",      GF::decibels,     false },
         { P::STEREO_WIDTH,  "WINGS",      "Width",     GF::stereoWidth,  false },
         { P::REVERB_AMOUNT, "ALTITUDE",   "Reverb",    GF::percent,      false },
         { P::TONE,          "CABIN",      "Tone",      GF::toneDb,       false },

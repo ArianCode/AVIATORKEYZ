@@ -64,13 +64,10 @@ public:
     int          getFactoryWaveformFrames() const noexcept { return factoryWaveformFrames; }
 
     /** Message thread: load embedded factory sample by id (from preset sampleId). */
-    void loadFactorySample (const juce::String& sampleId, int rootNote = 60);
+    bool loadFactorySample (const juce::String& sampleId, int rootNote = 60);
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
-
-    static void applyStereoWidth (juce::AudioBuffer<float>& buffer, float width) noexcept;
-    static void applyPan (juce::AudioBuffer<float>& buffer, float pan) noexcept;
 
     juce::AudioProcessorValueTreeState apvts;
 

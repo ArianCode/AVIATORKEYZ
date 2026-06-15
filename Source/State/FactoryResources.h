@@ -25,6 +25,9 @@ namespace FactoryResources
     /** Raw embedded WAV bytes for SampleLibrary::loadFromMemory (message thread). */
     const void* getEmbeddedWavData (const juce::String& sampleId, int& numBytesOut);
 
+    /** Strict lookup — returns nullptr when sampleId is missing (no default fallback). */
+    const void* tryGetEmbeddedWavData (const juce::String& sampleId, int& numBytesOut);
+
     /** Load embedded WAV by sampleId into mono buffer. Returns false if not found. */
     bool loadEmbeddedSampleMono (const juce::String& sampleId,
                                  juce::HeapBlock<float>& monoOut,

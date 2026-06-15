@@ -12,7 +12,8 @@ public:
     FilterCurveGraph (juce::AudioProcessorValueTreeState& apvts,
                       const char* cutoffParamId,
                       const char* resonanceParamId,
-                      const char* typeParamId);
+                      const char* typeParamId,
+                      const char* enableParamId = nullptr);
 
     ~FilterCurveGraph() override;
 
@@ -38,6 +39,8 @@ private:
     void setCutoffFromFreq (float hz);
     void setResonanceNorm (float norm);
     void applyDrag (juce::Point<float> pos);
+    void ensureFilterEnabledOnUserEdit();
+    bool readFilterEnabled() const;
     juce::String formatCutoff (float hz) const;
     juce::String formatResonance (float reso) const;
 
@@ -45,6 +48,7 @@ private:
     juce::String cutoffId;
     juce::String resonanceId;
     juce::String typeId;
+    juce::String enableId;
     bool dragging { false };
 
     static constexpr float kMinHz  = 20.f;

@@ -171,6 +171,8 @@ void BracketValueBox::mouseDrag (const juce::MouseEvent& e)
     hiddenSlider.setValue (juce::jlimit (hiddenSlider.getMinimum(), hiddenSlider.getMaximum(),
                                          (double) dragStartValue + (double) delta),
                            juce::sendNotificationSync);
+    if (onUserAdjust)
+        onUserAdjust();
 }
 
 void BracketValueBox::mouseUp (const juce::MouseEvent&) {}
@@ -194,6 +196,8 @@ void BracketValueBox::showTextEditor()
         const float typed = ed->getText().getFloatValue();
         hiddenSlider.setValue (juce::jlimit (hiddenSlider.getMinimum(), hiddenSlider.getMaximum(), (double) typed),
                                juce::sendNotificationSync);
+        if (onUserAdjust)
+            onUserAdjust();
         removeChildComponent (ed);
         delete ed;
     };

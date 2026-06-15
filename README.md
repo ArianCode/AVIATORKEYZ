@@ -93,7 +93,34 @@ chmod +x scripts/build_macos.sh
 
 # Clean
 ./scripts/build_macos.sh clean
+
+# RelWithDebInfo
+./scripts/build_macos.sh relwithdebinfo
+
+# Sanitizer unit tests only (tests-only tree — never install plugin bundles from here)
+./scripts/build_macos.sh sanitizer-tests
 ```
+
+Equivalent manual configure:
+
+```bash
+cmake -S . -B build-asan -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+  -DAVIATORKEYZ_BUILD_PLUGIN=OFF \
+  -DAVIATORKEYZ_BUILD_TESTS=ON \
+  -DAVIATORKEYZ_ENABLE_SANITIZERS=ON
+cmake --build build-asan --target AviatorKeyzSanitizerTests
+```
+
+Production VST3/AU/Standalone builds never use AddressSanitizer, UndefinedBehaviorSanitizer, or ThreadSanitizer. Debug builds remain host-loadable. Install and verify:
+
+```bash
+./scripts/build_macos.sh install
+./scripts/verify_plugin_binary.sh \
+  ~/Library/Audio/Plug-Ins/VST3/AviatorKeyz.vst3/Contents/MacOS/AviatorKeyz
+```
+
+FL Studio checklist: [docs/FL_STUDIO_VALIDATION.md](docs/FL_STUDIO_VALIDATION.md)  
+Primary test host: **FL Studio 2025 25.2.3.4889** on macOS 15.7.4 — [docs/HOST_TEST_CONFIG.md](docs/HOST_TEST_CONFIG.md)
 
 #### macOS manual CMake build
 

@@ -1,5 +1,6 @@
 #include "SmearProcessor.h"
 #include <cmath>
+#include <cstring>
 
 SmearProcessor::SmearProcessor()  = default;
 SmearProcessor::~SmearProcessor() = default;
@@ -8,16 +9,17 @@ void SmearProcessor::prepare (const juce::dsp::ProcessSpec& s)
 {
     spec = s;
     maxDelaySamples = juce::jmax (8, static_cast<int> (std::ceil (0.085 * s.sampleRate)));
-    delayL.assign (static_cast<size_t> (maxDelaySamples), 0.f);
-    delayR.assign (static_cast<size_t> (maxDelaySamples), 0.f);
-    writeL = writeR = 0;
+    delayL.malloc (static_cast<size_t> (maxDelaySamples));
+    delayR.malloc (static_cast<size_t> (maxDelaySamples));
+    reset();
     prepared = true;
 }
 
 void SmearProcessor::reset()
 {
-    std::fill (delayL.begin(), delayL.end(), 0.f);
-    std::fill (delayR.begin(), delayR.end(), 0.f);
+    const auto bytes = static_cast<size_t> (maxDelaySamples) * sizeof (float);
+    std::memset (delayL.getData(), 0, bytes);
+    std::memset (delayR.getData(), 0, bytes);
     writeL = writeR = 0;
 }
 
@@ -35,28 +37,36 @@ void SmearProcessor::process (juce::AudioBuffer<float>& buffer, float smearValue
 
     const int delay = juce::jlimit (1, maxDelaySamples - 1,
                                    static_cast<int> (smearValue * static_cast<float> (maxDelaySamples - 1)));
-    const float wet = juce::jlimit (0.f, 1.f, smearValue);
+    const float dry = 1.f - juce::jlimit (0.f, 1.f, smearValue);
+    const float wet = 1.f - dry;
+
+    float* dL = delayL.getData();
+    float* dR = delayR.getData();
+    int wL = writeL;
+    int wR = writeR;
+    const int mask = maxDelaySamples;
 
     for (int i = 0; i < n; ++i)
     {
         const float inL = L[i];
         const float inR = R[i];
 
-        int rL = writeL - delay;
-        while (rL < 0) rL += maxDelaySamples;
-        int rR = writeR - delay;
-        while (rR < 0) rR += maxDelaySamples;
+        const int rL = (wL - delay + mask) % mask;
+        const int rR = (wR - delay + mask) % mask;
 
-        const float dL = delayL[static_cast<size_t> (rL)];
-        const float dR = delayR[static_cast<size_t> (rR)];
+        const float tapL = dL[static_cast<size_t> (rL)];
+        const float tapR = dR[static_cast<size_t> (rR)];
 
-        delayL[static_cast<size_t> (writeL)] = inL;
-        delayR[static_cast<size_t> (writeR)] = inR;
+        dL[static_cast<size_t> (wL)] = inL;
+        dR[static_cast<size_t> (wR)] = inR;
 
-        writeL = (writeL + 1) % maxDelaySamples;
-        writeR = (writeR + 1) % maxDelaySamples;
+        wL = (wL + 1) % mask;
+        wR = (wR + 1) % mask;
 
-        L[i] = inL * (1.f - wet) + dL * wet;
-        R[i] = inR * (1.f - wet) + dR * wet;
+        L[i] = inL * dry + tapL * wet;
+        R[i] = inR * dry + tapR * wet;
     }
+
+    writeL = wL;
+    writeR = wR;
 }

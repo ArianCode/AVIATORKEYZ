@@ -51,6 +51,9 @@ void ToneShaper::process (juce::AudioBuffer<float>& buffer, float toneValue)
     if (! prepared || buffer.getNumChannels() < 2)
         return;
 
+    if (std::abs (toneValue) < 0.001f)
+        return;
+
     if (std::abs (toneValue - lastTone) > 0.002f)
     {
         updateCoeffs (toneValue);

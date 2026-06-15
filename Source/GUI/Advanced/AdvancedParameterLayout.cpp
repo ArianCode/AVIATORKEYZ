@@ -59,21 +59,23 @@ void AdvancedParameterLayout::appendParameters (std::vector<std::unique_ptr<Rang
 
     addOsc (params, "osc1", 0);
     addOsc (params, "osc2", 1);
-    params.push_back (std::make_unique<APF> (ParameterID { ParamID::SOURCE_BLEND, 1 }, "Source Blend", NR (0.f, 1.f, 0.001f), 0.65f));
+    params.push_back (std::make_unique<APF> (ParameterID { ParamID::SOURCE_BLEND, 1 }, "Source Blend", NR (0.f, 1.f, 0.001f), 0.f));
 
+    params.push_back (std::make_unique<APB> (ParameterID { ParamID::FILTER_ENABLED, 1 }, "Filter On", false));
     params.push_back (std::make_unique<APF> (ParameterID { ParamID::FILTER_CUTOFF, 1 }, "Filter Cutoff", NR (20.f, 20000.f, 0.1f, 0.3f), 8000.f));
     params.push_back (std::make_unique<APF> (ParameterID { ParamID::FILTER_RESONANCE, 1 }, "Filter Reso", NR (0.f, 1.f, 0.001f), 0.25f));
     params.push_back (std::make_unique<APFC> (ParameterID { ParamID::FILTER_TYPE, 1 }, "Filter Type", StringArray { "LP", "HP", "BP", "Notch" }, 0));
-    params.push_back (std::make_unique<APF> (ParameterID { ParamID::FILTER_DRIVE, 1 }, "Filter Drive", NR (0.f, 1.f, 0.001f), 0.15f));
+    params.push_back (std::make_unique<APF> (ParameterID { ParamID::FILTER_DRIVE, 1 }, "Filter Drive", NR (0.f, 1.f, 0.001f), 0.f));
 
-    params.push_back (std::make_unique<APF> (ParameterID { ParamID::ENV_AMP_DECAY, 1 }, "Amp Decay", NR (0.001f, 10.f, 0.001f, 0.4f), 0.3f));
-    params.push_back (std::make_unique<APF> (ParameterID { ParamID::ENV_AMP_SUSTAIN, 1 }, "Amp Sustain", NR (0.f, 1.f, 0.001f), 0.8f));
+    params.push_back (std::make_unique<APF> (ParameterID { ParamID::ENV_AMP_DECAY, 1 }, "Amp Decay", NR (0.f, 10.f, 0.001f, 0.4f), 0.f));
+    params.push_back (std::make_unique<APF> (ParameterID { ParamID::ENV_AMP_SUSTAIN, 1 }, "Amp Sustain", NR (0.f, 1.f, 0.001f), 1.f));
     params.push_back (std::make_unique<APF> (ParameterID { ParamID::ENV_FLT_ATTACK, 1 }, "Flt Attack", NR (0.001f, 10.f, 0.001f, 0.4f), 0.01f));
     params.push_back (std::make_unique<APF> (ParameterID { ParamID::ENV_FLT_DECAY, 1 }, "Flt Decay", NR (0.001f, 10.f, 0.001f, 0.4f), 0.3f));
     params.push_back (std::make_unique<APF> (ParameterID { ParamID::ENV_FLT_SUSTAIN, 1 }, "Flt Sustain", NR (0.f, 1.f, 0.001f), 0.6f));
     params.push_back (std::make_unique<APF> (ParameterID { ParamID::ENV_FLT_RELEASE, 1 }, "Flt Release", NR (0.001f, 30.f, 0.001f, 0.4f), 0.3f));
-    params.push_back (std::make_unique<APF> (ParameterID { ParamID::ENV_FLT_AMOUNT, 1 }, "Flt Env Amt", NR (-1.f, 1.f, 0.001f), 0.4f));
+    params.push_back (std::make_unique<APF> (ParameterID { ParamID::ENV_FLT_AMOUNT, 1 }, "Flt Env Amt", NR (-1.f, 1.f, 0.001f), 0.f));
 
+    params.push_back (std::make_unique<APF> (ParameterID { ParamID::VELOCITY_SENSITIVITY, 1 }, "Velocity Sens", NR (0.f, 1.f, 0.001f), 0.f));
     params.push_back (std::make_unique<APFI> (ParameterID { ParamID::VOICE_POLYPHONY, 1 }, "Polyphony", 1, 16, 8));
     params.push_back (std::make_unique<APFC> (ParameterID { ParamID::VOICE_GLIDE_MODE, 1 }, "Glide Mode", StringArray { "Off", "Legato", "Always" }, 0));
     params.push_back (std::make_unique<APFC> (ParameterID { ParamID::VOICE_PLAY_MODE, 1 }, "Play Mode", StringArray { "Poly", "Mono", "Legato" }, 0));
@@ -104,7 +106,7 @@ void AdvancedParameterLayout::appendParameters (std::vector<std::unique_ptr<Rang
     params.push_back (std::make_unique<APF> (ParameterID { ParamID::PHRASE_LENGTH, 1 }, "Phrase Length", NR (0.f, 1.f, 0.001f), 1.f));
     params.push_back (std::make_unique<APFI> (ParameterID { ParamID::PHRASE_PITCH, 1 }, "Phrase Pitch", -24, 24, 0));
 
-    params.push_back (std::make_unique<APB> (ParameterID { ParamID::FX_REVERB_ON, 1 }, "Reverb On", true));
+    params.push_back (std::make_unique<APB> (ParameterID { ParamID::FX_REVERB_ON, 1 }, "Reverb On", false));
     params.push_back (std::make_unique<APF> (ParameterID { ParamID::FX_REVERB_DAMP, 1 }, "Reverb Damp", NR (0.f, 1.f, 0.001f), 0.4f));
     params.push_back (std::make_unique<APB> (ParameterID { ParamID::FX_EDITS_ON, 1 }, "Preset FX Edits", true));
 

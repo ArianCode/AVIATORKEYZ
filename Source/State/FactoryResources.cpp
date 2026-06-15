@@ -119,6 +119,15 @@ const void* FactoryResources::getEmbeddedWavData (const juce::String& sampleId, 
     return findWavResource (AviatorKeyz::SampleID::DEFAULT, numBytesOut);
 }
 
+const void* FactoryResources::tryGetEmbeddedWavData (const juce::String& sampleId, int& numBytesOut)
+{
+    numBytesOut = 0;
+    if (const char* data = findWavResource (sampleId, numBytesOut))
+        return data;
+
+    return nullptr;
+}
+
 bool FactoryResources::loadEmbeddedSampleMono (const juce::String& sampleId,
                                                juce::HeapBlock<float>& monoOut,
                                                int& numFramesOut,

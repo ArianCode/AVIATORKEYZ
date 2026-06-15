@@ -37,6 +37,28 @@ Core plugin code should never contain host-specific hacks — all workarounds ar
 **Location:** `CMakeLists.txt` → `VST3_CATEGORIES "Instrument|Synth"`
 **Notes:** Verified this causes AviatorKeyz to appear under Instruments in FL's browser.
 
+### FLSI-006 — ASan-instrumented VST3 aborts FL Studio during plugin load
+**Status:** Binary fix verified (2026-06-14); FL Studio runtime validation pending  
+**Issue:** The AviatorKeyz VST3 was compiled and linked with AddressSanitizer and loaded into an already-running, non-ASan FL Studio process. During dynamic initialization, the ASan runtime attempted to verify its allocator and libc interceptors. In this host and loading configuration, the required interceptors were not established correctly, so `__sanitizer::VerifyInterceptorsWorking()` deliberately called `abort()` before normal AviatorKeyz initialization began.
+
+**Verified facts**
+- ASan interceptor verification aborted during `dlopen`.
+- The production VST3 contained `libclang_rt.asan_osx_dynamic.dylib` and sanitizer symbols.
+- The installed bundle had been copied from a Debug `build-asan/` tree built when root `CMakeLists.txt` applied global `-fsanitize=address,undefined` to all Debug targets.
+
+**Inference (not universally proven)**
+- Loading the sanitizer-instrumented bundle into the unsanitized FL Studio process caused the abort in this configuration.
+- This does **not** prove that all ASan-instrumented audio plugins fail in every host.
+
+**Fix / workflow**
+1. Use `./scripts/build_macos.sh install` (Release, sanitizers OFF) for DAW testing.
+2. Debug plugin builds remain host-loadable and sanitizer-free: `./scripts/build_macos.sh debug`
+3. Sanitizer unit tests only: `./scripts/build_macos.sh sanitizer-tests` (`-DAVIATORKEYZ_BUILD_PLUGIN=OFF`, artefacts stay in `build-asan/`)
+4. Verify any candidate binary: `./scripts/verify_plugin_binary.sh ~/Library/Audio/Plug-Ins/VST3/AviatorKeyz.vst3/Contents/MacOS/AviatorKeyz`
+5. Complete FL Studio checklist: `docs/FL_STUDIO_VALIDATION.md` (host: **FL Studio 25.2.3.4889** on macOS 15.7.4 — see `docs/HOST_TEST_CONFIG.md`)
+
+**Notes:** Do not set `ASAN_OPTIONS` or disable interceptor verification as a workaround. Remove sanitizer instrumentation from host-loaded plugin binaries.
+
 ### FLSI-002 — FL Studio plugin scan path
 **Status:** Informational
 **Issue:** FL Studio does not automatically pick up new VST3s — user must initiate a scan.

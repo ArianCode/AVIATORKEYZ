@@ -2,7 +2,6 @@
 
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_dsp/juce_dsp.h>
-#include <vector>
 
 class SmearProcessor
 {
@@ -19,8 +18,8 @@ private:
     bool prepared { false };
     juce::dsp::ProcessSpec spec {};
     int maxDelaySamples { 1 };
-    std::vector<float> delayL;
-    std::vector<float> delayR;
+    juce::HeapBlock<float> delayL;
+    juce::HeapBlock<float> delayR;
     int writeL { 0 };
     int writeR { 0 };
 

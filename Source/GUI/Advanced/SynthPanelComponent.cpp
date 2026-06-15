@@ -25,6 +25,7 @@ SynthPanelComponent::SynthPanelComponent (juce::AudioProcessorValueTreeState& ap
     knobs.push_back (AdvancedKnobHelpers::makeKnob (apvts, P::FILTER_CUTOFF,    "CUTOFF", {}, PF::percent, *this));
     knobs.push_back (AdvancedKnobHelpers::makeKnob (apvts, P::FILTER_RESONANCE, "RESO",   {}, PF::percent, *this));
     knobs.push_back (AdvancedKnobHelpers::makeKnob (apvts, P::FILTER_DRIVE,     "DRIVE",  {}, PF::percent, *this));
+    knobs.push_back (AdvancedKnobHelpers::makeKnob (apvts, P::VELOCITY_SENSITIVITY, "VEL", "0=Full", PF::percent, *this));
     knobs.push_back (AdvancedKnobHelpers::makeKnob (apvts, P::ENV_ATTACK,       "ATTACK", {}, PF::envelopeMs, *this));
     knobs.push_back (AdvancedKnobHelpers::makeKnob (apvts, P::ENV_AMP_DECAY,    "DECAY",  {}, PF::envelopeMs, *this));
     knobs.push_back (AdvancedKnobHelpers::makeKnob (apvts, P::ENV_AMP_SUSTAIN,  "SUSTAIN",{}, PF::percent, *this));

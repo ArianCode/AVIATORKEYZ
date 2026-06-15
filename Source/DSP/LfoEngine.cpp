@@ -1,4 +1,5 @@
 #include "LfoEngine.h"
+#include "FastMath.h"
 
 namespace
 {
@@ -29,25 +30,25 @@ void LfoEngine::reset()
 void LfoEngine::setRateHz (int lfoIndex, float hz)
 {
     if (juce::isPositiveAndBelow (lfoIndex, kNumLfos))
-        rateHz[(size_t) lfoIndex] = juce::jlimit (0.01f, 20.f, hz);
+        rateHz[lfoIndex] = juce::jlimit (0.01f, 20.f, hz);
 }
 
 void LfoEngine::setDepth (int lfoIndex, float depth01)
 {
     if (juce::isPositiveAndBelow (lfoIndex, kNumLfos))
-        depth[(size_t) lfoIndex] = juce::jlimit (0.f, 1.f, depth01);
+        depth[lfoIndex] = juce::jlimit (0.f, 1.f, depth01);
 }
 
 void LfoEngine::setShape (int lfoIndex, Shape shape)
 {
     if (juce::isPositiveAndBelow (lfoIndex, kNumLfos))
-        shapes[(size_t) lfoIndex] = shape;
+        shapes[lfoIndex] = shape;
 }
 
 void LfoEngine::setPhaseOffset (int lfoIndex, float phase01)
 {
     if (juce::isPositiveAndBelow (lfoIndex, kNumLfos))
-        phaseOffset[(size_t) lfoIndex] = juce::jlimit (0.f, 1.f, phase01);
+        phaseOffset[lfoIndex] = juce::jlimit (0.f, 1.f, phase01);
 }
 
 void LfoEngine::setSyncToHost (int lfoIndex, bool sync, double bpm, int syncDivision)
@@ -56,18 +57,18 @@ void LfoEngine::setSyncToHost (int lfoIndex, bool sync, double bpm, int syncDivi
         return;
 
     hostBpm = juce::jmax (20.0, bpm);
-    syncEnabled[(size_t) lfoIndex] = sync;
+    syncEnabled[lfoIndex] = sync;
 
     if (sync)
-        rateHz[(size_t) lfoIndex] = divisionToHz (hostBpm, syncDivision);
+        rateHz[lfoIndex] = divisionToHz (hostBpm, syncDivision);
 }
 
-float LfoEngine::shapeSample (Shape shape, float phase01, float& randomHold) noexcept
+float LfoEngine::shapeSample (Shape shape, float phase01, float& randomHold, uint32_t& rng) noexcept
 {
     switch (shape)
     {
         case Shape::sine:
-            return std::sin (phase01 * juce::MathConstants<float>::twoPi);
+            return AviatorFastMath::fastSinPhase01 (phase01);
 
         case Shape::square:
             return phase01 < 0.5f ? 1.f : -1.f;
@@ -87,7 +88,12 @@ float LfoEngine::shapeSample (Shape shape, float phase01, float& randomHold) noe
         case Shape::random:
         default:
             if (phase01 < 0.001f)
-                randomHold = juce::Random::getSystemRandom().nextFloat() * 2.f - 1.f;
+            {
+                rng ^= rng << 13;
+                rng ^= rng >> 17;
+                rng ^= rng << 5;
+                randomHold = (static_cast<float> (rng) / static_cast<float> (0x7fffffff)) * 2.f - 1.f;
+            }
             return randomHold;
     }
 }
@@ -98,18 +104,16 @@ void LfoEngine::advance (int numSamples)
 
     for (int i = 0; i < kNumLfos; ++i)
     {
-        float hz = rateHz[(size_t) i];
-        if (syncEnabled[(size_t) i])
+        float hz = rateHz[i];
+        if (syncEnabled[i])
             hz = divisionToHz (hostBpm, 4);
 
         hz = juce::jlimit (0.01f, 20.f, hz);
-        phase[(size_t) i] += hz * blockSec;
-        phase[(size_t) i] = std::fmod (phase[(size_t) i] + phaseOffset[(size_t) i], 1.f);
-        if (phase[(size_t) i] < 0.f)
-            phase[(size_t) i] += 1.f;
+        phase[i] += hz * blockSec;
+        phase[i] = AviatorFastMath::wrapPhase01 (phase[i] + phaseOffset[i]);
 
-        const float raw = shapeSample (shapes[(size_t) i], phase[(size_t) i], randomHold[(size_t) i]);
-        output[(size_t) i] = raw * depth[(size_t) i];
+        const float raw = shapeSample (shapes[i], phase[i], randomHold[i], rngState[i]);
+        output[i] = raw * depth[i];
     }
 }
 
@@ -118,5 +122,5 @@ float LfoEngine::getValue (int lfoIndex) const noexcept
     if (! juce::isPositiveAndBelow (lfoIndex, kNumLfos))
         return 0.f;
 
-    return output[(size_t) lfoIndex];
+    return output[lfoIndex];
 }
