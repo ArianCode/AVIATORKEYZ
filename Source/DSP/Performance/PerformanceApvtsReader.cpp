@@ -4,77 +4,139 @@
 
 namespace
 {
-float load (const juce::AudioProcessorValueTreeState& apvts, const char* id) noexcept
+float load (const std::atomic<float>* p) noexcept
 {
-    if (auto* p = apvts.getRawParameterValue (id))
-        return p->load();
-    return 0.f;
+    return p != nullptr ? p->load() : 0.f;
 }
 
-bool loadBool (const juce::AudioProcessorValueTreeState& apvts, const char* id) noexcept
+bool loadBool (const std::atomic<float>* p) noexcept
 {
-    return load (apvts, id) > 0.5f;
+    return load (p) > 0.5f;
 }
 } // namespace
 
-EngineState PerformanceApvtsReader::readBaseState (const juce::AudioProcessorValueTreeState& apvts) noexcept
+void PerformanceApvtsReader::ParamCache::init (const juce::AudioProcessorValueTreeState& apvts)
 {
     namespace P = AviatorKeyz::ParamID;
+
+    auto get = [&apvts] (const char* id) { return apvts.getRawParameterValue (id); };
+
+    srcStart = get (P::SRC_START);
+    srcEnd = get (P::SRC_END);
+    srcTune = get (P::SRC_TUNE);
+    srcSpeed = get (P::SRC_SPEED);
+    srcReverse = get (P::SRC_REVERSE);
+    srcBpmSync = get (P::SRC_BPM_SYNC);
+    srcOriginalBpm = get (P::SRC_ORIGINAL_BPM);
+    srcRootNote = get (P::SRC_ROOT_NOTE);
+    srcPlaybackMode = get (P::SRC_PLAYBACK_MODE);
+    srcKeytrack = get (P::SRC_KEYTRACK);
+    srcLoopMode = get (P::SRC_LOOP_MODE);
+
+    chopOn = get (P::CHOP_ON);
+    chopAmount = get (P::CHOP_AMOUNT);
+    chopRate = get (P::CHOP_RATE);
+    chopGate = get (P::CHOP_GATE);
+    chopSwing = get (P::CHOP_SWING);
+    chopRandom = get (P::CHOP_RANDOM);
+    chopReverseChance = get (P::CHOP_REVERSE_CHANCE);
+    chopSmooth = get (P::CHOP_SMOOTH);
+
+    static constexpr const char* kStepSuffixes[numStepFields] { "on", "vol", "offset", "rev", "pitch" };
+    for (int i = 0; i < P::CHOP_STEP_COUNT; ++i)
+        for (int f = 0; f < numStepFields; ++f)
+            chopStep[i][f] = apvts.getRawParameterValue (P::chopStepParamId (i, kStepSuffixes[f]));
+
+    ptexOn = get (P::PTEX_ON);
+    ptexFreeze = get (P::PTEX_FREEZE);
+    ptexGrainSize = get (P::PTEX_GRAIN_SIZE);
+    ptexDensity = get (P::PTEX_DENSITY);
+    ptexPosition = get (P::PTEX_POSITION);
+    ptexPitchSpread = get (P::PTEX_PITCH_SPREAD);
+    ptexSmear = get (P::PTEX_SMEAR);
+    ptexWidth = get (P::PTEX_WIDTH);
+    ptexMix = get (P::PTEX_MIX);
+
+    perfMode = get (P::PERF_MODE);
+    perfStutter = get (P::PERF_FX_STUTTER);
+    perfReverse = get (P::PERF_FX_REVERSE);
+    perfHalfTime = get (P::PERF_FX_HALF_TIME);
+    perfFreeze = get (P::PERF_FX_FREEZE);
+    perfTapeStop = get (P::PERF_FX_TAPE_STOP);
+    perfScatter = get (P::PERF_FX_SCATTER);
+    perfPitchDrop = get (P::PERF_FX_PITCH_DROP);
+    perfFilterSweep = get (P::PERF_FX_FILTER_SWEEP);
+
+    macros[0] = get (P::PERF_MACRO_1);
+    macros[1] = get (P::PERF_MACRO_2);
+    macros[2] = get (P::PERF_MACRO_3);
+    macros[3] = get (P::PERF_MACRO_4);
+}
+
+EngineState PerformanceApvtsReader::readBaseState (const ParamCache& c) noexcept
+{
     EngineState s;
 
-    s.source.start = load (apvts, P::SRC_START);
-    s.source.end = juce::jmax (s.source.start + 0.01f, load (apvts, P::SRC_END));
-    s.source.tune = load (apvts, P::SRC_TUNE);
-    s.source.speed = load (apvts, P::SRC_SPEED);
-    s.source.reverse = loadBool (apvts, P::SRC_REVERSE);
-    s.source.bpmSync = loadBool (apvts, P::SRC_BPM_SYNC);
-    s.source.originalBpm = load (apvts, P::SRC_ORIGINAL_BPM);
-    s.source.rootNote = static_cast<int> (load (apvts, P::SRC_ROOT_NOTE));
+    s.source.start = load (c.srcStart);
+    s.source.end = juce::jmax (s.source.start + 0.01f, load (c.srcEnd));
+    s.source.tune = load (c.srcTune);
+    s.source.speed = load (c.srcSpeed);
+    s.source.reverse = loadBool (c.srcReverse);
+    s.source.bpmSync = loadBool (c.srcBpmSync);
+    s.source.originalBpm = load (c.srcOriginalBpm);
+    s.source.rootNote = static_cast<int> (load (c.srcRootNote));
     s.source.playbackMode = static_cast<SamplePlaybackMode> (
-        juce::jlimit (0, 4, static_cast<int> (load (apvts, P::SRC_PLAYBACK_MODE))));
-    s.source.keytrack = loadBool (apvts, P::SRC_KEYTRACK);
-    s.source.loopMode = static_cast<LoopMode> (juce::jlimit (0, 2, static_cast<int> (load (apvts, P::SRC_LOOP_MODE))));
+        juce::jlimit (0, 4, static_cast<int> (load (c.srcPlaybackMode))));
+    s.source.keytrack = loadBool (c.srcKeytrack);
+    s.source.loopMode = static_cast<LoopMode> (juce::jlimit (0, 2, static_cast<int> (load (c.srcLoopMode))));
 
-    s.chop.enabled = loadBool (apvts, P::CHOP_ON);
-    s.chop.amount = load (apvts, P::CHOP_AMOUNT);
-    s.chop.rateIndex = juce::jlimit (0, 3, static_cast<int> (load (apvts, P::CHOP_RATE)));
-    s.chop.gate = load (apvts, P::CHOP_GATE);
-    s.chop.swing = load (apvts, P::CHOP_SWING);
-    s.chop.random = load (apvts, P::CHOP_RANDOM);
-    s.chop.reverseChance = load (apvts, P::CHOP_REVERSE_CHANCE);
-    s.chop.smooth = load (apvts, P::CHOP_SMOOTH);
+    s.chop.enabled = loadBool (c.chopOn);
+    s.chop.amount = load (c.chopAmount);
+    s.chop.rateIndex = juce::jlimit (0, 3, static_cast<int> (load (c.chopRate)));
+    s.chop.gate = load (c.chopGate);
+    s.chop.swing = load (c.chopSwing);
+    s.chop.random = load (c.chopRandom);
+    s.chop.reverseChance = load (c.chopReverseChance);
+    s.chop.smooth = load (c.chopSmooth);
 
-    for (int i = 0; i < P::CHOP_STEP_COUNT; ++i)
+    for (int i = 0; i < AviatorKeyz::ParamID::CHOP_STEP_COUNT; ++i)
     {
         auto& step = s.chop.steps[static_cast<size_t> (i)];
-        step.enabled = loadBool (apvts, P::chopStepParamId (i, "on").toRawUTF8());
-        step.volume = load (apvts, P::chopStepParamId (i, "vol").toRawUTF8());
-        step.sliceOffset = load (apvts, P::chopStepParamId (i, "offset").toRawUTF8());
-        step.reverse = loadBool (apvts, P::chopStepParamId (i, "rev").toRawUTF8());
-        step.pitchOffset = static_cast<int> (load (apvts, P::chopStepParamId (i, "pitch").toRawUTF8()));
+        step.enabled = loadBool (c.chopStep[i][ParamCache::stepOn]);
+        step.volume = load (c.chopStep[i][ParamCache::stepVol]);
+        step.sliceOffset = load (c.chopStep[i][ParamCache::stepOffset]);
+        step.reverse = loadBool (c.chopStep[i][ParamCache::stepRev]);
+        step.pitchOffset = static_cast<int> (load (c.chopStep[i][ParamCache::stepPitch]));
     }
 
-    s.texture.enabled = loadBool (apvts, P::PTEX_ON);
-    s.texture.freeze = loadBool (apvts, P::PTEX_FREEZE);
-    s.texture.grainSize = load (apvts, P::PTEX_GRAIN_SIZE);
-    s.texture.density = load (apvts, P::PTEX_DENSITY);
-    s.texture.position = load (apvts, P::PTEX_POSITION);
-    s.texture.pitchSpread = load (apvts, P::PTEX_PITCH_SPREAD);
-    s.texture.smear = load (apvts, P::PTEX_SMEAR);
-    s.texture.width = load (apvts, P::PTEX_WIDTH);
-    s.texture.mix = load (apvts, P::PTEX_MIX);
+    s.texture.enabled = loadBool (c.ptexOn);
+    s.texture.freeze = loadBool (c.ptexFreeze);
+    s.texture.grainSize = load (c.ptexGrainSize);
+    s.texture.density = load (c.ptexDensity);
+    s.texture.position = load (c.ptexPosition);
+    s.texture.pitchSpread = load (c.ptexPitchSpread);
+    s.texture.smear = load (c.ptexSmear);
+    s.texture.width = load (c.ptexWidth);
+    s.texture.mix = load (c.ptexMix);
 
-    s.performance.mode = static_cast<PerformanceMode> (juce::jlimit (0, 7, static_cast<int> (load (apvts, P::PERF_MODE))));
-    s.performance.stutter = loadBool (apvts, P::PERF_FX_STUTTER);
-    s.performance.reverse = loadBool (apvts, P::PERF_FX_REVERSE);
-    s.performance.halfTime = loadBool (apvts, P::PERF_FX_HALF_TIME);
-    s.performance.freeze = loadBool (apvts, P::PERF_FX_FREEZE);
-    s.performance.tapeStop = loadBool (apvts, P::PERF_FX_TAPE_STOP);
-    s.performance.scatter = loadBool (apvts, P::PERF_FX_SCATTER);
-    s.performance.pitchDrop = loadBool (apvts, P::PERF_FX_PITCH_DROP);
-    s.performance.filterSweep = loadBool (apvts, P::PERF_FX_FILTER_SWEEP);
+    s.performance.mode = static_cast<PerformanceMode> (juce::jlimit (0, 7, static_cast<int> (load (c.perfMode))));
+    s.performance.stutter = loadBool (c.perfStutter);
+    s.performance.reverse = loadBool (c.perfReverse);
+    s.performance.halfTime = loadBool (c.perfHalfTime);
+    s.performance.freeze = loadBool (c.perfFreeze);
+    s.performance.tapeStop = loadBool (c.perfTapeStop);
+    s.performance.scatter = loadBool (c.perfScatter);
+    s.performance.pitchDrop = loadBool (c.perfPitchDrop);
+    s.performance.filterSweep = loadBool (c.perfFilterSweep);
 
     return s;
+}
+
+float PerformanceApvtsReader::readMacroValue (const ParamCache& cache, int macroIndex) noexcept
+{
+    if (macroIndex < 0 || macroIndex > 3)
+        return 0.5f;
+    return load (cache.macros[macroIndex]);
 }
 
 void PerformanceApvtsReader::applyCategoryPlaybackDefaults (
@@ -112,19 +174,6 @@ void PerformanceApvtsReader::applyCategoryPlaybackDefaults (
         return;
 
     AviatorKeyz::applyPlaybackPolicyToApvts (apvts, category, soundType);
-}
-
-float PerformanceApvtsReader::readMacroValue (const juce::AudioProcessorValueTreeState& apvts, int macroIndex) noexcept
-{
-    namespace P = AviatorKeyz::ParamID;
-    switch (macroIndex)
-    {
-        case 0: return load (apvts, P::PERF_MACRO_1);
-        case 1: return load (apvts, P::PERF_MACRO_2);
-        case 2: return load (apvts, P::PERF_MACRO_3);
-        case 3: return load (apvts, P::PERF_MACRO_4);
-        default: return 0.5f;
-    }
 }
 
 namespace AviatorKeyz

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "PerformanceTypes.h"
+#include "PerformanceApvtsReader.h"
 #include <juce_audio_processors/juce_audio_processors.h>
 
 class MacroMapper
@@ -13,5 +14,5 @@ public:
 
     static EngineState applyMacros (const EngineState& base,
                                     const std::array<MacroControl, 4>& macros,
-                                    const juce::AudioProcessorValueTreeState& apvts) noexcept;
+                                    const PerformanceApvtsReader::ParamCache& cache) noexcept;
 };

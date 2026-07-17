@@ -11,6 +11,7 @@
 #include "DSP/OutputLimiter.h"
 #include "DSP/Performance/PerformanceTypes.h"
 #include "DSP/Performance/PerformanceTexturePipeline.h"
+#include "DSP/Performance/PerformanceApvtsReader.h"
 #include "DSP/ToneShaper.h"
 #include "DSP/SmearProcessor.h"
 #include "DSP/ReverbTail.h"
@@ -91,6 +92,8 @@ private:
 
     std::array<MacroControl, 4> macroControls {};
 
+    PerformanceApvtsReader::ParamCache perfParamCache;
+
     SampleLibrary          sampleLibrary;
     juce::HeapBlock<float> factoryWaveformCopy;
     int                    factoryRootNote { 60 };
@@ -99,9 +102,6 @@ private:
     juce::String           loadedSampleId;
 
     std::unique_ptr<PresetManager> presetManager;
-
-    juce::AudioBuffer<float> synthScratch;
-    juce::AudioBuffer<float> samplerScratch;
 
     mutable juce::CriticalSection sampleLoadLock;
     bool isPrepared { false };

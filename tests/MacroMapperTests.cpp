@@ -53,7 +53,10 @@ public:
         if (auto* p = proc.apvts.getParameter (AviatorKeyz::ParamID::PERF_MACRO_1))
             p->setValueNotifyingHost (1.0f);
 
-        const auto resolved = MacroMapper::applyMacros (base, macros2, proc.apvts);
+        PerformanceApvtsReader::ParamCache cache;
+        cache.init (proc.apvts);
+
+        const auto resolved = MacroMapper::applyMacros (base, macros2, cache);
         expect (resolved.chop.amount > base.chop.amount);
     }
 };

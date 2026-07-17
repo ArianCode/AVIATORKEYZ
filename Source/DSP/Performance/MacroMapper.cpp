@@ -154,13 +154,13 @@ std::array<MacroControl, 4> MacroMapper::defaultsForCategory (const juce::String
 
 EngineState MacroMapper::applyMacros (const EngineState& base,
                                       const std::array<MacroControl, 4>& macros,
-                                      const juce::AudioProcessorValueTreeState& apvts) noexcept
+                                      const PerformanceApvtsReader::ParamCache& cache) noexcept
 {
     EngineState s = base;
 
     for (int m = 0; m < 4; ++m)
     {
-        const float macroVal = PerformanceApvtsReader::readMacroValue (apvts, m);
+        const float macroVal = PerformanceApvtsReader::readMacroValue (cache, m);
         const float shaped = applyCurve (macroVal, 1.f);
         const float bipolar = (shaped - 0.5f) * 2.f;
 

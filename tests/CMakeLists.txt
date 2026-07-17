@@ -28,6 +28,7 @@ target_sources(${_AVIATORKEYZ_TEST_TARGET}
         AviatorKeyzTests.cpp
         ApvtsStateHelpersTests.cpp
         FastMathTests.cpp
+        RealtimeSafetyTests.cpp
         SamplerEngineTests.cpp
         GlideEngineTests.cpp
         SampleLibraryTests.cpp
@@ -59,6 +60,7 @@ target_sources(${_AVIATORKEYZ_TEST_TARGET}
         ${CMAKE_SOURCE_DIR}/Source/DSP/Performance/MacroMapper.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/Performance/PhraseChopper.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/Performance/MotionEngine.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/ToneShaper.cpp
         ${CMAKE_SOURCE_DIR}/Source/State/SampleLibrary.cpp
         ${CMAKE_SOURCE_DIR}/Source/State/PresetManager.cpp
         ${CMAKE_SOURCE_DIR}/Source/State/MacroPresetParser.cpp

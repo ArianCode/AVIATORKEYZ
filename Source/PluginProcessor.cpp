@@ -37,6 +37,8 @@ AviatorKeyzProcessor::AviatorKeyzProcessor()
         macroControls = macros;
     };
 
+    perfParamCache.init (apvts);
+
     macroControls = MacroMapper::defaultsForCategory (AviatorKeyz::Category::LEADS);
 
     if (! presetManager->loadPreset (AviatorKeyz::Category::LEADS, "Init"))
@@ -74,9 +76,6 @@ void AviatorKeyzProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
     reverbTail.prepare (spec);
     fxChain.prepare (spec);
     performancePipeline.prepare (spec);
-
-    synthScratch.setSize (2, samplesPerBlock, false, false, true);
-    samplerScratch.setSize (2, samplesPerBlock, false, false, true);
 
     const auto sampleId = presetManager->getCurrentSampleId();
     const auto rootNote = presetManager->getCurrentRootNote();
@@ -247,8 +246,6 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
 
     const int n = buffer.getNumSamples();
 
-    samplerScratch.setSize (2, n, false, false, true);
-
     namespace P = AviatorKeyz::ParamID;
 
     const double hostBpm = [this] {
@@ -259,8 +256,8 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
         return 120.0;
     }();
 
-    EngineState baseState = PerformanceApvtsReader::readBaseState (apvts);
-    EngineState engineState = MacroMapper::applyMacros (baseState, macroControls, apvts);
+    EngineState baseState = PerformanceApvtsReader::readBaseState (perfParamCache);
+    EngineState engineState = MacroMapper::applyMacros (baseState, macroControls, perfParamCache);
 
     inputGainSmoothed.setTargetValue (
         Decibels::decibelsToGain (apvts.getRawParameterValue (P::INPUT_GAIN)->load()
@@ -296,15 +293,15 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
 
     midiHandler.process (midiMessages, samplerEngine, synthEngine, reverse, glideMs, 0.f);
 
-    samplerScratch.clear();
-    samplerEngine.process (samplerScratch);
-    buffer.makeCopyOf (samplerScratch, true);
+    // Render voices directly into the host buffer (cleared above) — no
+    // scratch copy, no audio-thread buffer resizing.
+    samplerEngine.process (buffer);
 
 #if AVIATORKEYZ_DEBUG
     PlaybackProbe::updateSamplerVoices (samplerEngine.getNumActiveVoices(),
                                         samplerEngine.getRetriggerPolicy() == RetriggerPolicy::PhraseChoke
                                             ? samplerEngine.getNumActiveVoices() : 0);
-    PlaybackProbe::updatePeak (PlaybackProbe::samplerPeak, PlaybackProbe::bufferPeak (samplerScratch));
+    PlaybackProbe::updatePeak (PlaybackProbe::samplerPeak, PlaybackProbe::bufferPeak (buffer));
 #endif
 
     for (int i = 0; i < n; ++i)
