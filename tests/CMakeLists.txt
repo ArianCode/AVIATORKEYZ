@@ -29,6 +29,7 @@ target_sources(${_AVIATORKEYZ_TEST_TARGET}
         ApvtsStateHelpersTests.cpp
         FastMathTests.cpp
         RealtimeSafetyTests.cpp
+        EnvelopeTests.cpp
         SamplerEngineTests.cpp
         GlideEngineTests.cpp
         SampleLibraryTests.cpp

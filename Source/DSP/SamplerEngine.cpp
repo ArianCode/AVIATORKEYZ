@@ -395,8 +395,11 @@ void SamplerEngine::startVoice (Voice& v,
     const double attS = attackMs * 0.001;
     if (attS <= 0.0)
     {
-        v.envStage = EnvStage::decay;
-        v.envLevel = 1.f;
+        // Zero attack: enter the post-attack stage with a fully initialised
+        // segment. (Previously this left envLinearStep/envSegSamplesLeft
+        // stale from the voice's prior life, so the level jumped
+        // non-deterministically to sustain.)
+        finishAttack (v);
     }
     else
     {
@@ -405,6 +408,26 @@ void SamplerEngine::startVoice (Voice& v,
         const int n = juce::jmax (1, static_cast<int> (std::round (attS * sampleRate)));
         v.envSegSamplesLeft = n;
         v.envLinearStep = 1.f / static_cast<float> (n);
+    }
+}
+
+void SamplerEngine::finishAttack (Voice& v) noexcept
+{
+    v.envLevel = 1.f;
+
+    if (decayMs <= 0.f || std::abs (sustainLevel - 1.f) < 1.0e-6f)
+    {
+        v.envStage = EnvStage::sustain;
+        v.envLinearStep = 0.f;
+        v.envSegSamplesLeft = 0;
+    }
+    else
+    {
+        v.envStage = EnvStage::decay;
+        const double decS = decayMs * 0.001;
+        const int n = juce::jmax (1, static_cast<int> (std::round (decS * sampleRate)));
+        v.envSegSamplesLeft = n;
+        v.envLinearStep = (sustainLevel - 1.f) / static_cast<float> (n);
     }
 }
 
@@ -523,21 +546,7 @@ void SamplerEngine::advanceEnvelope (Voice& v) noexcept
         case EnvStage::attack:
             v.envLevel += v.envLinearStep;
             if (--v.envSegSamplesLeft <= 0 || v.envLevel >= 1.f)
-            {
-                v.envLevel = 1.f;
-                if (decayMs <= 0.f || std::abs (sustainLevel - 1.f) < 1.0e-6f)
-                {
-                    v.envStage = EnvStage::sustain;
-                }
-                else
-                {
-                    v.envStage = EnvStage::decay;
-                    const double decS = decayMs * 0.001;
-                    const int n = juce::jmax (1, static_cast<int> (std::round (decS * sampleRate)));
-                    v.envSegSamplesLeft = n;
-                    v.envLinearStep = (sustainLevel - 1.f) / static_cast<float> (n);
-                }
-            }
+                finishAttack (v);
             break;
         case EnvStage::decay:
             v.envLevel += v.envLinearStep;

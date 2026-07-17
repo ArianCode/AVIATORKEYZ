@@ -131,6 +131,7 @@ private:
                      float glideTimeMs,
                      const SampleLibrary::AudioRegion* region) noexcept;
     void enterRelease (Voice& v) noexcept;
+    void finishAttack (Voice& v) noexcept;
     float renderVoiceSample (Voice& v) noexcept;
     void advanceEnvelope (Voice& v) noexcept;
     void advanceGlide (Voice& v) noexcept;
