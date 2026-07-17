@@ -66,6 +66,52 @@ public:
             }
         }
 
+        beginTest ("fastSin: tracks std::sin within 2e-3 over [-2pi, 2pi]");
+        {
+            float maxErr = 0.f;
+            for (float x = -juce::MathConstants<float>::twoPi;
+                 x <= juce::MathConstants<float>::twoPi; x += 0.003f)
+                maxErr = juce::jmax (maxErr, std::abs (FM::fastSin (x) - std::sin (x)));
+            expect (maxErr < 2.0e-3f, "fastSin max error = " + juce::String (maxErr, 6));
+        }
+
+        beginTest ("fastSin: unit amplitude at +/- pi/2");
+        {
+            expectWithinAbsoluteError (FM::fastSin ( juce::MathConstants<float>::halfPi),  1.f, 1.0e-3f);
+            expectWithinAbsoluteError (FM::fastSin (-juce::MathConstants<float>::halfPi), -1.f, 1.0e-3f);
+        }
+
+        beginTest ("Window: zero at both grain boundaries");
+        {
+            expectWithinAbsoluteError (FM::hannWindow (0.f), 0.f, 1.0e-5f);
+            expectWithinAbsoluteError (FM::hannWindow (1.f), 0.f, 1.0e-5f);
+        }
+
+        beginTest ("Window: unity at grain center");
+        {
+            expectWithinAbsoluteError (FM::hannWindow (0.5f), 1.f, 2.0e-3f);
+        }
+
+        beginTest ("Window: symmetric about the center");
+        {
+            for (float p = 0.f; p <= 0.5001f; p += 0.02f)
+                expectWithinAbsoluteError (FM::hannWindow (p), FM::hannWindow (1.f - p), 2.0e-3f);
+        }
+
+        beginTest ("Window: continuous — no step larger than the window slope bound");
+        {
+            // Max |d/dp sin^2(pi p)| = pi, so with dp = 1e-3 steps must stay
+            // below ~pi*1e-3 plus approximation error.
+            float prev = FM::hannWindow (0.f);
+            for (float p = 0.001f; p <= 1.0001f; p += 0.001f)
+            {
+                const float w = FM::hannWindow (juce::jmin (1.f, p));
+                expect (std::abs (w - prev) < 0.005f, "window step too large at p=" + juce::String (p));
+                expect (w >= -1.0e-6f && w <= 1.f + 2.0e-3f, "window out of range");
+                prev = w;
+            }
+        }
+
         beginTest ("Pan: symmetric — mirrored pan swaps channel gains");
         {
             for (float p = 0.f; p <= 1.001f; p += 0.1f)

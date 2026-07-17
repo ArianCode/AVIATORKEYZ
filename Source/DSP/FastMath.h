@@ -32,18 +32,21 @@ inline void constantPowerPan (float pan, float& left, float& right) noexcept
 
 inline float fastSin (float x) noexcept
 {
-    // Parabolic sine approximation — ~0.1% max error, no libm call.
-    constexpr float invPi  = 1.f / juce::MathConstants<float>::pi;
-    constexpr float invHalfPi = 2.f * invPi;
+    // Parabolic sine approximation with quadratic refinement.
+    // Max error ~1e-3 vs std::sin; exact zeros at multiples of pi.
+    constexpr float pi    = juce::MathConstants<float>::pi;
+    constexpr float twoPi = juce::MathConstants<float>::twoPi;
+    constexpr float B = 4.f / pi;
+    constexpr float C = -4.f / (pi * pi);
+    constexpr float P = 0.225f;
 
-    x = std::fmod (x + juce::MathConstants<float>::pi,
-                   juce::MathConstants<float>::twoPi);
+    x = std::fmod (x + pi, twoPi);
     if (x < 0.f)
-        x += juce::MathConstants<float>::twoPi;
-    x -= juce::MathConstants<float>::pi;
+        x += twoPi;
+    x -= pi;
 
-    const float y = x * (invHalfPi - invPi * std::abs (x));
-    return y * (0.775f + 0.225f * y * y);
+    const float y = B * x + C * x * std::abs (x);
+    return P * (y * std::abs (y) - y) + y;
 }
 
 inline float fastSinPhase01 (float phase01) noexcept
@@ -53,7 +56,10 @@ inline float fastSinPhase01 (float phase01) noexcept
 
 inline float hannWindow (float phase01) noexcept
 {
-    return 0.5f * (1.f - fastSinPhase01 (phase01));
+    // Hann: 0.5*(1 - cos(2*pi*p)) == sin^2(pi*p).
+    // Zero at both grain boundaries, unity at the center.
+    const float s = fastSin (phase01 * juce::MathConstants<float>::pi);
+    return s * s;
 }
 
 inline float wrapPhase01 (float phase) noexcept
