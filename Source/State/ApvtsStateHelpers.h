@@ -25,4 +25,7 @@ void resetApvtsToDefaults (juce::AudioProcessorValueTreeState& apvts);
 void applyStateTreeToApvts (juce::AudioProcessorValueTreeState& apvts,
                             const juce::ValueTree& state);
 
+/** Copy legacy phrase/tex params into v4 performance params when missing. */
+void migrateLegacyAdvancedParams (juce::ValueTree& state);
+
 } // namespace AviatorKeyz

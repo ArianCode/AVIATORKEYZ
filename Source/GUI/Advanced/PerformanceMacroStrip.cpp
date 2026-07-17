@@ -1,6 +1,6 @@
 #include "PerformanceMacroStrip.h"
 #include "AdvancedWidgets.h"
-#include "../AviatorTokens.h"
+#include "EffectCellGrid.h"
 
 namespace
 {
@@ -13,11 +13,10 @@ PerformanceMacroStrip::PerformanceMacroStrip (juce::AudioProcessorValueTreeState
 {
     for (int i = 0; i < 4; ++i)
     {
-        macros[(size_t) i] = std::make_unique<PrecisionKnob> (apvts,
-                                                              kMacroIds[i],
-                                                              "MACRO " + juce::String (i + 1),
-                                                              "Performance",
-                                                              PrecisionKnob::ValueFormat::percent);
+        macros[(size_t) i] = std::make_unique<EffectCell> (
+            apvts, kMacroIds[i], "MACRO " + juce::String (i + 1), "^v DRAG",
+            "Drag up/down — this macro can be assigned to modulate multiple parameters at once.",
+            EffectCell::Format::percent);
         addAndMakeVisible (*macros[(size_t) i]);
     }
 }
@@ -45,13 +44,25 @@ void PerformanceMacroStrip::resized()
     auto area = getLocalBounds().reduced (AviatorTokens::scaledFor (*this, 10), 8);
     area.removeFromTop (AviatorTokens::scaledFor (*this, 18));
 
-    const int gap = AviatorTokens::scaledFor (*this, 12);
-    const int knobW = juce::jmax (AviatorTokens::scaledFor (*this, 88),
-                                  (area.getWidth() - gap * 3) / 4);
+    const int tileH = EffectCellGrid::scaledBoxH (*this);
+    const int colGap = AviatorTokens::scaledFor (*this, EffectCellGrid::kColGapDesign);
+    const int tileW = EffectCellGrid::scaledBoxW (*this, area.getWidth(), 4);
 
+    std::vector<juce::Component*> ptrs;
     for (auto& macro : macros)
+        ptrs.push_back (macro.get());
+
+    EffectCellGrid::layoutRow (area, ptrs, tileW, tileH, colGap);
+}
+
+void PerformanceMacroStrip::setMacroLabels (const std::array<juce::String, 4>& labels)
+{
+    for (int i = 0; i < 4; ++i)
     {
-        macro->setBounds (area.removeFromLeft (knobW));
-        area.removeFromLeft (gap);
+        if (macros[(size_t) i] != nullptr)
+            macros[(size_t) i]->setTitle (labels[(size_t) i].isNotEmpty()
+                                              ? labels[(size_t) i]
+                                              : "MACRO " + juce::String (i + 1));
     }
+    repaint();
 }

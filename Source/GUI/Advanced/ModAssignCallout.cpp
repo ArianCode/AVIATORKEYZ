@@ -96,20 +96,58 @@ void ModAssignCallout::showForKnob (juce::Component& anchor,
     if (! ModRoutingHub::modDestForParam (paramId).has_value())
         return;
 
-    struct Wrapper : juce::Component
+    auto* hostParent = anchor.findParentComponentOfClass<juce::Component>();
+    while (hostParent != nullptr && hostParent->getParentComponent() != nullptr
+           && hostParent->getParentComponent()->getWidth() <= hostParent->getWidth())
+        hostParent = hostParent->getParentComponent();
+
+    if (hostParent == nullptr)
+        hostParent = anchor.getTopLevelComponent();
+
+    if (hostParent == nullptr)
+        return;
+
+    for (int i = hostParent->getNumChildComponents() - 1; i >= 0; --i)
+    {
+        if (auto* child = hostParent->getChildComponent (i);
+            child != nullptr && child->getComponentID() == "modAssignPopoverHost")
+            hostParent->removeChildComponent (child);
+    }
+
+    struct PopoverHost : juce::Component
     {
         ModAssignCallout callout;
-        Wrapper (juce::AudioProcessorValueTreeState& a, const juce::String& id)
-            : callout (a, id, [this] { if (auto* box = findParentComponentOfClass<juce::CallOutBox>()) box->dismiss(); })
+
+        PopoverHost (juce::AudioProcessorValueTreeState& a, const juce::String& id)
+            : callout (a, id, [this] { delete this; })
         {
+            setComponentID ("modAssignPopoverHost");
+            setInterceptsMouseClicks (true, true);
             addAndMakeVisible (callout);
             setSize (callout.getWidth(), callout.getHeight());
         }
+
         void resized() override { callout.setBounds (getLocalBounds()); }
+
+        void mouseDown (const juce::MouseEvent& e) override
+        {
+            if (! callout.getBounds().contains (e.getPosition()))
+                delete this;
+        }
     };
 
-    auto* wrapper = new Wrapper (apvts, paramId);
-    juce::CallOutBox::launchAsynchronously (std::unique_ptr<juce::Component> (wrapper),
-                                            anchor.getScreenBounds(),
-                                            nullptr);
+    const int popW = 220;
+    const int popH = 110;
+    auto anchorScreen = anchor.getScreenBounds();
+    auto localPos = hostParent->getLocalPoint (nullptr, anchorScreen.getBottomLeft());
+
+    auto bounds = juce::Rectangle<int> (localPos.x, localPos.y, popW, popH);
+    if (bounds.getBottom() > hostParent->getHeight())
+        bounds.translate (0, anchorScreen.getHeight() - popH - anchorScreen.getHeight());
+    bounds = bounds.constrainedWithin (hostParent->getLocalBounds());
+
+    auto* host = new PopoverHost (apvts, paramId);
+    host->setBounds (bounds);
+    hostParent->addAndMakeVisible (host);
+    host->toFront (true);
 }

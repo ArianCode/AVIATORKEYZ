@@ -29,7 +29,7 @@ juce::StringArray ModMatrix::sourceNames()
 
 juce::StringArray ModMatrix::destNames()
 {
-    return { "Off", "Input Gain", "Smear", "Tone", "Reverb", "Reverb Size", "Width", "Pan",
+    return { "Off", "Input Gain", "Filter", "Tone", "Reverb", "Reverb Size", "Brightness", "Pan",
              "Delay Mix", "Chorus Mix", "Lo-Fi", "Dist Drive", "Filter Cutoff", "Filter Reso",
              "Osc1 Level", "Osc2 Level", "Texture Amount", "Grain Rate", "Grain Size" };
 }
@@ -62,7 +62,7 @@ void ModMatrix::applyToDest (ModDest dest, float delta, Offsets& o)
         case ModDest::tone:        o.tone         += delta * 0.5f; break;
         case ModDest::reverbAmount:o.reverbAmount += delta * 0.5f; break;
         case ModDest::reverbSize:  o.reverbSize   += delta * 0.5f; break;
-        case ModDest::stereoWidth: o.stereoWidth  += delta * 0.5f; break;
+        case ModDest::brightness:  o.brightness   += delta * 0.5f; break;
         case ModDest::pan:         o.pan          += delta * 0.5f; break;
         case ModDest::delayMix:    o.delayMix     += delta * 0.5f; break;
         case ModDest::chorusMix:   o.chorusMix    += delta * 0.5f; break;

@@ -3,7 +3,10 @@
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_dsp/juce_dsp.h>
 
+#include "../State/CategorySoundPolicy.h"
 #include "../State/SampleLibrary.h"
+#include "GlideEngine.h"
+#include "Performance/PerformanceTypes.h"
 
 // =============================================================================
 //  SamplerEngine — polyphonic sample + sine fallback
@@ -42,12 +45,24 @@ public:
                           bool keySync,
                           double hostBpm) noexcept;
 
+    void setSourceSettings (const SourceSettings& settings, double hostBpm) noexcept;
+
+    void setPlaybackContext (AviatorKeyz::SoundType soundType,
+                             const juce::String& category) noexcept;
+
+    void setChopPlaybackState (const ChopPlaybackState& state) noexcept;
+
+    int getPrimarySampleNumFrames() const noexcept;
+
     void noteOn (int midiNote, float velocity, bool reverse, float glideTimeMs) noexcept;
     void noteOff (int midiNote) noexcept;
     void allNotesOff() noexcept;
     void allSoundOff() noexcept;
 
-    /** True when neutral one-shot envelope: note-off does not cut playback early. */
+    NoteGatePolicy getNoteGatePolicy() const noexcept { return noteGatePolicy; }
+    RetriggerPolicy getRetriggerPolicy() const noexcept { return retriggerPolicy; }
+
+    /** @deprecated Use getNoteGatePolicy() == TriggerToEnd */
     bool isOneShotPlayback() const noexcept;
 
     bool hasActiveVoices() const noexcept { return activeVoiceCount > 0; }
@@ -58,6 +73,9 @@ public:
 
     /** sensitivity 0 = full level; 1 = linear velocity scaling. */
     static float calculateVelocityGain (float velocity, float sensitivity) noexcept;
+
+    /** Unit tests: read increment of first active voice (0 if none). */
+    float getActiveVoiceReadIncrementForTest() const noexcept;
 
     void process (juce::AudioBuffer<float>& buffer);
 
@@ -82,10 +100,7 @@ private:
         float    phase = 0.f;
         float    readPos = 0.f;
         bool     reversed = false;
-        float    currentPitch = 60.f;
-        float    targetPitch = 60.f;
-        float    glideIncPerSample = 0.f;
-        bool     gliding = false;
+        GlideEngine glideEngine;
         EnvStage envStage = EnvStage::idle;
         float    envLevel = 0.f;
         float    envLinearStep = 0.f;
@@ -93,12 +108,22 @@ private:
 
         const float* sampleData = nullptr;
         int          sampleNumFrames = 0;
+        double       fileSampleRate = 44100.0;
         int          sampleRootNote = 60;
-        float        pitchRatio = 1.f;
+        PlaybackRates playbackRates {};
         int          phraseStartFrame = 0;
         int          phraseEndFrame = 0;
+        int          chopPitchOffsetSemis = 0;
+        uint32_t     voiceInstanceId = 0;
     };
 
+    void resetVoiceState (Voice& v, bool wasActive) noexcept;
+    void chokeVoice (Voice& v) noexcept;
+    void pushNoteVoice (int midiNote, int voiceIndex) noexcept;
+    int  popNoteVoiceFifo (int midiNote) noexcept;
+    void purgeNoteVoiceFromStack (int midiNote, int voiceIndex) noexcept;
+    void clearAllNoteStacks() noexcept;
+    void chokeSameNoteVoices (int midiNote) noexcept;
     void startVoice (Voice& v,
                      int midiNote,
                      float velocity,
@@ -109,14 +134,24 @@ private:
     float renderVoiceSample (Voice& v) noexcept;
     void advanceEnvelope (Voice& v) noexcept;
     void advanceGlide (Voice& v) noexcept;
-    void updateVoicePitchRatio (Voice& v) noexcept;
+    void updateVoicePlaybackRates (Voice& v) noexcept;
+    float voiceReadIncrement (const Voice& v) const noexcept;
+    SamplePlaybackMode getEffectivePlaybackMode() const noexcept;
+    bool usesPhraseWindow() const noexcept;
+    void updatePlaybackPolicies() noexcept;
     int   findFreeOrStealVoice() noexcept;
+    void chokeActiveVoicesForPhrase() noexcept;
 
     static float midiNoteToHz (float note) noexcept;
 
     static constexpr int kMaxVoices = 16;
+    static constexpr int kMaxStackPerNote = 8;
+    static constexpr float kChokeFadeMs = 5.f;
 
     Voice    voices[kMaxVoices];
+    int      noteVoiceStack[128][kMaxStackPerNote];
+    uint8_t  noteVoiceStackCount[128] {};
+    uint32_t nextVoiceInstanceId { 1 };
     double   sampleRate = 44100.0;
 
     const SampleLibrary::AudioSnapshot* sampleSnapshot = nullptr;
@@ -140,8 +175,17 @@ private:
     int phrasePitchSemis { 0 };
     bool phraseLoop { false };
     bool phraseTempoSync { false };
-    bool phraseKeySync { true };
+    bool phraseKeySync { false };
     double phraseHostBpm { 120.0 };
+
+    SourceSettings sourceSettings {};
+    double sourceHostBpm { 120.0 };
+    ChopPlaybackState chopState {};
+
+    AviatorKeyz::SoundType currentSoundType { AviatorKeyz::SoundType::Phrase };
+    juce::String currentCategory;
+    NoteGatePolicy noteGatePolicy { NoteGatePolicy::Gated };
+    RetriggerPolicy retriggerPolicy { RetriggerPolicy::Polyphonic };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SamplerEngine)
 };

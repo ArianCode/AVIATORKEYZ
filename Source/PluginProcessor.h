@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 
@@ -8,13 +9,12 @@
 #include "DSP/FilterProcessor.h"
 #include "DSP/TextureEngine.h"
 #include "DSP/OutputLimiter.h"
-#include "DSP/PerformanceMacroEngine.h"
+#include "DSP/Performance/PerformanceTypes.h"
+#include "DSP/Performance/PerformanceTexturePipeline.h"
 #include "DSP/ToneShaper.h"
 #include "DSP/SmearProcessor.h"
 #include "DSP/ReverbTail.h"
-#include "DSP/LfoEngine.h"
 #include "DSP/FxChain.h"
-#include "DSP/ModMatrix.h"
 #include "MIDI/MidiHandler.h"
 #include "State/StateSchema.h"
 #include "State/PresetManager.h"
@@ -66,6 +66,8 @@ public:
     /** Message thread: load embedded factory sample by id (from preset sampleId). */
     bool loadFactorySample (const juce::String& sampleId, int rootNote = 60);
 
+    const std::array<MacroControl, 4>& getMacroControls() const noexcept { return macroControls; }
+
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
@@ -81,11 +83,13 @@ private:
     OutputLimiter   outputLimiter;
     MidiHandler     midiHandler;
     ToneShaper      toneShaper;
+    ToneShaper      brightnessShaper;
     SmearProcessor  smearProcessor;
     ReverbTail      reverbTail;
-    LfoEngine       lfoEngine;
     FxChain         fxChain;
-    ModMatrix       modMatrix;
+    PerformanceTexturePipeline performancePipeline;
+
+    std::array<MacroControl, 4> macroControls {};
 
     SampleLibrary          sampleLibrary;
     juce::HeapBlock<float> factoryWaveformCopy;

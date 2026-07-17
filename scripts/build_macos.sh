@@ -159,13 +159,13 @@ locate_artefact() {
 }
 
 VST3="$(locate_artefact vst3 \
-  "${BUILD_DIR}/AviatorKeyz_artefacts/${CONFIG}/VST3/AviatorKeyz.vst3" \
-  "${BUILD_DIR}/AviatorKeyz_artefacts/VST3/AviatorKeyz.vst3" \
-  "${BUILD_DIR}/AviatorKeyz_artefacts/Release/VST3/AviatorKeyz.vst3" || true)"
+  "${BUILD_DIR}/Aviation_artefacts/${CONFIG}/VST3/Aviation.vst3" \
+  "${BUILD_DIR}/Aviation_artefacts/VST3/Aviation.vst3" \
+  "${BUILD_DIR}/Aviation_artefacts/Release/VST3/Aviation.vst3" || true)"
 STANDALONE="$(locate_artefact app \
-  "${BUILD_DIR}/AviatorKeyz_artefacts/${CONFIG}/Standalone/AviatorKeyz.app" \
-  "${BUILD_DIR}/AviatorKeyz_artefacts/Standalone/AviatorKeyz.app" \
-  "${BUILD_DIR}/AviatorKeyz_artefacts/Release/Standalone/AviatorKeyz.app" || true)"
+  "${BUILD_DIR}/Aviation_artefacts/${CONFIG}/Standalone/Aviation.app" \
+  "${BUILD_DIR}/Aviation_artefacts/Standalone/Aviation.app" \
+  "${BUILD_DIR}/Aviation_artefacts/Release/Standalone/Aviation.app" || true)"
 
 echo
 echo "[3/3] Locating artefacts..."
@@ -182,7 +182,7 @@ if [[ -n "$VST3" ]]; then
   if [[ -x "${ROOT}/scripts/finalize_production_bundle.sh" ]]; then
     "${ROOT}/scripts/finalize_production_bundle.sh" \
       "$VST3" \
-      "${VST3}/Contents/MacOS/AviatorKeyz" \
+      "${VST3}/Contents/MacOS/Aviation" \
       "built VST3" \
       "${AVIATORKEYZ_CODESIGN_IDENTITY:--}"
   fi

@@ -1,17 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Preset category="Leads" name="Init" schemaVersion="1" sampleId="factory_leads_bos_aa_synth_one_shot_shadows_c" rootNote="60" author="AviatorKeyz">
+<Preset category="Leads" name="Init" schemaVersion="1" sampleId="factory_leads_bos_aa_synth_one_shot_shadows_c" rootNote="60" author="AviatorKeyz" soundType="one_shot">
   <AviatorKeyzState stateVersion="1">
-    <PARAM id="input_gain" value="0.0"/>
-    <PARAM id="output_gain" value="0.0"/>
-    <PARAM id="reverse" value="0"/>
-    <PARAM id="glide_time" value="0.0"/>
-    <PARAM id="smear" value="0.0"/>
-    <PARAM id="tone" value="0.0"/>
-    <PARAM id="reverb_amount" value="0.0"/>
-    <PARAM id="reverb_size" value="0.5"/>
-    <PARAM id="stereo_width" value="1.0"/>
-    <PARAM id="env_attack" value="0.0"/>
-    <PARAM id="env_release" value="10.0"/>
-    <PARAM id="pan" value="0.0"/>
-  </AviatorKeyzState>
+    <PARAM id="input_gain" value="0.0" />
+    <PARAM id="output_gain" value="0.0" />
+    <PARAM id="reverse" value="0" />
+    <PARAM id="glide_time" value="0.0" />
+    <PARAM id="smear" value="0.0" />
+    <PARAM id="tone" value="0.0" />
+    <PARAM id="reverb_amount" value="0.0" />
+    <PARAM id="reverb_size" value="0.5" />
+    <PARAM id="stereo_width" value="0.5" />
+    <PARAM id="env_attack" value="0.0" />
+    <PARAM id="env_release" value="10.0" />
+    <PARAM id="pan" value="0.0" />
+  <PARAM id="src_playback_mode" value="2" /><PARAM id="src_keytrack" value="0" /><PARAM id="src_loop_mode" value="2" /><PARAM id="src_bpm_sync" value="0" /></AviatorKeyzState>
+  <Macros>
+    <Macro index="0" name="Chop">
+      <Mapping destination="ChopAmount" amount="0.80" curve="1.00" />
+      <Mapping destination="GateAmount" amount="0.45" curve="1.00" />
+    </Macro>
+    <Macro index="1" name="Texture">
+      <Mapping destination="TextureMix" amount="0.75" curve="1.00" />
+      <Mapping destination="Density" amount="0.60" curve="1.00" />
+    </Macro>
+    <Macro index="2" name="Space">
+      <Mapping destination="ReverbMix" amount="0.65" curve="1.00" />
+      <Mapping destination="Width" amount="0.45" curve="1.00" />
+    </Macro>
+    <Macro index="3" name="Tone">
+      <Mapping destination="FilterTone" amount="0.40" curve="1.00" />
+      <Mapping destination="Smear" amount="0.20" curve="1.00" />
+    </Macro>
+  </Macros>
 </Preset>

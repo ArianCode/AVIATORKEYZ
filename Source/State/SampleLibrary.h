@@ -17,6 +17,7 @@
 struct SampleRegion
 {
     juce::AudioBuffer<float> buffer;
+    double fileSampleRate { 44100.0 };
     int   rootNote   { 60 };
     int   noteMin    { 0 };
     int   noteMax    { 127 };
@@ -32,6 +33,7 @@ public:
     {
         const float* data       { nullptr };
         int          numFrames  { 0 };
+        double       fileSampleRate { 44100.0 };
         int          rootNote   { 60 };
         int          noteMin    { 0 };
         int          noteMax    { 127 };

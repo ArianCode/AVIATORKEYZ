@@ -1,72 +1,82 @@
 #include "SmearProcessor.h"
-#include <cmath>
-#include <cstring>
+
+namespace
+{
+constexpr float kMinCutoffHz = 80.f;
+constexpr float kMaxCutoffHz = 16000.f;
+constexpr float kResonance = 0.707f;
+} // namespace
 
 SmearProcessor::SmearProcessor()  = default;
 SmearProcessor::~SmearProcessor() = default;
 
+float SmearProcessor::cutoffHzForAmount (float amount01) noexcept
+{
+    const float amount = juce::jlimit (0.f, 1.f, amount01);
+    const float logMin = std::log (kMinCutoffHz);
+    const float logMax = std::log (kMaxCutoffHz);
+    // 0 = open (high cutoff), 1 = aggressive low-cut
+    return std::exp (juce::jmap (amount, 0.f, 1.f, logMax, logMin));
+}
+
 void SmearProcessor::prepare (const juce::dsp::ProcessSpec& s)
 {
     spec = s;
-    maxDelaySamples = juce::jmax (8, static_cast<int> (std::ceil (0.085 * s.sampleRate)));
-    delayL.malloc (static_cast<size_t> (maxDelaySamples));
-    delayR.malloc (static_cast<size_t> (maxDelaySamples));
+    filterL.prepare (s);
+    filterR.prepare (s);
+    filterL.setType (juce::dsp::StateVariableTPTFilterType::highpass);
+    filterR.setType (juce::dsp::StateVariableTPTFilterType::highpass);
+    filterL.setCutoffFrequency (kMaxCutoffHz);
+    filterR.setCutoffFrequency (kMaxCutoffHz);
+    filterL.setResonance (kResonance);
+    filterR.setResonance (kResonance);
+    lastAmount = -1.f;
     reset();
     prepared = true;
 }
 
 void SmearProcessor::reset()
 {
-    const auto bytes = static_cast<size_t> (maxDelaySamples) * sizeof (float);
-    std::memset (delayL.getData(), 0, bytes);
-    std::memset (delayR.getData(), 0, bytes);
-    writeL = writeR = 0;
+    filterL.reset();
+    filterR.reset();
+    lastAmount = -1.f;
 }
 
-void SmearProcessor::process (juce::AudioBuffer<float>& buffer, float smearValue)
+void SmearProcessor::updateCutoff (float amount01) noexcept
+{
+    const float cutoffHz = cutoffHzForAmount (amount01);
+    filterL.setCutoffFrequency (cutoffHz);
+    filterR.setCutoffFrequency (cutoffHz);
+    filterL.setResonance (kResonance);
+    filterR.setResonance (kResonance);
+    lastAmount = amount01;
+}
+
+void SmearProcessor::process (juce::AudioBuffer<float>& buffer, float amount01)
 {
     if (! prepared || buffer.getNumChannels() < 2)
         return;
 
-    if (smearValue < 0.001f)
+    if (amount01 < 0.001f)
         return;
+
+    if (std::abs (amount01 - lastAmount) > 0.002f || lastAmount < 0.f)
+        updateCutoff (amount01);
+
+    const float wet = juce::jlimit (0.f, 1.f, amount01);
+    const float dry = 1.f - wet;
 
     auto* L = buffer.getWritePointer (0);
     auto* R = buffer.getWritePointer (1);
     const int n = buffer.getNumSamples();
 
-    const int delay = juce::jlimit (1, maxDelaySamples - 1,
-                                   static_cast<int> (smearValue * static_cast<float> (maxDelaySamples - 1)));
-    const float dry = 1.f - juce::jlimit (0.f, 1.f, smearValue);
-    const float wet = 1.f - dry;
-
-    float* dL = delayL.getData();
-    float* dR = delayR.getData();
-    int wL = writeL;
-    int wR = writeR;
-    const int mask = maxDelaySamples;
-
     for (int i = 0; i < n; ++i)
     {
         const float inL = L[i];
         const float inR = R[i];
-
-        const int rL = (wL - delay + mask) % mask;
-        const int rR = (wR - delay + mask) % mask;
-
-        const float tapL = dL[static_cast<size_t> (rL)];
-        const float tapR = dR[static_cast<size_t> (rR)];
-
-        dL[static_cast<size_t> (wL)] = inL;
-        dR[static_cast<size_t> (wR)] = inR;
-
-        wL = (wL + 1) % mask;
-        wR = (wR + 1) % mask;
-
-        L[i] = inL * dry + tapL * wet;
-        R[i] = inR * dry + tapR * wet;
+        const float fL = filterL.processSample (0, inL);
+        const float fR = filterR.processSample (0, inR);
+        L[i] = inL * dry + fL * wet;
+        R[i] = inR * dry + fR * wet;
     }
-
-    writeL = wL;
-    writeR = wR;
 }

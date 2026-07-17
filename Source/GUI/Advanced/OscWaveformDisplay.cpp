@@ -23,7 +23,16 @@ OscWaveformDisplay::~OscWaveformDisplay()
 
 void OscWaveformDisplay::parameterChanged (const juce::String&, float)
 {
-    repaint();
+    const auto apply = [self = juce::Component::SafePointer<OscWaveformDisplay> (this)]
+    {
+        if (self != nullptr)
+            self->repaint();
+    };
+
+    if (juce::MessageManager::getInstance()->isThisTheMessageThread())
+        apply();
+    else
+        juce::MessageManager::callAsync (apply);
 }
 
 void OscWaveformDisplay::timerCallback()

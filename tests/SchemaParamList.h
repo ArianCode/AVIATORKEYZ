@@ -71,7 +71,39 @@ inline juce::StringArray allSchemaParamIDs()
 
         ParamID::PERF_MACRO_1, ParamID::PERF_MACRO_2,
         ParamID::PERF_MACRO_3, ParamID::PERF_MACRO_4,
+
+        ParamID::SRC_START, ParamID::SRC_END, ParamID::SRC_TUNE, ParamID::SRC_SPEED,
+        ParamID::SRC_REVERSE, ParamID::SRC_LOOP_MODE, ParamID::SRC_BPM_SYNC,
+        ParamID::SRC_ORIGINAL_BPM, ParamID::SRC_ROOT_NOTE,
+        ParamID::SRC_PLAYBACK_MODE, ParamID::SRC_KEYTRACK,
+
+        ParamID::CHOP_ON, ParamID::CHOP_AMOUNT, ParamID::CHOP_RATE, ParamID::CHOP_GATE,
+        ParamID::CHOP_SWING, ParamID::CHOP_RANDOM, ParamID::CHOP_REVERSE_CHANCE, ParamID::CHOP_SMOOTH,
+
+        ParamID::PTEX_ON, ParamID::PTEX_FREEZE, ParamID::PTEX_GRAIN_SIZE, ParamID::PTEX_DENSITY,
+        ParamID::PTEX_POSITION, ParamID::PTEX_PITCH_SPREAD, ParamID::PTEX_SMEAR,
+        ParamID::PTEX_WIDTH, ParamID::PTEX_MIX,
+
+        ParamID::PERF_MODE,
+        ParamID::PERF_FX_STUTTER, ParamID::PERF_FX_REVERSE, ParamID::PERF_FX_HALF_TIME,
+        ParamID::PERF_FX_FREEZE, ParamID::PERF_FX_TAPE_STOP, ParamID::PERF_FX_SCATTER,
+        ParamID::PERF_FX_PITCH_DROP, ParamID::PERF_FX_FILTER_SWEEP,
     };
 }
 
-inline constexpr int kExpectedSchemaParamCount = 132;
+inline juce::StringArray allPerformanceParamIDs()
+{
+    using namespace AviatorKeyz;
+    juce::StringArray ids = allSchemaParamIDs();
+    for (int step = 0; step < ParamID::CHOP_STEP_COUNT; ++step)
+    {
+        ids.add (ParamID::chopStepParamId (step, "on"));
+        ids.add (ParamID::chopStepParamId (step, "vol"));
+        ids.add (ParamID::chopStepParamId (step, "offset"));
+        ids.add (ParamID::chopStepParamId (step, "rev"));
+        ids.add (ParamID::chopStepParamId (step, "pitch"));
+    }
+    return ids;
+}
+
+inline constexpr int kExpectedSchemaParamCount = 249;

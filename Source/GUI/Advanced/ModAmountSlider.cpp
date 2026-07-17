@@ -40,8 +40,19 @@ void ModAmountSlider::setAccentColour (juce::Colour colour)
 
 void ModAmountSlider::parameterChanged (const juce::String& id, float)
 {
-    if (id == paramId)
-        repaint();
+    if (id != paramId)
+        return;
+
+    const auto apply = [self = juce::Component::SafePointer<ModAmountSlider> (this)]
+    {
+        if (self != nullptr)
+            self->repaint();
+    };
+
+    if (juce::MessageManager::getInstance()->isThisTheMessageThread())
+        apply();
+    else
+        juce::MessageManager::callAsync (apply);
 }
 
 void ModAmountSlider::timerCallback()

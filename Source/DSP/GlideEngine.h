@@ -9,7 +9,7 @@
 //
 //  Design:
 //    - When glide time > 0, pitch slides from the previous note to the new one
-//    - Slide is logarithmic (sounds musical; matches physical instrument glide)
+//    - Slide is a linear semitone ramp (matches SamplerEngine / SynthEngine)
 //    - Glide time parameter (0–500 ms) controls transition duration
 //    - Mode: last-note priority (monophonic glide tracking)
 //      Polyphonic glide per-voice is a stretch goal for a later version
@@ -30,11 +30,16 @@ public:
 
     void setSampleRate (double sr);
 
+  // Set ramp origin without starting a glide (used with last-note portamento)
+    void snapToPitch (float semitones) noexcept;
+
     // Call on note-on with new MIDI note and current glide time in ms
     void noteOn (int midiNote, float glideTimeMs);
 
-    // Returns current pitch in semitones (smoothed) — called per sample by SamplerEngine
+    // Returns current pitch in semitones — called per sample by SamplerEngine
     float getCurrentPitchSemitones() const noexcept;
+
+    bool isGliding() const noexcept { return glideActive; }
 
     // Advances the internal glide state by one sample
     void tick() noexcept;

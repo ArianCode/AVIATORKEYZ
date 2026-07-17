@@ -28,7 +28,7 @@ public:
         beginTest ("Every schema ParamID is registered in APVTS layout");
         {
             const auto registered = AviatorKeyz::getRegisteredParameterIds();
-            const auto schemaIds = allSchemaParamIDs();
+            const auto schemaIds = allPerformanceParamIDs();
             for (const auto& id : schemaIds)
                 expect (registered.contains (id),
                         "Schema ParamID missing from APVTS layout: " + id);
@@ -37,7 +37,7 @@ public:
         beginTest ("No extra APVTS params outside schema list");
         {
             const auto registered = AviatorKeyz::getRegisteredParameterIds();
-            const auto schemaIds = allSchemaParamIDs();
+            const auto schemaIds = allPerformanceParamIDs();
 
             for (const auto& id : registered)
                 expect (schemaIds.contains (id),

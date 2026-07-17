@@ -11,10 +11,12 @@ enum class ModDest : int
     none = 0,
     inputGain,
     smear,
+    filter = smear,
     tone,
     reverbAmount,
     reverbSize,
-    stereoWidth,
+    stereoWidth, // brightness (legacy enum name — maps to stereo_width param)
+    brightness = stereoWidth,
     pan,
     delayMix,
     chorusMix,
@@ -41,7 +43,7 @@ public:
         float tone          { 0.f };
         float reverbAmount  { 0.f };
         float reverbSize    { 0.f };
-        float stereoWidth   { 0.f };
+        float brightness      { 0.f };
         float pan           { 0.f };
         float delayMix      { 0.f };
         float chorusMix     { 0.f };

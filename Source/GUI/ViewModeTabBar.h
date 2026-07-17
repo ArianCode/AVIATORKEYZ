@@ -30,7 +30,7 @@ private:
     void styleTab (ModeTabButton& btn, bool active);
 
     ModeTabButton mainTab { "MAIN" };
-    ModeTabButton advancedTab { "ADVANCED" };
+    ModeTabButton advancedTab { "PERFORMANCE" };
     bool advancedSelected { false };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ViewModeTabBar)

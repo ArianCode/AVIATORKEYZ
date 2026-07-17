@@ -19,6 +19,8 @@
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_dsp/juce_dsp.h>
 #include "DSP/SamplerEngine.h"
+#include "DSP/Performance/PerformanceTypes.h"
+#include "State/CategorySoundPolicy.h"
 #include "State/SampleLibrary.h"
 
 // ---------------------------------------------------------------------------
@@ -344,29 +346,50 @@ public:
             engine.allSoundOff();
         }
 
-        beginTest ("Glide at 100ms: pitch ramp over multiple blocks, no crash");
+        beginTest ("Glide at 100ms: pitch ramp without setGlideMode");
         {
             SamplerEngine engine;
             juce::dsp::ProcessSpec spec { 44100.0, 256, 2 };
             engine.prepare (spec);
-            TestSampleSnapshot snap;
-            snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
-            engine.setSampleSnapshot (&snap.snapshot);
-            engine.setEnvelopeTimesMs (0.5f, 300.f, 1.f, 50.0f);
+            engine.setPlayMode (2); // legato — single voice for measurable pitch
+            engine.setEnvelopeTimesMs (0.5f, 300.f, 1.f, 500.0f);
 
             engine.noteOn (60, 1.0f, false, 0.0f);
             juce::AudioBuffer<float> buf (2, 256);
             buf.clear(); engine.process (buf);
 
-            engine.noteOn (72, 1.0f, false, 100.0f);  // 100ms glide
+            engine.noteOn (72, 1.0f, false, 100.0f);
 
-            for (int block = 0; block < 20; ++block)
+            auto estimateZeroCrossingHz = [] (const juce::AudioBuffer<float>& buffer, int numSamples) -> float
+            {
+                int crossings = 0;
+                const float* data = buffer.getReadPointer (0);
+                for (int i = 1; i < numSamples; ++i)
+                {
+                    if ((data[i - 1] >= 0.f && data[i] < 0.f)
+                        || (data[i - 1] < 0.f && data[i] >= 0.f))
+                        ++crossings;
+                }
+                return static_cast<float> (crossings) * 0.5f * 44100.f / static_cast<float> (numSamples);
+            };
+
+            buf.clear();
+            engine.process (buf);
+            const float earlyHz = estimateZeroCrossingHz (buf, buf.getNumSamples());
+
+            for (int block = 0; block < 6; ++block)
             {
                 buf.clear();
                 engine.process (buf);
             }
+            const float midGlideHz = estimateZeroCrossingHz (buf, buf.getNumSamples());
 
-            expect (true, "100ms glide over 20 blocks must not crash");
+            expect (midGlideHz > earlyHz + 15.f,
+                    "Glide must raise pitch over time (early="
+                    + juce::String (earlyHz, 1)
+                    + " Hz, mid="
+                    + juce::String (midGlideHz, 1)
+                    + " Hz)");
             engine.allSoundOff();
         }
     }
@@ -426,9 +449,104 @@ public:
     }
 };
 
+class SamplerEnginePlaybackModeTests : public juce::UnitTest
+{
+public:
+    SamplerEnginePlaybackModeTests() : juce::UnitTest ("SamplerEngine_PlaybackModes", "AviatorKeyz") {}
+
+    void runTest() override
+    {
+        TestSamples::init();
+
+        auto estimateZeroCrossingHz = [] (const juce::AudioBuffer<float>& buffer, int numSamples) -> float
+        {
+            int crossings = 0;
+            const float* data = buffer.getReadPointer (0);
+            for (int i = 1; i < numSamples; ++i)
+            {
+                if ((data[i - 1] >= 0.f && data[i] < 0.f)
+                    || (data[i - 1] < 0.f && data[i] >= 0.f))
+                    ++crossings;
+            }
+            return static_cast<float> (crossings) * 0.5f * 44100.f / static_cast<float> (numSamples);
+        };
+
+        beginTest ("ChromaticResample: higher MIDI note raises output pitch");
+        {
+            SamplerEngine engine;
+            juce::dsp::ProcessSpec spec { 44100.0, 512, 2 };
+            engine.prepare (spec);
+            TestSampleSnapshot snap;
+            snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
+            engine.setSampleSnapshot (&snap.snapshot);
+            engine.setEnvelopeTimesMs (0.5f, 300.f, 1.f, 50.0f);
+
+            SourceSettings settings;
+            settings.playbackMode = SamplePlaybackMode::ChromaticResample;
+            settings.keytrack = false;
+            settings.bpmSync = false;
+            engine.setSourceSettings (settings, 120.0);
+            engine.setPlaybackContext (AviatorKeyz::SoundType::OneShot, AviatorKeyz::Category::LEADS);
+
+            juce::AudioBuffer<float> buf (2, 512);
+
+            engine.noteOn (60, 1.0f, false, 0.0f);
+            buf.clear(); engine.process (buf);
+            const float rootHz = estimateZeroCrossingHz (buf, buf.getNumSamples());
+            engine.allSoundOff();
+
+            engine.noteOn (72, 1.0f, false, 0.0f);
+            buf.clear(); engine.process (buf);
+            const float highHz = estimateZeroCrossingHz (buf, buf.getNumSamples());
+            engine.allSoundOff();
+
+            expect (highHz > rootHz * 1.8f,
+                    "Chromatic mode must transpose pitch with MIDI note");
+        }
+
+        beginTest ("PhraseOriginal: MIDI octave does not change output pitch");
+        {
+            SamplerEngine engine;
+            juce::dsp::ProcessSpec spec { 44100.0, 512, 2 };
+            engine.prepare (spec);
+            TestSampleSnapshot snap;
+            snap.setMono (TestSamples::sine4096, TestSamples::kFrames, 60);
+            engine.setSampleSnapshot (&snap.snapshot);
+            engine.setEnvelopeTimesMs (0.5f, 300.f, 1.f, 50.0f);
+
+            SourceSettings settings;
+            settings.playbackMode = SamplePlaybackMode::PhraseOriginal;
+            settings.keytrack = false;
+            settings.bpmSync = false;
+            engine.setSourceSettings (settings, 120.0);
+            engine.setPlaybackContext (AviatorKeyz::SoundType::Phrase, AviatorKeyz::Category::ARPS);
+
+            juce::AudioBuffer<float> buf (2, 512);
+
+            engine.noteOn (60, 1.0f, false, 0.0f);
+            buf.clear(); engine.process (buf);
+            const float rootHz = estimateZeroCrossingHz (buf, buf.getNumSamples());
+            engine.allSoundOff();
+
+            engine.noteOn (72, 1.0f, false, 0.0f);
+            buf.clear(); engine.process (buf);
+            const float highHz = estimateZeroCrossingHz (buf, buf.getNumSamples());
+            engine.allSoundOff();
+
+            expect (std::abs (highHz - rootHz) < rootHz * 0.15f,
+                    "Phrase mode must ignore MIDI pitch (root="
+                    + juce::String (rootHz, 1)
+                    + " Hz, high="
+                    + juce::String (highHz, 1)
+                    + " Hz)");
+        }
+    }
+};
+
 // Register
 static SamplerEnginePitchTests        samplerPitchTests;
 static SamplerEngineVoiceTests        samplerVoiceTests;
 static SamplerEngineReverseTests      samplerReverseTests;
 static SamplerEngineGlideTests        samplerGlideTests;
 static SamplerEngineSineFallbackTests samplerSineTests;
+static SamplerEnginePlaybackModeTests samplerPlaybackModeTests;

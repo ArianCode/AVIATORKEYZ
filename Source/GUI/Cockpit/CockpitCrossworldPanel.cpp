@@ -34,11 +34,15 @@ CockpitCrossworldPanel::CockpitCrossworldPanel (AviatorKeyzProcessor& p)
 
     searchOverlay = std::make_unique<PresetSearchOverlay> (processor);
     addChildComponent (*searchOverlay);
-    searchOverlay->onPresetLoaded = [this] { refreshPresetUI(); };
+
+    libraryOverlay = std::make_unique<PresetLibraryOverlay> (processor);
+    addChildComponent (*libraryOverlay);
+
+    aboutOverlay = std::make_unique<AboutOverlay>();
+    addChildComponent (*aboutOverlay);
 
     presetSidebar = std::make_unique<AdvancedPresetSidebar> (processor);
     addAndMakeVisible (*presetSidebar);
-    presetSidebar->onPresetChanged = [this] { refreshPresetUI(); };
 
     topPresetBar.onCategorySelected = [this] (const juce::String& cat) { selectCategory (cat); };
 
@@ -59,18 +63,12 @@ CockpitCrossworldPanel::CockpitCrossworldPanel (AviatorKeyzProcessor& p)
     };
 
     addAndMakeVisible (footer);
-    footer.onSettingsClicked = [this] {
-        if (onLibraryRequested)
-            onLibraryRequested();
-    };
-    footer.onAboutClicked = [this] {
-        if (onAboutRequested)
-            onAboutRequested();
-    };
+    footer.onSettingsClicked = [this] { openLibraryOverlay(); };
+    footer.onAboutClicked = [this] { openAboutOverlay(); };
 
     buildTopPresetBar();
     activeCategory = processor.getPresetManager().getCurrentCategory();
-    refreshPresetUI();
+    refreshPresetUIImpl();
 }
 
 CockpitCrossworldPanel::~CockpitCrossworldPanel() = default;
@@ -112,12 +110,12 @@ void CockpitCrossworldPanel::buildInstrumentGauges()
     const GaugeSpec specs[] {
         { P::GLIDE_TIME,    "THROTTLE",   "Glide",     GF::glideSeconds, false },
         { P::INPUT_GAIN,    "ENGINE",     "Gain",      GF::decibels,     false },
-        { P::STEREO_WIDTH,  "WINGS",      "Width",     GF::stereoWidth,  false },
+        { P::STEREO_WIDTH,  "WINGS",      "Brightness", GF::percent,      false },
         { P::REVERB_AMOUNT, "ALTITUDE",   "Reverb",    GF::percent,      false },
         { P::TONE,          "CABIN",      "Tone",      GF::toneDb,       false },
-        { P::SMEAR,         "TURBULENCE", "Lo-Fi",     GF::percent,      false },
-        { P::TEX_AMOUNT,    "TEXTURE",    "Grain Amt", GF::percent,      false },
-        { P::TEX_FREEZE,    "FREEZE",     "Capture",   GF::percent,      true  },
+        { P::SMEAR,         "TURBULENCE", "Filter",    GF::percent,      false },
+        { P::ENV_ATTACK,    "ATTACK",     "Attack",    GF::envelopeMs,   false },
+        { P::ENV_RELEASE,   "RELEASE",    "Release",   GF::envelopeMs,   false },
     };
 
     for (const auto& spec : specs)
@@ -236,7 +234,42 @@ void CockpitCrossworldPanel::openSearchOverlay()
     searchOverlay->toFront (true);
 }
 
+void CockpitCrossworldPanel::openLibraryOverlay()
+{
+    if (libraryOverlay == nullptr)
+        return;
+
+    libraryOverlay->setBounds (getLocalBounds());
+    libraryOverlay->showOverlay();
+    libraryOverlay->toFront (true);
+}
+
+void CockpitCrossworldPanel::openAboutOverlay()
+{
+    if (aboutOverlay == nullptr)
+        return;
+
+    aboutOverlay->setBounds (getLocalBounds());
+    aboutOverlay->showOverlay();
+    aboutOverlay->toFront (true);
+}
+
+void CockpitCrossworldPanel::requestPresetUiRefresh()
+{
+    triggerAsyncUpdate();
+}
+
 void CockpitCrossworldPanel::refreshPresetUI()
+{
+    requestPresetUiRefresh();
+}
+
+void CockpitCrossworldPanel::handleAsyncUpdate()
+{
+    refreshPresetUIImpl();
+}
+
+void CockpitCrossworldPanel::refreshPresetUIImpl()
 {
     auto& pm = processor.getPresetManager();
     const auto name = pm.getCurrentPresetName();
@@ -250,9 +283,6 @@ void CockpitCrossworldPanel::refreshPresetUI()
     presetControlBar.setPresetName (name);
     presetNavigator.setPreset (cat, name);
 
-    if (presetSidebar != nullptr)
-        presetSidebar->refresh();
-
     const bool fav = isFavourited (cat, name);
     presetControlBar.setFavourited (fav);
     presetNavigator.setFavourited (fav);
@@ -262,12 +292,13 @@ void CockpitCrossworldPanel::refreshPresetUI()
     footer.setBlockSize (processor.getBlockSize() > 0 ? processor.getBlockSize() : 256);
     footer.setHostDescription (juce::PluginHostType().getHostDescription());
 
-    if (searchOverlay != nullptr && searchOverlay->isVisible())
-    {
-        searchOverlay->showForCategory (cat);
-    }
-
     repaint();
+
+    if (presetSidebar != nullptr)
+        presetSidebar->refresh();
+
+    if (searchOverlay != nullptr && searchOverlay->isVisible())
+        searchOverlay->showForCategory (cat);
 }
 
 void CockpitCrossworldPanel::paint (juce::Graphics& g)
@@ -312,6 +343,10 @@ void CockpitCrossworldPanel::layoutZones()
 
     if (searchOverlay != nullptr)
         searchOverlay->setBounds (getLocalBounds());
+    if (libraryOverlay != nullptr)
+        libraryOverlay->setBounds (getLocalBounds());
+    if (aboutOverlay != nullptr)
+        aboutOverlay->setBounds (getLocalBounds());
 
     presetControlBar.toFront (false);
     topPresetBar.toFront (false);
@@ -323,6 +358,10 @@ void CockpitCrossworldPanel::layoutZones()
     footer.toFront (false);
     if (searchOverlay != nullptr && searchOverlay->isVisible())
         searchOverlay->toFront (true);
+    if (libraryOverlay != nullptr && libraryOverlay->isVisible())
+        libraryOverlay->toFront (true);
+    if (aboutOverlay != nullptr && aboutOverlay->isVisible())
+        aboutOverlay->toFront (true);
 }
 
 void CockpitCrossworldPanel::resized()

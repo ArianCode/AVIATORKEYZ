@@ -67,9 +67,9 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
     # ---------------------------------------------------------------------------
     # Plugin target
     # ---------------------------------------------------------------------------
-    juce_add_plugin(AviatorKeyz
+    juce_add_plugin(Aviation
         # Identity
-        COMPANY_NAME                "AviatorKeyz"
+        COMPANY_NAME                "Aviation"
         COMPANY_WEBSITE             "https://aviatorkeyz.com"
         COMPANY_EMAIL               ""
 
@@ -77,8 +77,8 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
         # WARNING: Do NOT change these after shipping — hosts store them in projects
         PLUGIN_MANUFACTURER_CODE    "Avkz"
         PLUGIN_CODE                 "Avk1"
-        PLUGIN_NAME                 "AviatorKeyz"
-        PRODUCT_NAME                "AviatorKeyz"
+        PLUGIN_NAME                 "Aviation"
+        PRODUCT_NAME                "Aviation"
 
         # Formats — cross-platform VST3 + macOS AU, with Standalone for fast UI iteration
         FORMATS                     VST3 AU Standalone
@@ -101,7 +101,7 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
     # Source files
     # Grouped by module. Add new files here as modules are introduced.
     # ---------------------------------------------------------------------------
-    target_sources(AviatorKeyz
+    target_sources(Aviation
         PRIVATE
             # Core plugin
             Source/PluginProcessor.cpp
@@ -121,6 +121,14 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
             Source/DSP/TextureEngine.cpp
             Source/DSP/OutputLimiter.cpp
             Source/DSP/PerformanceMacroEngine.cpp
+            Source/DSP/Performance/PerformanceApvtsReader.cpp
+            Source/DSP/Performance/MacroMapper.cpp
+            Source/DSP/Performance/PhraseChopper.cpp
+            Source/DSP/Performance/MotionEngine.cpp
+            Source/DSP/Performance/TextureBlendEngine.cpp
+            Source/DSP/Performance/PerformanceFxEngine.cpp
+            Source/DSP/Performance/PerformanceTexturePipeline.cpp
+            Source/State/MacroPresetParser.cpp
             Source/DSP/ToneShaper.cpp
             Source/DSP/SmearProcessor.cpp
             Source/DSP/GlideEngine.cpp
@@ -150,6 +158,8 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
             Source/GUI/Cockpit/PresetNavButton.cpp
             Source/GUI/Cockpit/PresetCenterNavigator.cpp
             Source/GUI/Cockpit/PresetSearchOverlay.cpp
+            Source/GUI/Cockpit/PresetLibraryOverlay.cpp
+            Source/GUI/Cockpit/AboutOverlay.cpp
             Source/GUI/Cockpit/PresetIconButtons.cpp
             Source/GUI/Cockpit/CockpitPresetControlBar.cpp
             Source/GUI/Cockpit/SearchIconButton.cpp
@@ -157,9 +167,16 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
             Source/GUI/Advanced/AdvancedPanel.cpp
             Source/GUI/Advanced/AdvancedPageContent.cpp
             Source/GUI/Advanced/AdvancedParameterLayout.cpp
+            Source/GUI/Advanced/PerformanceParameterLayout.cpp
             Source/GUI/Advanced/AdvancedPresetSidebar.cpp
             Source/GUI/Advanced/BracketValueBox.cpp
-            Source/GUI/Advanced/TextureSectionComponent.cpp
+            Source/GUI/Advanced/EffectCell.cpp
+            Source/GUI/Advanced/EffectCellChoice.cpp
+            Source/GUI/Advanced/EffectCellFormat.cpp
+            Source/GUI/Advanced/EffectCellGrid.cpp
+            Source/GUI/Advanced/EffectCellShell.cpp
+            Source/GUI/Advanced/EffectParamRow.cpp
+            Source/GUI/Advanced/EffectParamBox.cpp
             Source/GUI/Advanced/TextureVisualizerComponent.cpp
             Source/GUI/Advanced/PerformanceMacroStrip.cpp
             Source/GUI/Advanced/ModAmountSlider.cpp
@@ -176,7 +193,7 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
     # ---------------------------------------------------------------------------
     # Include paths
     # ---------------------------------------------------------------------------
-    target_include_directories(AviatorKeyz
+    target_include_directories(Aviation
         PRIVATE
             Source
     )
@@ -184,7 +201,7 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
     # ---------------------------------------------------------------------------
     # Compile definitions
     # ---------------------------------------------------------------------------
-    target_compile_definitions(AviatorKeyz
+    target_compile_definitions(Aviation
         PUBLIC
             # Disable unused JUCE features (faster builds, smaller binary)
             JUCE_WEB_BROWSER=0
@@ -203,7 +220,7 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
     # ---------------------------------------------------------------------------
     # Link JUCE modules
     # ---------------------------------------------------------------------------
-    target_link_libraries(AviatorKeyz
+    target_link_libraries(Aviation
         PRIVATE
             AviatorKeyzData
             juce::juce_audio_utils
@@ -222,21 +239,21 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
     # MSVC-specific flags
     # ---------------------------------------------------------------------------
     if(MSVC)
-        target_compile_options(AviatorKeyz PRIVATE /W4 /WX-)
+        target_compile_options(Aviation PRIVATE /W4 /WX-)
     endif()
 
     aviatorkeyz_verify_production_targets_clean()
-    aviatorkeyz_add_production_bundle_finalization(AviatorKeyz_VST3)
-    aviatorkeyz_add_production_bundle_finalization(AviatorKeyz_AU)
-    aviatorkeyz_add_production_bundle_finalization(AviatorKeyz_Standalone)
+    aviatorkeyz_add_production_bundle_finalization(Aviation_VST3)
+    aviatorkeyz_add_production_bundle_finalization(Aviation_AU)
+    aviatorkeyz_add_production_bundle_finalization(Aviation_Standalone)
 
     # ---------------------------------------------------------------------------
     # Install target (copies VST3 bundle to standard location for manual use)
     # Usage: cmake --install build/ --prefix /path/to/vst3/folder
     # ---------------------------------------------------------------------------
     install(
-        DIRECTORY "$<TARGET_FILE_DIR:AviatorKeyz_VST3>/../"
-        DESTINATION "AviatorKeyz.vst3"
+        DIRECTORY "$<TARGET_FILE_DIR:Aviation_VST3>/../"
+        DESTINATION "Aviation.vst3"
         USE_SOURCE_PERMISSIONS
     )
 endif()

@@ -150,13 +150,21 @@ def write_preset_xml(
     sample_id: str,
     params: dict,
     root_note: int | None = None,
+    sound_type: str | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if root_note is None:
         root_note = infer_root_note_midi(f"{name} {sample_id}")
+    if sound_type is None:
+        from category_sound_policy import infer_sound_type, SOUND_TYPE_NAMES
+
+        sound_type = SOUND_TYPE_NAMES[infer_sound_type(category, name)]
+
+    playback_keys = ("src_playback_mode", "src_keytrack", "src_loop_mode", "src_bpm_sync")
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
-        f'<Preset category="{category}" name="{name}" schemaVersion="1" sampleId="{sample_id}" rootNote="{root_note}" author="AviatorKeyz">',
+        f'<Preset category="{category}" name="{name}" schemaVersion="1" sampleId="{sample_id}" '
+        f'rootNote="{root_note}" soundType="{sound_type}" author="AviatorKeyz">',
         '  <AviatorKeyzState stateVersion="1">',
         f'    <PARAM id="input_gain" value="{params.get("input_gain", 0.0)}"/>',
         f'    <PARAM id="output_gain" value="{params.get("output_gain", 0.0)}"/>',
@@ -170,10 +178,15 @@ def write_preset_xml(
         f'    <PARAM id="env_attack" value="{params.get("env_attack", 5.0)}"/>',
         f'    <PARAM id="env_release" value="{params.get("env_release", 150.0)}"/>',
         f'    <PARAM id="pan" value="{params.get("pan", 0.0)}"/>',
+    ]
+    for key in playback_keys:
+        if key in params:
+            lines.append(f'    <PARAM id="{key}" value="{params[key]}"/>')
+    lines.extend([
         "  </AviatorKeyzState>",
         "</Preset>",
         "",
-    ]
+    ])
     path.write_text("\n".join(lines), encoding="utf-8")
 
 

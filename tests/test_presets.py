@@ -21,6 +21,10 @@ REQUIRED_PARAMS = {
     "reverb_amount", "reverb_size", "stereo_width", "env_attack", "env_release", "pan",
 }
 
+ALLOWED_FACTORY_PARAMS = REQUIRED_PARAMS | {
+    "src_playback_mode", "src_keytrack", "src_loop_mode", "src_bpm_sync",
+}
+
 PARAM_RANGES = {
     "input_gain":    (-24.0, 12.0),
     "output_gain":   (-24.0, 12.0),
@@ -31,9 +35,13 @@ PARAM_RANGES = {
     "reverb_amount": (0.0, 1.0),
     "reverb_size":   (0.0, 1.0),
     "stereo_width":  (0.0, 2.0),
-    "env_attack":    (0.5, 5000.0),
+    "env_attack":    (0.0, 5000.0),
     "env_release":   (5.0, 10000.0),
     "pan":           (-1.0, 1.0),
+    "src_playback_mode": (0.0, 4.0),
+    "src_keytrack":      (0.0, 1.0),
+    "src_loop_mode":     (0.0, 2.0),
+    "src_bpm_sync":      (0.0, 1.0),
 }
 
 
@@ -133,7 +141,7 @@ class TestPresetParameters(unittest.TestCase):
                 continue
             for el in state.findall("PARAM"):
                 pid = el.get("id", "")
-                if pid not in REQUIRED_PARAMS:
+                if pid not in ALLOWED_FACTORY_PARAMS:
                     bad.append(f"{p.name}: unknown param id '{pid}'")
         self.assertEqual(bad, [], "\n  ".join(bad))
 

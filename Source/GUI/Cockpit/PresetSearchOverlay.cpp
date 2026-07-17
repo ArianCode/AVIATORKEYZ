@@ -134,10 +134,6 @@ public:
 
         auto& pm = owner.processorRef.getPresetManager();
         pm.loadPreset (owner.activeCategory, names[row]);
-
-        if (owner.onPresetLoaded)
-            owner.onPresetLoaded();
-
         owner.dismiss();
     }
 

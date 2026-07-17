@@ -103,6 +103,7 @@ juce::String AviationGauge::formatValueText() const
         switch (valueFormat)
         {
             case ValueFormat::glideSeconds:
+            case ValueFormat::envelopeMs:
                 return v >= 1000.f ? juce::String (v / 1000.f, 2) + "s"
                                    : juce::String (juce::roundToInt (v)) + "ms";
             case ValueFormat::toneDb:

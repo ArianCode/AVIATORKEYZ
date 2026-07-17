@@ -1,6 +1,7 @@
 #include "ParameterLayout.h"
 #include "StateSchema.h"
 #include "../GUI/Advanced/AdvancedParameterLayout.h"
+#include "../GUI/Advanced/PerformanceParameterLayout.h"
 
 using namespace juce;
 
@@ -50,12 +51,19 @@ void appendCoreParameters (std::vector<std::unique_ptr<RangedAudioParameter>>& p
 
     params.push_back (std::make_unique<AudioParameterFloat> (
         ParameterID { ParamID::SMEAR, 1 },
-        "Smear",
+        "Filter",
         NormalisableRange<float> (0.0f, 1.0f, 0.001f),
         0.0f,
         AudioParameterFloatAttributes()
             .withStringFromValueFunction ([] (float v, int) {
-                return String (static_cast<int> (v * 100)) + "%";
+                if (v < 0.001f)
+                    return String ("Off");
+                const float logMin = std::log (80.f);
+                const float logMax = std::log (16000.f);
+                const float hz = std::exp (juce::jmap (v, 0.f, 1.f, logMax, logMin));
+                if (hz >= 1000.f)
+                    return String (hz / 1000.f, 1) + "k";
+                return String (static_cast<int> (hz));
             })));
 
     params.push_back (std::make_unique<AudioParameterFloat> (
@@ -93,13 +101,11 @@ void appendCoreParameters (std::vector<std::unique_ptr<RangedAudioParameter>>& p
 
     params.push_back (std::make_unique<AudioParameterFloat> (
         ParameterID { ParamID::STEREO_WIDTH, 1 },
-        "Width",
-        NormalisableRange<float> (0.0f, 2.0f, 0.001f),
-        1.0f,
+        "Brightness",
+        NormalisableRange<float> (0.0f, 1.0f, 0.001f),
+        0.5f,
         AudioParameterFloatAttributes()
             .withStringFromValueFunction ([] (float v, int) {
-                if (v < 0.01f) return String ("Mono");
-                if (std::abs (v - 1.0f) < 0.01f) return String ("Stereo");
                 return String (static_cast<int> (v * 100)) + "%";
             })));
 
@@ -142,6 +148,7 @@ std::vector<std::unique_ptr<RangedAudioParameter>> buildAllParameters()
     std::vector<std::unique_ptr<RangedAudioParameter>> params;
     appendCoreParameters (params);
     AdvancedParameterLayout::appendParameters (params);
+    PerformanceParameterLayout::appendParameters (params);
     return params;
 }
 

@@ -19,7 +19,7 @@
 //    damping    = 0.5 (fixed; could become a param in a future version)
 //    wetLevel   = reverb_amount
 //    dryLevel   = 1.0 - reverb_amount
-//    width      = 1.0 (full width; stereo_width param handles width separately)
+//    width      = 1.0 (full stereo image; output is always stereo)
 //    freezeMode = 0.0 (off)
 //
 //  Threading: called from processBlock — audio thread only, no allocations.
