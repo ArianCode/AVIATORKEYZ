@@ -22,7 +22,10 @@ inline float midiNoteToHz (float note) noexcept
 
 inline void constantPowerPan (float pan, float& left, float& right) noexcept
 {
-    const float ang = (pan + 1.f) * (juce::MathConstants<float>::halfPi * 0.25f);
+    // pan -1..+1 maps to 0..pi/2 so that L²+R² = 1 across the whole range
+    // and L == R == 1/sqrt(2) at center.
+    const float ang = (juce::jlimit (-1.f, 1.f, pan) + 1.f)
+                      * (juce::MathConstants<float>::halfPi * 0.5f);
     left  = std::cos (ang);
     right = std::sin (ang);
 }
