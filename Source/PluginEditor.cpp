@@ -1,5 +1,6 @@
 #include "PluginEditor.h"
 #include "GUI/AviatorTokens.h"
+#include "DSP/Performance/PerformanceTypes.h"
 
 AviatorKeyzEditor::AviatorKeyzEditor (AviatorKeyzProcessor& p)
     : AudioProcessorEditor (&p)
@@ -21,6 +22,30 @@ AviatorKeyzEditor::AviatorKeyzEditor (AviatorKeyzProcessor& p)
     advancedPanel->setVisible (false);
     addAndMakeVisible (*advancedPanel);
 
+    auto& presetManager = p.getPresetManager();
+    previousPresetLoadedHandler = presetManager.onPresetLoaded;
+    presetManager.onPresetLoaded = [this, previousPresetLoaded = previousPresetLoadedHandler] (const juce::String& category,
+                                                                                              const juce::String& name,
+                                                                                              const juce::String& sampleId,
+                                                                                              int rootNote) {
+        if (previousPresetLoaded)
+            previousPresetLoaded (category, name, sampleId, rootNote);
+
+        if (advancedPanel != nullptr)
+            advancedPanel->refreshPresetUI();
+    };
+
+    previousMacroMapsLoadedHandler = presetManager.onMacroMapsLoaded;
+    presetManager.onMacroMapsLoaded = [this, previousMacroMapsLoaded = previousMacroMapsLoadedHandler] (const std::array<MacroControl, 4>& macros) {
+        if (previousMacroMapsLoaded)
+            previousMacroMapsLoaded (macros);
+
+        if (advancedPanel != nullptr)
+            advancedPanel->refreshPresetUI();
+    };
+
+    advancedPanel->refreshPresetUI();
+
     viewTabs.setAdvancedSelected (false);
     setAdvancedView (false);
 
@@ -28,7 +53,12 @@ AviatorKeyzEditor::AviatorKeyzEditor (AviatorKeyzProcessor& p)
     repaint();
 }
 
-AviatorKeyzEditor::~AviatorKeyzEditor() = default;
+AviatorKeyzEditor::~AviatorKeyzEditor()
+{
+    auto& presetManager = processorRef.getPresetManager();
+    presetManager.onPresetLoaded = previousPresetLoadedHandler;
+    presetManager.onMacroMapsLoaded = previousMacroMapsLoadedHandler;
+}
 
 void AviatorKeyzEditor::setAdvancedView (bool advanced)
 {

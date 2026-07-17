@@ -1,6 +1,10 @@
 #include "PresetManager.h"
 #include "ApvtsStateHelpers.h"
+#include "CategorySoundPolicy.h"
 #include "FactoryResources.h"
+#include "MacroPresetParser.h"
+#include "../DSP/Performance/PerformanceApvtsReader.h"
+#include "../Debug/AviatorDebug.h"
 #include <vector>
 
 PresetManager::PresetManager (juce::AudioProcessorValueTreeState& apvtsRef)
@@ -68,7 +72,7 @@ void restoreFxParams (juce::AudioProcessorValueTreeState& apvts, const FxSnapsho
 {
     for (const auto& [id, val] : snap)
         if (auto* p = apvts.getParameter (id))
-            p->setValueNotifyingHost (val);
+            p->setValue (val);
 }
 
 bool fxEditsEnabledInTree (const juce::ValueTree& state)
@@ -182,18 +186,7 @@ int PresetManager::inferRootNoteFromPresetName (const juce::String& presetName,
 
 juce::StringArray PresetManager::getAllCategories() const
 {
-    return {
-        AviatorKeyz::Category::LEADS,
-        AviatorKeyz::Category::BRASS,
-        AviatorKeyz::Category::ENSEMBLES,
-        AviatorKeyz::Category::STRINGS,
-        AviatorKeyz::Category::PADS,
-        AviatorKeyz::Category::CHORDS,
-        AviatorKeyz::Category::SYNTHS,
-        AviatorKeyz::Category::ARPS,
-        AviatorKeyz::Category::VOCALS,
-        AviatorKeyz::Category::BELLS
-    };
+    return AviatorKeyz::getCanonicalCategories();
 }
 
 juce::StringArray PresetManager::getPresetsForCategory (const juce::String& category) const
@@ -220,6 +213,7 @@ bool PresetManager::loadPreset (const juce::String& category, const juce::String
 {
     std::unique_ptr<juce::XmlElement> parsed;
     juce::String sampleId = AviatorKeyz::SampleID::DEFAULT;
+    bool isFactoryPreset = false;
 
     if (const auto* factory = [&]() -> const FactoryResources::PresetEntry* {
             for (const auto& e : FactoryResources::getFactoryPresets())
@@ -232,6 +226,7 @@ bool PresetManager::loadPreset (const juce::String& category, const juce::String
     {
         parsed = juce::XmlDocument::parse (juce::String::fromUTF8 (factory->xmlData, factory->xmlSize));
         sampleId = factory->sampleId;
+        isFactoryPreset = true;
     }
     else
     {
@@ -250,6 +245,7 @@ bool PresetManager::loadPreset (const juce::String& category, const juce::String
     juce::XmlElement* stateEl = nullptr;
 
     int rootNote = 60;
+    juce::String soundTypeAttr;
 
     if (parsed->hasTagName ("Preset"))
     {
@@ -259,6 +255,7 @@ bool PresetManager::loadPreset (const juce::String& category, const juce::String
         rootNote = parseRootNoteAttribute (parsed.get());
         if (! parsed->hasAttribute (AviatorKeyz::PresetKey::ROOT_NOTE))
             rootNote = inferRootNoteFromPresetName (name, sampleId);
+        soundTypeAttr = parsed->getStringAttribute (AviatorKeyz::PresetKey::SOUND_TYPE);
         stateEl = parsed->getChildByName ("AviatorKeyzState");
     }
     else
@@ -275,10 +272,23 @@ bool PresetManager::loadPreset (const juce::String& category, const juce::String
     if (! state.isValid())
         return false;
 
+    if (! AviatorKeyz::isSampleIdCompatibleWithCategory (sampleId, category))
+    {
+        AK_LOG ("Preset sampleId/category mismatch: " + sampleId + " in tab " + category);
+        if (isFactoryPreset)
+            return false;
+    }
+
     const bool recallFx = fxEditsEnabledInTree (state);
     const auto fxSnap   = recallFx ? FxSnapshot {} : captureFxParams (apvts);
 
+    currentSoundType = soundTypeAttr.isNotEmpty()
+                           ? AviatorKeyz::soundTypeFromString (soundTypeAttr)
+                           : AviatorKeyz::inferSoundTypeFromStem (category, name);
+
     AviatorKeyz::applyStateTreeToApvts (apvts, state);
+    PerformanceApvtsReader::applyCategoryPlaybackDefaults (apvts, state, category, name,
+                                                           soundTypeAttr, isFactoryPreset);
 
     if (! recallFx)
         restoreFxParams (apvts, fxSnap);
@@ -289,6 +299,12 @@ bool PresetManager::loadPreset (const juce::String& category, const juce::String
 
     if (onPresetLoaded)
         onPresetLoaded (category, name, sampleId, rootNote);
+
+    if (onMacroMapsLoaded)
+    {
+        const juce::XmlElement* presetRoot = parsed->hasTagName ("Preset") ? parsed.get() : nullptr;
+        onMacroMapsLoaded (MacroPresetParser::parseFromPresetXml (presetRoot, category));
+    }
 
     return true;
 }
