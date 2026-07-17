@@ -30,6 +30,7 @@ target_sources(${_AVIATORKEYZ_TEST_TARGET}
         FastMathTests.cpp
         RealtimeSafetyTests.cpp
         EnvelopeTests.cpp
+        RetriggerDeclickTests.cpp
         SamplerEngineTests.cpp
         GlideEngineTests.cpp
         SampleLibraryTests.cpp

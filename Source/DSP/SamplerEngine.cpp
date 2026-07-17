@@ -277,6 +277,8 @@ void SamplerEngine::resetVoiceState (Voice& v, bool wasActive) noexcept
     v.envLevel = 0.f;
     v.envLinearStep = 0.f;
     v.envSegSamplesLeft = 0;
+    v.declickGain = 1.f;
+    v.declickStep = 0.f;
     v.sampleData = nullptr;
     v.sampleNumFrames = 0;
     v.fileSampleRate = sampleRate;
@@ -320,11 +322,10 @@ void SamplerEngine::startVoice (Voice& v,
                                  float velocity,
                                  bool reverse,
                                  float glideTimeMs,
-                                 const SampleLibrary::AudioRegion* region) noexcept
+                                 const SampleLibrary::AudioRegion* region,
+                                 bool declickFadeIn) noexcept
 {
     const bool wasActive = v.active;
-    if (wasActive)
-        chokeVoice (v);
 
     const bool legatoOverlap = ! wasActive && activeVoiceCount > 0;
     const bool legatoReuse = wasActive;
@@ -336,6 +337,14 @@ void SamplerEngine::startVoice (Voice& v,
     v.reversed = reverse;
     v.phase = 0.f;
     v.chopPitchOffsetSemis = 0;
+
+    // Reusing an audible voice (steal) or replacing a choked mono voice can
+    // otherwise start with a hard onset; ramp the new note in over ~1.5 ms.
+    const bool needsFade = declickFadeIn || wasActive;
+    v.declickGain = needsFade ? 0.f : 1.f;
+    v.declickStep = needsFade
+                        ? 1.f / juce::jmax (1.f, static_cast<float> (kDeclickFadeMs * 0.001f * sampleRate))
+                        : 0.f;
 
     const bool glideTimeOn = glideTimeMs > 1.f;
     const bool useGlide = glideTimeOn
@@ -630,7 +639,14 @@ float SamplerEngine::renderVoiceSample (Voice& v) noexcept
     }
 
     const float chopGain = chopState.active ? chopState.gateGain : 1.f;
-    const float out = osc * vel * env * chopGain;
+    float out = osc * vel * env * chopGain;
+
+    if (v.declickGain < 1.f)
+    {
+        out *= v.declickGain;
+        v.declickGain = juce::jmin (1.f, v.declickGain + v.declickStep);
+    }
+
     advanceEnvelope (v);
     return out;
 }
@@ -643,18 +659,38 @@ void SamplerEngine::noteOn (int midiNote, float velocity, bool reverse, float gl
 
     if (playMode == PlayMode::mono || playMode == PlayMode::legato)
     {
-        const int i = (monoVoiceIndex >= 0 && voices[monoVoiceIndex].active)
-                          ? monoVoiceIndex
-                          : findFreeOrStealVoice();
-        monoVoiceIndex = i;
-        if (voices[i].active && playMode == PlayMode::legato)
-            startVoice (voices[i], midiNote, velocity, reverse, glideTimeMs, region);
-        else
+        if (playMode == PlayMode::legato
+            && monoVoiceIndex >= 0 && monoVoiceIndex < kMaxVoices
+            && voices[monoVoiceIndex].active
+            && voices[monoVoiceIndex].envStage != EnvStage::release)
         {
-            allSoundOff();
-            monoVoiceIndex = i;
-            startVoice (voices[i], midiNote, velocity, reverse, glideTimeMs, region);
+            // True legato: the sample and envelope keep running; only the
+            // pitch moves (glide when set, snap otherwise). No restart means
+            // no discontinuity at all.
+            auto& v = voices[monoVoiceIndex];
+            purgeNoteVoiceFromStack (v.noteNumber, monoVoiceIndex);
+            v.noteNumber = midiNote;
+            v.glideEngine.noteOn (midiNote, glideTimeMs);
+            updateVoicePlaybackRates (v);
+            lastNoteForGlide = midiNote;
+            pushNoteVoice (midiNote, monoVoiceIndex);
+            return;
         }
+
+        // Mono retrigger: fade the previous note out over kChokeFadeMs
+        // instead of the old instant allSoundOff() (a hard click), and fade
+        // the new note in on a fresh voice — a brief crossfade. Registering
+        // the voice in the note stack also makes note-off work in mono mode
+        // (previously ignored → hung notes).
+        const bool hadActive = activeVoiceCount > 0;
+        if (hadActive)
+            chokeActiveVoicesForPhrase();
+
+        const int i = findFreeOrStealVoice();
+        monoVoiceIndex = i;
+        startVoice (voices[i], midiNote, velocity, reverse, glideTimeMs, region, hadActive);
+        voices[i].voiceInstanceId = ++nextVoiceInstanceId;
+        pushNoteVoice (midiNote, i);
         return;
     }
 

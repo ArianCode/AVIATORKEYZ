@@ -105,6 +105,8 @@ private:
         float    envLevel = 0.f;
         float    envLinearStep = 0.f;
         int      envSegSamplesLeft = 0;
+        float    declickGain = 1.f;
+        float    declickStep = 0.f;
 
         const float* sampleData = nullptr;
         int          sampleNumFrames = 0;
@@ -129,7 +131,8 @@ private:
                      float velocity,
                      bool reverse,
                      float glideTimeMs,
-                     const SampleLibrary::AudioRegion* region) noexcept;
+                     const SampleLibrary::AudioRegion* region,
+                     bool declickFadeIn = false) noexcept;
     void enterRelease (Voice& v) noexcept;
     void finishAttack (Voice& v) noexcept;
     float renderVoiceSample (Voice& v) noexcept;
@@ -148,6 +151,7 @@ private:
     static constexpr int kMaxVoices = 16;
     static constexpr int kMaxStackPerNote = 8;
     static constexpr float kChokeFadeMs = 5.f;
+    static constexpr float kDeclickFadeMs = 1.5f;
 
     Voice    voices[kMaxVoices];
     int      noteVoiceStack[128][kMaxStackPerNote];
