@@ -27,9 +27,8 @@ private:
 
     AviatorKeyzProcessor& processorRef;
 
-    // Default opens at 1035 x 600 — inside the requested 1000-1200 x 400-600
-    // window while preserving the 1647:955 design aspect ratio.
-    static constexpr int kDefaultWidth = 1035;
+    // Default opens at 1100 x 638, preserving the 1647:955 design aspect ratio.
+    static constexpr int kDefaultWidth = 1100;
     static constexpr int kMinWidth  = 824;
     static constexpr int kMaxWidth  = 1976;
 
