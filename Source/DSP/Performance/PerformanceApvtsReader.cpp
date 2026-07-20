@@ -147,32 +147,13 @@ void PerformanceApvtsReader::applyCategoryPlaybackDefaults (
     const juce::String& soundTypeAttr,
     const bool isFactoryPreset) noexcept
 {
-    juce::ignoreUnused (loadedState);
+    juce::ignoreUnused (loadedState, isFactoryPreset);
 
     const auto soundType = soundTypeAttr.isNotEmpty()
                                ? AviatorKeyz::soundTypeFromString (soundTypeAttr)
                                : AviatorKeyz::inferSoundTypeFromStem (category, presetName);
 
-    if (isFactoryPreset)
-    {
-        AviatorKeyz::applyPlaybackPolicyToApvts (apvts, category, soundType);
-        return;
-    }
-
-    auto stateHasParam = [&] (const char* id) -> bool
-    {
-        for (int i = 0; i < loadedState.getNumChildren(); ++i)
-        {
-            const auto child = loadedState.getChild (i);
-            if (child.hasType ("PARAM") && child.getProperty ("id").toString() == id)
-                return true;
-        }
-        return false;
-    };
-
-    if (stateHasParam (AviatorKeyz::ParamID::SRC_PLAYBACK_MODE))
-        return;
-
+    // Preset metadata owns playback behavior — always apply, never leave to a UI algorithm picker.
     AviatorKeyz::applyPlaybackPolicyToApvts (apvts, category, soundType);
 }
 

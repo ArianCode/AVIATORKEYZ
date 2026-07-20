@@ -488,10 +488,12 @@ void SamplerEngine::updateVoicePlaybackRates (Voice& v) noexcept
     const double fileRate = v.fileSampleRate > 0.0 ? v.fileSampleRate : sampleRate;
     rates.sourceRateRatio = fileRate / sampleRate;
 
-    const int rootNote = sourceSettings.rootNote >= 0 ? sourceSettings.rootNote : v.sampleRootNote;
+    // Authoritative root is the loaded sample region — never APVTS defaults.
+    const int rootNote = v.sampleRootNote;
     const float staticPitchSemis = static_cast<float> (phrasePitchSemis + v.chopPitchOffsetSemis);
+    const bool tracksMidiPitch = (mode == SamplePlaybackMode::ChromaticResample);
 
-    if (mode == SamplePlaybackMode::ChromaticResample || sourceSettings.keytrack)
+    if (tracksMidiPitch)
     {
         const float midiOffset = v.glideEngine.getCurrentPitchSemitones() - static_cast<float> (rootNote);
         rates.pitchSemitones = midiOffset + staticPitchSemis;
@@ -505,26 +507,23 @@ void SamplerEngine::updateVoicePlaybackRates (Voice& v) noexcept
     }
     else
     {
-        // PhraseOriginal, PhraseTimeStretch, SlicePhrase — retain pitch for future stretch engine.
+        // PhraseOriginal, PhraseTimeStretch, SlicePhrase — fixed pitch (varispeed for BPM only).
         rates.pitchRatio = 1.0;
         rates.pitchSemitones = staticPitchSemis;
-        juce::ignoreUnused (mode);
     }
 
     double timeRatio = juce::jlimit (0.25, 4.0, static_cast<double> (sourceSettings.speed));
 
-    if ((phraseEnabled || sourceSettings.bpmSync) && phraseTempoSync)
+    // Varispeed BPM sync: hostBpm / originalBpm.
+    // Host slower than the sample → slower read (sample stays aligned to the grid).
+    // Never combine with MIDI pitch tracking.
+    // (True pitch-preserving stretch is a future engine.)
+    if (! tracksMidiPitch
+        && sourceSettings.bpmSync
+        && sourceSettings.originalBpm > 1.f
+        && sourceHostBpm > 1.0)
     {
-        const int regionFrames = juce::jmax (1, v.phraseEndFrame - v.phraseStartFrame);
-        const double regionSec = static_cast<double> (regionFrames) / fileRate;
-        const double beatSec = 60.0 / phraseHostBpm;
-        const double targetSec = beatSec * 4.0;
-        if (regionSec > 0.0)
-            timeRatio *= regionSec / targetSec;
-    }
-    else if (sourceSettings.bpmSync && sourceSettings.originalBpm > 1.f)
-    {
-        timeRatio *= static_cast<double> (sourceSettings.originalBpm) / sourceHostBpm;
+        timeRatio *= sourceHostBpm / static_cast<double> (sourceSettings.originalBpm);
     }
 
     rates.timeRatio = timeRatio;
@@ -538,9 +537,8 @@ float SamplerEngine::voiceReadIncrement (const Voice& v) const noexcept
 
     double inc = r.sourceRateRatio * r.timeRatio;
 
-    if (mode == SamplePlaybackMode::ChromaticResample || sourceSettings.keytrack)
-        inc *= r.pitchRatio;
-    else if (mode == SamplePlaybackMode::OneShotOriginal)
+    if (mode == SamplePlaybackMode::ChromaticResample
+        || mode == SamplePlaybackMode::OneShotOriginal)
         inc *= r.pitchRatio;
 
     return static_cast<float> (inc);
@@ -600,9 +598,11 @@ float SamplerEngine::renderVoiceSample (Voice& v) noexcept
         {
             i0 = juce::jlimit (phraseStart, juce::jmax (phraseStart, phraseEnd - 1), i0);
             AK_ASSERT (i0 >= phraseStart && i0 + 1 <= phraseEnd);
-            const float s0 = v.sampleData[i0];
-            const float s1 = v.sampleData[juce::jmin (phraseEnd, i0 + 1)];
-            osc = s0 + frac * (s1 - s0);
+            const float y0 = v.sampleData[juce::jmax (phraseStart, i0 - 1)];
+            const float y1 = v.sampleData[i0];
+            const float y2 = v.sampleData[juce::jmin (phraseEnd, i0 + 1)];
+            const float y3 = v.sampleData[juce::jmin (phraseEnd, i0 + 2)];
+            osc = AviatorFastMath::hermite4 (y0, y1, y2, y3, frac);
             v.readPos += inc;
             if (v.readPos >= static_cast<float> (phraseEnd))
             {
@@ -616,9 +616,11 @@ float SamplerEngine::renderVoiceSample (Voice& v) noexcept
         {
             i0 = juce::jlimit (phraseStart + 1, phraseEnd, i0);
             AK_ASSERT (i0 >= phraseStart + 1 && i0 <= phraseEnd);
-            const float s0 = v.sampleData[i0];
-            const float s1 = v.sampleData[juce::jmax (phraseStart, i0 - 1)];
-            osc = s0 + (1.f - frac) * (s1 - s0);
+            const float y0 = v.sampleData[juce::jmin (phraseEnd, i0 + 1)];
+            const float y1 = v.sampleData[i0];
+            const float y2 = v.sampleData[juce::jmax (phraseStart, i0 - 1)];
+            const float y3 = v.sampleData[juce::jmax (phraseStart, i0 - 2)];
+            osc = AviatorFastMath::hermite4 (y0, y1, y2, y3, 1.f - frac);
             v.readPos += inc;
             if (v.readPos <= static_cast<float> (phraseStart))
             {

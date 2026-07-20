@@ -70,4 +70,14 @@ inline float wrapPhase01 (float phase) noexcept
     return phase;
 }
 
+/** Catmull-Rom cubic (Hermite) interpolation — 4 taps, frac in [0, 1). */
+inline float hermite4 (float y0, float y1, float y2, float y3, float frac) noexcept
+{
+    const float c0 = y1;
+    const float c1 = 0.5f * (y2 - y0);
+    const float c2 = y0 - 2.5f * y1 + 2.f * y2 - 0.5f * y3;
+    const float c3 = 0.5f * (y3 - y0) + 1.5f * (y1 - y2);
+    return ((c3 * frac + c2) * frac + c1) * frac + c0;
+}
+
 } // namespace AviatorFastMath

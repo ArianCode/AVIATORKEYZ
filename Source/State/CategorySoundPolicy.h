@@ -217,4 +217,62 @@ inline void applyPlaybackPolicyToApvts (juce::AudioProcessorValueTreeState& apvt
                                   && soundType != SoundType::OneShot));
 }
 
+/** Write authoritative root into APVTS so host state matches the loaded sample. */
+inline void syncRootNoteToApvts (juce::AudioProcessorValueTreeState& apvts, int rootNote) noexcept
+{
+    if (auto* param = apvts.getParameter (ParamID::SRC_ROOT_NOTE))
+        if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (param))
+            param->setValueNotifyingHost (
+                ranged->convertTo0to1 (static_cast<float> (juce::jlimit (0, 127, rootNote))));
+}
+
+inline void syncOriginalBpmToApvts (juce::AudioProcessorValueTreeState& apvts, float bpm) noexcept
+{
+    if (auto* param = apvts.getParameter (ParamID::SRC_ORIGINAL_BPM))
+        if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (param))
+            param->setValueNotifyingHost (
+                ranged->convertTo0to1 (juce::jlimit (40.f, 240.f, bpm)));
+}
+
+/** Infer tempo from stems like `_90_`, `_130_`, `98_indigo` — returns 0 if unknown. */
+inline float inferOriginalBpmFromStem (const juce::String& presetName,
+                                       const juce::String& sampleId) noexcept
+{
+    const auto hay = (presetName + "_" + sampleId).toUpperCase();
+    const int len = hay.length();
+
+    for (int i = 0; i < len; ++i)
+    {
+        if (i > 0)
+        {
+            const auto prev = hay[i - 1];
+            if (prev != '_' && prev != '-' && prev != ' ')
+                continue;
+        }
+
+        if (! juce::CharacterFunctions::isDigit (hay[i]))
+            continue;
+
+        int j = i;
+        int value = 0;
+        while (j < len && juce::CharacterFunctions::isDigit (hay[j]) && j - i < 3)
+        {
+            value = value * 10 + (hay[j] - '0');
+            ++j;
+        }
+
+        if (j < len)
+        {
+            const auto after = hay[j];
+            if (after != '_' && after != '-' && after != ' ')
+                continue;
+        }
+
+        if (value >= 40 && value <= 240)
+            return static_cast<float> (value);
+    }
+
+    return 0.f;
+}
+
 } // namespace AviatorKeyz

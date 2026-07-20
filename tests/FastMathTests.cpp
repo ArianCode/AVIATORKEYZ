@@ -124,6 +124,14 @@ public:
                 expectWithinAbsoluteError (r1, l2, 1.0e-5f);
             }
         }
+
+        beginTest ("Hermite4: frac=0 returns y1; frac=1 approaches y2");
+        {
+            expectWithinAbsoluteError (FM::hermite4 (0.f, 1.f, 2.f, 3.f, 0.f), 1.f, 1.0e-6f);
+            expectWithinAbsoluteError (FM::hermite4 (0.f, 1.f, 2.f, 3.f, 1.f), 2.f, 1.0e-5f);
+            const float mid = FM::hermite4 (0.f, 0.f, 1.f, 1.f, 0.5f);
+            expect (mid > 0.2f && mid < 0.8f, "midpoint should lie between knots");
+        }
     }
 };
 

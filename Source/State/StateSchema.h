@@ -52,6 +52,8 @@ namespace PresetKey {
     /** MIDI note at which embedded sample plays at native pitch (default 60 = C4). */
     static constexpr const char* ROOT_NOTE   = "rootNote";
     static constexpr const char* SOUND_TYPE  = "soundType";
+    /** Sample tempo used for host BPM sync (varispeed until a stretch engine exists). */
+    static constexpr const char* ORIGINAL_BPM = "originalBpm";
 }
 
 // ---------------------------------------------------------------------------

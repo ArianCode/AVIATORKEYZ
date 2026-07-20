@@ -112,9 +112,11 @@ struct SourceSettings
     bool reverse = false;
     bool bpmSync = true;
     float originalBpm = 120.0f;
-    int rootNote = -1; // unset → follow sample root
+    /** Mirrored from the loaded sample for state/UI; pitch math uses voice sampleRootNote. */
+    int rootNote = 60;
     LoopMode loopMode = LoopMode::Gate;
     SamplePlaybackMode playbackMode = SamplePlaybackMode::ChromaticResample;
+    /** Deprecated — playback tracking is mode-driven from preset soundType. Kept for state compat. */
     bool keytrack = false;
 };
 

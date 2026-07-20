@@ -76,6 +76,9 @@ public:
     /** Message / UI thread: first region of published snapshot for waveform display. */
     const float* getPrimaryWaveformData (int& numFramesOut) const noexcept;
 
+    /** Message thread: authoritative root after load/publish (smpl > preset argument). */
+    int getPrimaryRootNote() const noexcept;
+
     const std::vector<SampleRegion>& getPendingMap() const noexcept { return pendingMap; }
 
     juce::String getLastError() const noexcept { return lastError; }

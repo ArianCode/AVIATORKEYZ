@@ -160,11 +160,19 @@ def write_preset_xml(
 
         sound_type = SOUND_TYPE_NAMES[infer_sound_type(category, name)]
 
-    playback_keys = ("src_playback_mode", "src_keytrack", "src_loop_mode", "src_bpm_sync")
+    playback_keys = (
+        "src_playback_mode",
+        "src_keytrack",
+        "src_loop_mode",
+        "src_bpm_sync",
+        "src_root_note",
+        "src_original_bpm",
+    )
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         f'<Preset category="{category}" name="{name}" schemaVersion="1" sampleId="{sample_id}" '
-        f'rootNote="{root_note}" soundType="{sound_type}" author="AviatorKeyz">',
+        f'rootNote="{root_note}" soundType="{sound_type}" originalBpm="{params.get("src_original_bpm", 120)}" '
+        f'author="AviatorKeyz">',
         '  <AviatorKeyzState stateVersion="1">',
         f'    <PARAM id="input_gain" value="{params.get("input_gain", 0.0)}"/>',
         f'    <PARAM id="output_gain" value="{params.get("output_gain", 0.0)}"/>',
@@ -178,6 +186,7 @@ def write_preset_xml(
         f'    <PARAM id="env_attack" value="{params.get("env_attack", 5.0)}"/>',
         f'    <PARAM id="env_release" value="{params.get("env_release", 150.0)}"/>',
         f'    <PARAM id="pan" value="{params.get("pan", 0.0)}"/>',
+        f'    <PARAM id="src_root_note" value="{params.get("src_root_note", root_note)}"/>',
     ]
     for key in playback_keys:
         if key in params:

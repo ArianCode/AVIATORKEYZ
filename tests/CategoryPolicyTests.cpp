@@ -61,6 +61,19 @@ public:
             expect (AviatorKeyz::playbackModeFor ("Vocals", AviatorKeyz::SoundType::Phrase)
                         == SamplePlaybackMode::PhraseOriginal);
         }
+
+        beginTest ("inferOriginalBpmFromStem finds tempo tokens");
+        {
+            expectWithinAbsoluteError (
+                AviatorKeyz::inferOriginalBpmFromStem ("SO_MTS_98_indigo_C", "factory_strings_so_mts_98_indigo_c"),
+                98.f, 0.01f);
+            expectWithinAbsoluteError (
+                AviatorKeyz::inferOriginalBpmFromStem ("VOX_DCV_85_vocal_adlib", "x"),
+                85.f, 0.01f);
+            expectWithinAbsoluteError (
+                AviatorKeyz::inferOriginalBpmFromStem ("no_tempo_here_C", "factory_leads_x"),
+                0.f, 0.01f);
+        }
     }
 };
 

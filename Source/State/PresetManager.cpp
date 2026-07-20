@@ -100,6 +100,17 @@ int PresetManager::parseRootNoteAttribute (const juce::XmlElement* presetRoot)
     return 60;
 }
 
+float PresetManager::parseOriginalBpmAttribute (const juce::XmlElement* presetRoot)
+{
+    if (presetRoot == nullptr)
+        return 0.f;
+
+    if (presetRoot->hasAttribute (AviatorKeyz::PresetKey::ORIGINAL_BPM))
+        return static_cast<float> (presetRoot->getDoubleAttribute (AviatorKeyz::PresetKey::ORIGINAL_BPM, 0.0));
+
+    return 0.f;
+}
+
 int PresetManager::inferRootNoteFromPresetName (const juce::String& presetName,
                                                 const juce::String& sampleId)
 {
@@ -246,6 +257,7 @@ bool PresetManager::loadPreset (const juce::String& category, const juce::String
 
     int rootNote = 60;
     juce::String soundTypeAttr;
+    float originalBpm = 0.f;
 
     if (parsed->hasTagName ("Preset"))
     {
@@ -256,6 +268,9 @@ bool PresetManager::loadPreset (const juce::String& category, const juce::String
         if (! parsed->hasAttribute (AviatorKeyz::PresetKey::ROOT_NOTE))
             rootNote = inferRootNoteFromPresetName (name, sampleId);
         soundTypeAttr = parsed->getStringAttribute (AviatorKeyz::PresetKey::SOUND_TYPE);
+        originalBpm = parseOriginalBpmAttribute (parsed.get());
+        if (originalBpm < 1.f)
+            originalBpm = AviatorKeyz::inferOriginalBpmFromStem (name, sampleId);
         stateEl = parsed->getChildByName ("AviatorKeyzState");
     }
     else
@@ -289,6 +304,12 @@ bool PresetManager::loadPreset (const juce::String& category, const juce::String
     AviatorKeyz::applyStateTreeToApvts (apvts, state);
     PerformanceApvtsReader::applyCategoryPlaybackDefaults (apvts, state, category, name,
                                                            soundTypeAttr, isFactoryPreset);
+
+    if (originalBpm < 1.f)
+        originalBpm = 120.f;
+    currentOriginalBpm = juce::jlimit (40.f, 240.f, originalBpm);
+    AviatorKeyz::syncOriginalBpmToApvts (apvts, currentOriginalBpm);
+    AviatorKeyz::syncRootNoteToApvts (apvts, rootNote);
 
     if (! recallFx)
         restoreFxParams (apvts, fxSnap);
@@ -331,6 +352,10 @@ bool PresetManager::saveUserPreset (const juce::String& category, const juce::St
     preset.setAttribute (AviatorKeyz::PresetKey::SAMPLE_ID,
                           currentSampleId.isNotEmpty() ? currentSampleId
                                                        : juce::String (AviatorKeyz::SampleID::DEFAULT));
+    preset.setAttribute (AviatorKeyz::PresetKey::ROOT_NOTE, currentRootNote);
+    preset.setAttribute (AviatorKeyz::PresetKey::SOUND_TYPE,
+                          AviatorKeyz::soundTypeToString (currentSoundType));
+    preset.setAttribute (AviatorKeyz::PresetKey::ORIGINAL_BPM, currentOriginalBpm);
 
     if (auto inner = state.createXml())
         preset.addChildElement (inner.release());
@@ -344,10 +369,17 @@ juce::String PresetManager::getCurrentCategory() const { return currentCategory;
 juce::String PresetManager::getCurrentSampleId() const { return currentSampleId; }
 int PresetManager::getCurrentRootNote() const { return currentRootNote; }
 
+void PresetManager::setCurrentRootNote (int rootNote) noexcept
+{
+    currentRootNote = juce::jlimit (0, 127, rootNote);
+}
+
 void PresetManager::setPresetIdentity (const juce::String& category,
                                          const juce::String& name,
                                          const juce::String& sampleId,
-                                         int rootNote)
+                                         int rootNote,
+                                         AviatorKeyz::SoundType soundType,
+                                         float originalBpm)
 {
     if (category.isNotEmpty())
         currentCategory = category;
@@ -356,6 +388,9 @@ void PresetManager::setPresetIdentity (const juce::String& category,
     if (sampleId.isNotEmpty())
         currentSampleId = sampleId;
     currentRootNote = juce::jlimit (0, 127, rootNote);
+    currentSoundType = soundType;
+    if (originalBpm > 1.f)
+        currentOriginalBpm = juce::jlimit (40.f, 240.f, originalBpm);
 }
 
 juce::Array<PresetManager::FlatPreset> PresetManager::buildFlatPresetList() const

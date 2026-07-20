@@ -78,6 +78,18 @@ const float* SampleLibrary::getPrimaryWaveformData (int& numFramesOut) const noe
     return r.data;
 }
 
+int SampleLibrary::getPrimaryRootNote() const noexcept
+{
+    const auto* snap = getPublishedSnapshot();
+    if (snap != nullptr && ! snap->regions.empty())
+        return snap->regions.front().rootNote;
+
+    if (! pendingMap.empty())
+        return pendingMap.front().rootNote;
+
+    return 60;
+}
+
 const SampleLibrary::AudioRegion* SampleLibrary::findRegionForNote (const AudioSnapshot& snapshot,
                                                                      int midiNote,
                                                                      float velocity) noexcept

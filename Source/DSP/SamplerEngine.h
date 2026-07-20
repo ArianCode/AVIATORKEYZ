@@ -113,6 +113,8 @@ private:
         double       fileSampleRate = 44100.0;
         int          sampleRootNote = 60;
         PlaybackRates playbackRates {};
+        // Future PhraseTimeStretch hook: use playbackRates.pitchSemitones with a
+        // dedicated stretch engine — do NOT fold pitch into the sample read cursor.
         int          phraseStartFrame = 0;
         int          phraseEndFrame = 0;
         int          chopPitchOffsetSemis = 0;

@@ -7,7 +7,6 @@ namespace P = AviatorKeyz::ParamID;
 
 const juce::StringArray kOnOff { "OFF", "ON" };
 const juce::StringArray kLoopModes { "One Shot", "Loop", "Gate" };
-const juce::StringArray kPlaybackModes { "One Shot", "Phrase", "Chromatic", "Time Stretch", "Slice" };
 const juce::StringArray kChopRates { "1/4", "1/8", "1/16", "1/32" };
 const juce::StringArray kPerfModes {
     "Normal", "Chop", "Gate", "Stutter", "Half Time", "Reverse", "Scatter", "Freeze"
@@ -23,13 +22,11 @@ AdvancedPageContent::AdvancedPageContent (juce::AudioProcessorValueTreeState& ap
     addCell (P::SRC_START, "START", "Sample window start.", Fmt::percent);
     addCell (P::SRC_END, "END", "Sample window end.", Fmt::percent);
     addCell (P::SRC_TUNE, "TUNE", "Transpose in semitones.", Fmt::semitones);
-    addCell (P::SRC_SPEED, "SPEED", "Playback speed.", Fmt::plain);
+    addCell (P::SRC_SPEED, "SPEED", "Playback speed (affects pitch).", Fmt::plain);
     addChoice (P::SRC_REVERSE, "REVERSE", "Reverse playback.", kOnOff);
     addChoice (P::SRC_LOOP_MODE, "LOOP", "Loop mode.", kLoopModes);
-    addChoice (P::SRC_BPM_SYNC, "BPM SYNC", "Sync to host tempo.", kOnOff);
-    addCell (P::SRC_ORIGINAL_BPM, "ORIG BPM", "Original sample BPM.", Fmt::integer);
-    addChoice (P::SRC_PLAYBACK_MODE, "PLAY MODE", "Sample playback behavior.", kPlaybackModes);
-    addChoice (P::SRC_KEYTRACK, "KEYTRACK", "MIDI pitch follows keyboard.", kOnOff);
+    addChoice (P::SRC_BPM_SYNC, "BPM SYNC", "Varispeed sync to host tempo.", kOnOff);
+    addCell (P::SRC_ORIGINAL_BPM, "ORIG BPM", "Sample tempo for sync (auto from preset when possible).", Fmt::integer);
 
     addChoice (P::CHOP_ON, "CHOP", "Enable phrase chopper.", kOnOff);
     addCell (P::CHOP_AMOUNT, "CHOP", "Chop intensity.", Fmt::percent);
@@ -173,7 +170,6 @@ void AdvancedPageContent::layoutSection (juce::Rectangle<int> area)
         case Section::sourceChop:
             for (const char* id : { P::SRC_START, P::SRC_END, P::SRC_TUNE, P::SRC_SPEED,
                                     P::SRC_REVERSE, P::SRC_LOOP_MODE, P::SRC_BPM_SYNC, P::SRC_ORIGINAL_BPM,
-                                    P::SRC_PLAYBACK_MODE, P::SRC_KEYTRACK,
                                     P::CHOP_ON, P::CHOP_AMOUNT, P::CHOP_RATE, P::CHOP_GATE,
                                     P::CHOP_SWING, P::CHOP_RANDOM, P::CHOP_REVERSE_CHANCE, P::CHOP_SMOOTH })
                 show (id);
