@@ -1,10 +1,15 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
-#include "GUI/MainPanel.h"
 #include "GUI/Advanced/AdvancedPanel.h"
-#include "GUI/ViewModeTabBar.h"
+#include "GUI/Jetsonic/JetsonicMainView.h"
 #include "PluginProcessor.h"
+
+// =============================================================================
+//  AviatorKeyzEditor — hosts the Jetsonic MAIN interface (fixed 1647 x 955
+//  design space, scaled proportionally as one unit) and the PERFORMANCE
+//  (advanced) panel, switched from the main view's top header.
+// =============================================================================
 
 class AviatorKeyzEditor final : public juce::AudioProcessorEditor
 {
@@ -18,22 +23,16 @@ public:
 
 private:
     void layoutContent();
-    void setAdvancedView (bool advanced);
+    void setPerformanceView (bool performance);
 
     AviatorKeyzProcessor& processorRef;
 
-    static constexpr int kDefaultWidth  = 1100;
-    static constexpr int kDefaultHeight = 635;
-    static constexpr int kMinWidth      = 700;
-    static constexpr int kMinHeight     = 404;
-    static constexpr int kMaxWidth      = 1800;
-    static constexpr int kMaxHeight     = 1040;
-    static constexpr int kTopChromePad    = 12;
+    static constexpr int kMinWidth  = 824;
+    static constexpr int kMaxWidth  = 1976;
 
-    ViewModeTabBar viewTabs;
-    std::unique_ptr<MainPanel> mainPanel;
+    std::unique_ptr<JetsonicMainView> mainView;
     std::unique_ptr<AdvancedPanel> advancedPanel;
-    bool advancedView { false };
+    bool performanceView { false };
 
     using PresetLoadedHandler = std::function<void (const juce::String& category,
                                                     const juce::String& name,

@@ -140,6 +140,24 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
             Source/DSP/PitchProbe.cpp
 
             # GUI — photo-anchored cockpit
+            # Jetsonic MAIN interface
+            Source/GUI/Jetsonic/MacroKnob.cpp
+            Source/GUI/Jetsonic/MiniControls.cpp
+            Source/GUI/Jetsonic/TopHeader.cpp
+            Source/GUI/Jetsonic/PresetHeader.cpp
+            Source/GUI/Jetsonic/CategoryTabs.cpp
+            Source/GUI/Jetsonic/PresetBrowser.cpp
+            Source/GUI/Jetsonic/CockpitBackground.cpp
+            Source/GUI/Jetsonic/SourceDropdown.cpp
+            Source/GUI/Jetsonic/CenterDashboard.cpp
+            Source/GUI/Jetsonic/VelocityPanel.cpp
+            Source/GUI/Jetsonic/LayerMixPanel.cpp
+            Source/GUI/Jetsonic/FilterPanel.cpp
+            Source/GUI/Jetsonic/EnvelopePanel.cpp
+            Source/GUI/Jetsonic/MacroDeck.cpp
+            Source/GUI/Jetsonic/StatusBar.cpp
+            Source/GUI/Jetsonic/JetsonicMainView.cpp
+
             Source/GUI/LuxuryLookAndFeel.cpp
             Source/GUI/MainPanel.cpp
             Source/GUI/FooterBar.cpp

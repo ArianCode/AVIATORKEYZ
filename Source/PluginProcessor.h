@@ -69,6 +69,9 @@ public:
 
     const std::array<MacroControl, 4>& getMacroControls() const noexcept { return macroControls; }
 
+    /** Last tempo reported by the host playhead (UI thread readout). */
+    double getLastKnownHostBpm() const noexcept { return lastKnownHostBpm.load (std::memory_order_relaxed); }
+
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
@@ -91,6 +94,8 @@ private:
     PerformanceTexturePipeline performancePipeline;
 
     std::array<MacroControl, 4> macroControls {};
+
+    std::atomic<double> lastKnownHostBpm { 120.0 };
 
     PerformanceApvtsReader::ParamCache perfParamCache;
 

@@ -218,9 +218,13 @@ void CockpitCrossworldPanel::selectCategory (const juce::String& category)
     if (names.isEmpty())
         return;
 
-    if (! names.contains (pm.getCurrentPresetName(), true)
-        || ! pm.getCurrentCategory().equalsIgnoreCase (category))
-        pm.loadPreset (category, names[0]);
+    // Only load a different preset when the user actually changes category.
+    // Never auto-jump to names[0] while already on a valid preset in this category.
+    if (pm.getCurrentCategory().equalsIgnoreCase (category)
+        && names.contains (pm.getCurrentPresetName(), true))
+        return;
+
+    pm.loadPreset (category, names[0]);
 }
 
 void CockpitCrossworldPanel::openSearchOverlay()

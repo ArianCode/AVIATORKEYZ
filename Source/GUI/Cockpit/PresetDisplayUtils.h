@@ -1,6 +1,7 @@
 #pragma once
 
 #include <juce_core/juce_core.h>
+#include <juce_gui_basics/juce_gui_basics.h>
 
 namespace PresetDisplayUtils
 {
@@ -57,13 +58,16 @@ inline juce::String ellipsize (const juce::String& text, const juce::Font& font,
     if (maxWidthPx <= 0 || text.isEmpty())
         return text;
 
-    if (font.getStringWidth (text) <= maxWidthPx)
+    const auto stringWidth = [&font] (const juce::String& s)
+    { return juce::GlyphArrangement::getStringWidth (font, s); };
+
+    if (stringWidth (text) <= (float) maxWidthPx)
         return text;
 
     for (int len = text.length() - 1; len > 0; --len)
     {
         const auto trial = text.substring (0, len).trimEnd() + "...";
-        if (font.getStringWidth (trial) <= maxWidthPx)
+        if (stringWidth (trial) <= (float) maxWidthPx)
             return trial;
     }
 

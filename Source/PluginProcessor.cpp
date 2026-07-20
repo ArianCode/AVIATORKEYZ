@@ -78,9 +78,8 @@ void AviatorKeyzProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
     performancePipeline.prepare (spec);
 
     const auto sampleId = presetManager->getCurrentSampleId();
-    const auto rootNote = presetManager->getCurrentRootNote();
-    if (sampleId != loadedSampleId || rootNote != factoryRootNote)
-        loadFactorySample (sampleId, rootNote);
+    if (sampleId != loadedSampleId)
+        loadFactorySample (sampleId, presetManager->getCurrentRootNote());
 
     inputGainSmoothed.setCurrentAndTargetValue (
         Decibels::decibelsToGain (apvts.getRawParameterValue (ParamID::INPUT_GAIN)->load()));
@@ -100,8 +99,16 @@ bool AviatorKeyzProcessor::loadFactorySample (const juce::String& sampleId, int 
 {
     {
         const juce::ScopedLock lock (sampleLoadLock);
-        if (sampleId == loadedSampleId && rootNote == factoryRootNote)
+        // Root is resolved from the sample (smpl > argument); identity is sampleId.
+        if (sampleId == loadedSampleId)
+        {
+            const int authoritativeRoot = sampleLibrary.getPrimaryRootNote();
+            factoryRootNote = authoritativeRoot;
+            presetManager->setCurrentRootNote (authoritativeRoot);
+            AviatorKeyz::syncRootNoteToApvts (apvts, authoritativeRoot);
+            juce::ignoreUnused (rootNote);
             return true;
+        }
     }
 
     if (sampleId.isEmpty())
@@ -165,7 +172,9 @@ bool AviatorKeyzProcessor::loadFactorySample (const juce::String& sampleId, int 
             sampleLibrary.publish();
             samplerEngine.setSampleSnapshot (sampleLibrary.getPublishedSnapshot());
 
-            factoryRootNote = juce::jlimit (0, 127, rootNote);
+            // smpl chunk may override the preset XML root — that resolved value is authoritative.
+            const int effectiveRoot = sampleLibrary.getPrimaryRootNote();
+            factoryRootNote = effectiveRoot;
             loadedSampleId = sampleId;
             factoryWaveformFrames = 0;
             factoryWaveformData = nullptr;
@@ -195,6 +204,12 @@ bool AviatorKeyzProcessor::loadFactorySample (const juce::String& sampleId, int 
 
     if (! loaded)
         return false;
+
+    // One authoritative root after load: sample region → PresetManager → APVTS.
+    const int authoritativeRoot = sampleLibrary.getPrimaryRootNote();
+    factoryRootNote = authoritativeRoot;
+    presetManager->setCurrentRootNote (authoritativeRoot);
+    AviatorKeyz::syncRootNoteToApvts (apvts, authoritativeRoot);
 
     const bool samplerValid = samplerEngine.validateCurrentState();
 
@@ -255,6 +270,7 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
                     return *bpm;
         return 120.0;
     }();
+    lastKnownHostBpm.store (hostBpm, std::memory_order_relaxed);
 
     EngineState baseState = PerformanceApvtsReader::readBaseState (perfParamCache);
     EngineState engineState = MacroMapper::applyMacros (baseState, macroControls, perfParamCache);
@@ -312,6 +328,10 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
     }
 
     performancePipeline.process (buffer, engineState, hostBpm);
+
+#if AVIATORKEYZ_DEBUG
+    PlaybackProbe::updatePeak (PlaybackProbe::texturePeak, PlaybackProbe::bufferPeak (buffer));
+#endif
 
     auto perfFx = performancePipeline.updatePerformanceFx (engineState);
     performancePipeline.applyPerformanceFx (buffer, perfFx);
@@ -397,6 +417,10 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
 #endif
     }
 
+#if AVIATORKEYZ_DEBUG
+    PlaybackProbe::updatePeak (PlaybackProbe::fxPeak, PlaybackProbe::bufferPeak (buffer));
+#endif
+
     const float p = juce::jlimit (-1.f, 1.f, pan);
     float panGainL = 0.f;
     float panGainR = 0.f;
@@ -448,6 +472,9 @@ void AviatorKeyzProcessor::getStateInformation (MemoryBlock& destData)
     state.setProperty ("presetName", presetManager->getCurrentPresetName(), nullptr);
     state.setProperty (AviatorKeyz::PresetKey::SAMPLE_ID, presetManager->getCurrentSampleId(), nullptr);
     state.setProperty (AviatorKeyz::PresetKey::ROOT_NOTE, presetManager->getCurrentRootNote(), nullptr);
+    state.setProperty (AviatorKeyz::PresetKey::SOUND_TYPE,
+                       AviatorKeyz::soundTypeToString (presetManager->getCurrentSoundType()), nullptr);
+    state.setProperty (AviatorKeyz::PresetKey::ORIGINAL_BPM, presetManager->getCurrentOriginalBpm(), nullptr);
     if (const auto xml = state.createXml())
         copyXmlToBinary (*xml, destData);
 }
@@ -471,9 +498,22 @@ void AviatorKeyzProcessor::setStateInformation (const void* data, int sizeInByte
                                              presetManager->getCurrentSampleId()).toString();
     const int rootNote  = static_cast<int> (state.getProperty (AviatorKeyz::PresetKey::ROOT_NOTE,
                                                                  presetManager->getCurrentRootNote()));
+    const auto soundType = AviatorKeyz::soundTypeFromString (
+        state.getProperty (AviatorKeyz::PresetKey::SOUND_TYPE,
+                           AviatorKeyz::soundTypeToString (presetManager->getCurrentSoundType())).toString());
+    const float originalBpm = static_cast<float> (state.getProperty (
+        AviatorKeyz::PresetKey::ORIGINAL_BPM, presetManager->getCurrentOriginalBpm()));
 
-    presetManager->setPresetIdentity (category, name, sampleId, rootNote);
+    presetManager->setPresetIdentity (category, name, sampleId, rootNote, soundType, originalBpm);
+    AviatorKeyz::applyPlaybackPolicyToApvts (apvts, category, soundType);
+    AviatorKeyz::syncOriginalBpmToApvts (apvts, originalBpm > 1.f ? originalBpm : 120.f);
+    AviatorKeyz::syncRootNoteToApvts (apvts, rootNote);
+
     loadFactorySample (sampleId, rootNote);
+
+    // Notify UI listeners (editor/cockpit) so selection matches restored identity.
+    if (presetManager->onPresetLoaded)
+        presetManager->onPresetLoaded (category, name, sampleId, presetManager->getCurrentRootNote());
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
