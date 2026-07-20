@@ -260,6 +260,7 @@ void AviationMainView::openPresetMenu()
     const auto current = pm.getCurrentPresetName();
 
     juce::PopupMenu menu;
+    menu.setLookAndFeel (&menuLookAndFeel);
     for (int i = 0; i < names.size(); ++i)
     {
         auto display = PresetDisplayUtils::shortenDisplayName (names[i]);
@@ -287,6 +288,7 @@ void AviationMainView::openPresetMenu()
 void AviationMainView::openAbMenu()
 {
     juce::PopupMenu menu;
+    menu.setLookAndFeel (&menuLookAndFeel);
     menu.addItem (1, "Slot A", true, currentAbSlot == 0);
     menu.addItem (2, "Slot B", true, currentAbSlot == 1);
     menu.addSeparator();

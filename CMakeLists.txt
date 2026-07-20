@@ -142,6 +142,7 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
             # GUI — photo-anchored cockpit
             # Aviation MAIN interface
             Source/GUI/Aviation/MacroKnob.cpp
+            Source/GUI/Aviation/MenuLookAndFeel.cpp
             Source/GUI/Aviation/MiniControls.cpp
             Source/GUI/Aviation/TopHeader.cpp
             Source/GUI/Aviation/PresetHeader.cpp

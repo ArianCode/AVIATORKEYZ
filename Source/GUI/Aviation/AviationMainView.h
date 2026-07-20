@@ -7,6 +7,7 @@
 #include "FilterPanel.h"
 #include "LayerMixPanel.h"
 #include "MacroDeck.h"
+#include "MenuLookAndFeel.h"
 #include "PresetHeader.h"
 #include "SourceDropdown.h"
 #include "StatusBar.h"
@@ -81,6 +82,8 @@ private:
 
     std::unique_ptr<PresetLibraryOverlay> libraryOverlay;
     std::unique_ptr<AboutOverlay> aboutOverlay;
+
+    MenuLookAndFeel menuLookAndFeel;
 
     PresetLoadedHandler previousPresetLoadedHandler;
 
