@@ -1,5 +1,5 @@
 #include "EnvelopePanel.h"
-#include "JetsonicTheme.h"
+#include "AviationTheme.h"
 #include "../../State/StateSchema.h"
 
 namespace
@@ -49,15 +49,15 @@ void EnvelopePanel::resized()
 void EnvelopePanel::paint (juce::Graphics& g)
 {
     auto r = getLocalBounds().toFloat();
-    Jetsonic::fillGlassScreen (g, r, 6.0f, 0.30f);
+    Aviation::fillGlassScreen (g, r, 6.0f, 0.30f);
 
-    g.setFont (Jetsonic::label (9.5f, 0.12f));
-    g.setColour (Jetsonic::gold().withAlpha (0.92f));
+    g.setFont (Aviation::label (9.5f, 0.12f));
+    g.setColour (Aviation::gold().withAlpha (0.92f));
     g.drawText ("ENVELOPE", r.toNearestInt().removeFromTop (18), juce::Justification::centred);
 
     auto graph = r.reduced (10.0f).withTrimmedTop (16.0f).withTrimmedBottom (46.0f);
 
-    g.setColour (Jetsonic::cyan().withAlpha (0.12f));
+    g.setColour (Aviation::cyan().withAlpha (0.12f));
     g.drawLine (graph.getX(), graph.getCentreY(), graph.getRight(), graph.getCentreY(), 0.5f);
 
     // ADSR shape from normalized stage values (display proportions)
@@ -85,8 +85,8 @@ void EnvelopePanel::paint (juce::Graphics& g)
     env.quadraticTo (x + graph.getWidth() * wR * 0.4f, graph.getBottom() - 2.0f,
                      juce::jmin (x + graph.getWidth() * wR, graph.getRight()), graph.getBottom());
 
-    g.setColour (Jetsonic::cyan().withAlpha (0.25f));
+    g.setColour (Aviation::cyan().withAlpha (0.25f));
     g.strokePath (env, juce::PathStrokeType (4.0f, juce::PathStrokeType::curved));
-    g.setColour (Jetsonic::cyanBright());
+    g.setColour (Aviation::cyanBright());
     g.strokePath (env, juce::PathStrokeType (1.6f, juce::PathStrokeType::curved));
 }

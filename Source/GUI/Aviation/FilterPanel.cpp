@@ -1,5 +1,5 @@
 #include "FilterPanel.h"
-#include "JetsonicTheme.h"
+#include "AviationTheme.h"
 #include "../../State/StateSchema.h"
 
 namespace
@@ -91,17 +91,17 @@ void FilterPanel::mouseUp (const juce::MouseEvent&)
 void FilterPanel::paint (juce::Graphics& g)
 {
     auto r = getLocalBounds().toFloat();
-    Jetsonic::fillGlassScreen (g, r, 6.0f, 0.30f);
+    Aviation::fillGlassScreen (g, r, 6.0f, 0.30f);
 
     const bool enabled = paramValue (apvtsRef, P::FILTER_ENABLED, 0.0f) > 0.5f;
 
-    g.setFont (Jetsonic::label (9.5f, 0.12f));
-    g.setColour (enabled ? Jetsonic::gold() : Jetsonic::gold().withAlpha (0.5f));
+    g.setFont (Aviation::label (9.5f, 0.12f));
+    g.setColour (enabled ? Aviation::gold() : Aviation::gold().withAlpha (0.5f));
     g.drawText ("FILTER", r.toNearestInt().removeFromTop (18), juce::Justification::centred);
 
     const auto graph = graphArea();
 
-    g.setColour (Jetsonic::cyan().withAlpha (0.12f));
+    g.setColour (Aviation::cyan().withAlpha (0.12f));
     for (int i = 1; i < 4; ++i)
     {
         const float fx = graph.getX() + graph.getWidth() * (float) i / 4.0f;
@@ -149,8 +149,8 @@ void FilterPanel::paint (juce::Graphics& g)
     }
 
     const float alpha = enabled ? 1.0f : 0.35f;
-    g.setColour (Jetsonic::cyan().withAlpha (0.25f * alpha));
+    g.setColour (Aviation::cyan().withAlpha (0.25f * alpha));
     g.strokePath (curve, juce::PathStrokeType (4.0f, juce::PathStrokeType::curved));
-    g.setColour (Jetsonic::cyanBright().withAlpha (alpha));
+    g.setColour (Aviation::cyanBright().withAlpha (alpha));
     g.strokePath (curve, juce::PathStrokeType (1.6f, juce::PathStrokeType::curved));
 }

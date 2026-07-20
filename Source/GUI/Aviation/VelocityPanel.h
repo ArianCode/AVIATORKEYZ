@@ -20,7 +20,7 @@ public:
 
 private:
     juce::AudioProcessorValueTreeState& apvtsRef;
-    JetsonicMini::FineDragSlider slider { juce::Slider::RotaryVerticalDrag, juce::Slider::NoTextBox };
+    AviationMini::FineDragSlider slider { juce::Slider::RotaryVerticalDrag, juce::Slider::NoTextBox };
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (VelocityPanel)

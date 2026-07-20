@@ -1,5 +1,5 @@
 #include "CockpitBackground.h"
-#include "JetsonicTheme.h"
+#include "AviationTheme.h"
 
 #include <BinaryData.h>
 
@@ -43,7 +43,7 @@ CockpitBackground::CockpitBackground()
 void CockpitBackground::paint (juce::Graphics& g)
 {
     auto r = getLocalBounds().toFloat();
-    g.fillAll (Jetsonic::bgBlack());
+    g.fillAll (Aviation::bgBlack());
 
     if (photo.isValid())
     {

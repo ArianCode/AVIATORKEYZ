@@ -1,5 +1,5 @@
 #include "MacroKnob.h"
-#include "JetsonicTheme.h"
+#include "AviationTheme.h"
 
 namespace
 {
@@ -99,7 +99,7 @@ void MacroKnob::paint (juce::Graphics& g)
         if (lit)
         {
             // soft bloom
-            g.setColour (Jetsonic::cyan().withAlpha (0.20f));
+            g.setColour (Aviation::cyan().withAlpha (0.20f));
             g.fillEllipse (pos.x - dotR * 2.4f, pos.y - dotR * 2.4f, dotR * 4.8f, dotR * 4.8f);
             g.setColour (juce::Colour (0xffcfeeff).withAlpha (hover ? 1.0f : 0.92f));
         }
@@ -183,22 +183,22 @@ void MacroKnob::paint (juce::Graphics& g)
     // focus ring (keyboard / host focus)
     if (hasKeyboardFocus (true))
     {
-        g.setColour (Jetsonic::cyan().withAlpha (0.5f));
+        g.setColour (Aviation::cyan().withAlpha (0.5f));
         g.drawEllipse (cx - housingR - 4.0f, cy - housingR - 4.0f,
                        (housingR + 4.0f) * 2.0f, (housingR + 4.0f) * 2.0f, 1.0f);
     }
 
     // --- Labels ------------------------------------------------------------------
     const int textTop = (int) (cy + housingR) + 12;
-    g.setFont (Jetsonic::label (13.0f, 0.10f));
-    g.setColour (Jetsonic::goldBright());
+    g.setFont (Aviation::label (13.0f, 0.10f));
+    g.setColour (Aviation::goldBright());
     g.drawText (titleText, 0, textTop, getWidth(), 15, juce::Justification::centred);
 
-    g.setFont (Jetsonic::value (13.0f));
+    g.setFont (Aviation::value (13.0f));
     g.setColour (juce::Colour (0xfff2f5f7));
     g.drawText (valueText(), 0, textTop + 17, getWidth(), 15, juce::Justification::centred);
 
-    g.setFont (Jetsonic::body (11.0f));
-    g.setColour (Jetsonic::cyan().withAlpha (0.75f));
+    g.setFont (Aviation::body (11.0f));
+    g.setColour (Aviation::cyan().withAlpha (0.75f));
     g.drawText (subText, 0, textTop + 34, getWidth(), 13, juce::Justification::centred);
 }

@@ -1,6 +1,6 @@
 #include "StatusBar.h"
-#include "JetsonicIcons.h"
-#include "JetsonicTheme.h"
+#include "AviationIcons.h"
+#include "AviationTheme.h"
 
 StatusBar::StatusBar()
 {
@@ -72,7 +72,7 @@ void StatusBar::paint (juce::Graphics& g)
                                juce::Colour (0xff04090f), r.getX(), r.getBottom(), false);
     g.setGradientFill (grad);
     g.fillPath (panel);
-    g.setColour (Jetsonic::goldDeep().withAlpha (0.30f));
+    g.setColour (Aviation::goldDeep().withAlpha (0.30f));
     g.strokePath (panel, juce::PathStrokeType (1.0f));
 
     const int cy = getHeight() / 2;
@@ -80,14 +80,14 @@ void StatusBar::paint (juce::Graphics& g)
     // --- Left cluster --------------------------------------------------------
     int x = 22;
     const bool active = lastActive;
-    g.setColour ((active ? Jetsonic::activeGreen() : Jetsonic::textDim()).withAlpha (0.35f));
+    g.setColour ((active ? Aviation::activeGreen() : Aviation::textDim()).withAlpha (0.35f));
     g.fillEllipse ((float) x - 3.0f, (float) cy - 7.0f, 14.0f, 14.0f);
-    g.setColour (active ? Jetsonic::activeGreen() : Jetsonic::textDim());
+    g.setColour (active ? Aviation::activeGreen() : Aviation::textDim());
     g.fillEllipse ((float) x, (float) cy - 4.0f, 8.0f, 8.0f);
     x += 18;
 
-    g.setFont (Jetsonic::label (11.0f, 0.12f));
-    g.setColour (Jetsonic::textPrimary().withAlpha (0.9f));
+    g.setFont (Aviation::label (11.0f, 0.12f));
+    g.setColour (Aviation::textPrimary().withAlpha (0.9f));
     g.drawText ("ACTIVE", x, cy - 9, 60, 18, juce::Justification::centredLeft);
     x += 70;
 
@@ -97,7 +97,7 @@ void StatusBar::paint (juce::Graphics& g)
         g.fillRect (dx, cy - 8, 1, 16);
     };
 
-    g.setFont (Jetsonic::body (11.5f));
+    g.setFont (Aviation::body (11.5f));
 
     divider (x); x += 14;
     const auto srText = [this]() -> juce::String
@@ -110,49 +110,49 @@ void StatusBar::paint (juce::Graphics& g)
             return juce::String (juce::roundToInt (kHz)) + " kHz";
         return juce::String (kHz, 1) + " kHz";
     }();
-    g.setColour (Jetsonic::textSecondary());
+    g.setColour (Aviation::textSecondary());
     g.drawText (srText, x, cy - 9, 68, 18, juce::Justification::centredLeft);
     x += 74;
 
     divider (x); x += 14;
-    g.setColour (Jetsonic::textSecondary());
+    g.setColour (Aviation::textSecondary());
     g.drawText ("24 bit", x, cy - 9, 50, 18, juce::Justification::centredLeft);
     x += 56;
 
     divider (x); x += 14;
     const auto bpmText = lastBpm > 0.0 ? juce::String (juce::roundToInt (lastBpm)) + " BPM"
                                        : juce::String ("- BPM");
-    g.setColour (Jetsonic::textSecondary());
+    g.setColour (Aviation::textSecondary());
     g.drawText (bpmText, x, cy - 9, 80, 18, juce::Justification::centredLeft);
 
     // --- Center brand ---------------------------------------------------------
-    g.setFont (Jetsonic::body (12.5f));
-    g.setColour (Jetsonic::textSecondary());
+    g.setFont (Aviation::body (12.5f));
+    g.setColour (Aviation::textSecondary());
     g.drawText ("FlybyLoops", getLocalBounds(), juce::Justification::centred);
 
     // --- Right cluster ----------------------------------------------------------
-    g.setFont (Jetsonic::label (11.0f, 0.12f));
-    g.setColour (Jetsonic::textSecondary());
+    g.setFont (Aviation::label (11.0f, 0.12f));
+    g.setColour (Aviation::textSecondary());
     g.drawText ("PRESETS", getWidth() - 240, cy - 9, 80, 18, juce::Justification::centredLeft);
 
     {
         const auto ab = abArea().toFloat();
         if (abHovered)
         {
-            g.setColour (Jetsonic::cyan().withAlpha (0.12f));
+            g.setColour (Aviation::cyan().withAlpha (0.12f));
             g.fillRoundedRectangle (ab, 5.0f);
         }
-        g.setColour (Jetsonic::textSecondary().withAlpha (abHovered ? 1.0f : 0.7f));
+        g.setColour (Aviation::textSecondary().withAlpha (abHovered ? 1.0f : 0.7f));
         g.drawRoundedRectangle (ab, 5.0f, 1.0f);
-        g.setFont (Jetsonic::label (11.0f, 0.10f));
-        g.setColour (Jetsonic::textPrimary());
+        g.setFont (Aviation::label (11.0f, 0.10f));
+        g.setColour (Aviation::textPrimary());
         g.drawText (abLabel, abArea().withTrimmedRight (18), juce::Justification::centred);
-        JetsonicIcons::stroke (g, JetsonicIcons::chevronDown(),
+        AviationIcons::stroke (g, AviationIcons::chevronDown(),
                                { ab.getRight() - 18.0f, ab.getCentreY() - 4.0f, 10.0f, 9.0f },
-                               Jetsonic::textPrimary().withAlpha (0.85f), 1.4f);
+                               Aviation::textPrimary().withAlpha (0.85f), 1.4f);
     }
 
-    g.setFont (Jetsonic::body (11.5f));
-    g.setColour (Jetsonic::textSecondary());
+    g.setFont (Aviation::body (11.5f));
+    g.setColour (Aviation::textSecondary());
     g.drawText (versionText, getWidth() - 76, cy - 9, 60, 18, juce::Justification::centredRight);
 }

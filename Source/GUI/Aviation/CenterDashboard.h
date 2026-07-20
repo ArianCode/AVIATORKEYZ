@@ -52,7 +52,7 @@ private:
     std::unique_ptr<LimiterCell> limiterCell;
     std::unique_ptr<MiniParam> lofiCell, stereoCell, dynamicsCell, widthCell, humanizeCell;
 
-    JetsonicMini::FineDragSlider tuneSlider { juce::Slider::RotaryVerticalDrag, juce::Slider::NoTextBox };
+    AviationMini::FineDragSlider tuneSlider { juce::Slider::RotaryVerticalDrag, juce::Slider::NoTextBox };
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> tuneAttachment;
 
     float sweepPhase { 0.0f };

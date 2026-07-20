@@ -1,6 +1,6 @@
 #include "PresetBrowser.h"
-#include "JetsonicIcons.h"
-#include "JetsonicTheme.h"
+#include "AviationIcons.h"
+#include "AviationTheme.h"
 
 namespace
 {
@@ -25,7 +25,7 @@ public:
             ? juce::Rectangle<float> ((float) x + 1.0f, (float) thumbStart, (float) w - 2.0f, (float) thumbSize)
             : juce::Rectangle<float> ((float) thumbStart, (float) y + 1.0f, (float) thumbSize, (float) h - 2.0f);
 
-        g.setColour (Jetsonic::bronze().withAlpha (mouseDown ? 1.0f : (mouseOver ? 0.85f : 0.65f)));
+        g.setColour (Aviation::bronze().withAlpha (mouseDown ? 1.0f : (mouseOver ? 0.85f : 0.65f)));
         g.fillRoundedRectangle (thumb, 2.5f);
     }
 };
@@ -35,13 +35,13 @@ PresetBrowserPanel::PresetBrowserPanel()
 {
     searchBox.setMultiLine (false);
     searchBox.setReturnKeyStartsNewLine (false);
-    searchBox.setFont (Jetsonic::body (13.0f));
+    searchBox.setFont (Aviation::body (13.0f));
     searchBox.setColour (juce::TextEditor::backgroundColourId, juce::Colour (0xff050c13));
-    searchBox.setColour (juce::TextEditor::textColourId, Jetsonic::textPrimary());
+    searchBox.setColour (juce::TextEditor::textColourId, Aviation::textPrimary());
     searchBox.setColour (juce::TextEditor::outlineColourId, juce::Colour (0xff1a2a38));
-    searchBox.setColour (juce::TextEditor::focusedOutlineColourId, Jetsonic::cyan().withAlpha (0.55f));
-    searchBox.setColour (juce::CaretComponent::caretColourId, Jetsonic::cyan());
-    searchBox.setTextToShowWhenEmpty ("Search presets...", Jetsonic::textSecondary().withAlpha (0.8f));
+    searchBox.setColour (juce::TextEditor::focusedOutlineColourId, Aviation::cyan().withAlpha (0.55f));
+    searchBox.setColour (juce::CaretComponent::caretColourId, Aviation::cyan());
+    searchBox.setTextToShowWhenEmpty ("Search presets...", Aviation::textSecondary().withAlpha (0.8f));
     searchBox.setIndents (10, 6);
     searchBox.onTextChange = [this] { applyFilter(); };
     addAndMakeVisible (searchBox);
@@ -124,16 +124,16 @@ void PresetBrowserPanel::paintListBoxItem (int row, juce::Graphics& g, int width
         g.setColour (juce::Colour (0xff0d2233));
         g.fillRect (0, 0, width, height);
         // cyan indicator rail on the left
-        g.setColour (Jetsonic::cyan());
+        g.setColour (Aviation::cyan());
         g.fillRect (0, 2, 3, height - 4);
-        g.setColour (Jetsonic::cyan().withAlpha (0.25f));
+        g.setColour (Aviation::cyan().withAlpha (0.25f));
         g.fillRect (3, 2, 2, height - 4);
     }
 
     const bool fav = isFavourited != nullptr && isFavourited (name);
 
-    g.setFont (Jetsonic::body (12.5f));
-    g.setColour (selected ? Jetsonic::cyanBright() : Jetsonic::textSecondary().brighter (0.25f));
+    g.setFont (Aviation::body (12.5f));
+    g.setColour (selected ? Aviation::cyanBright() : Aviation::textSecondary().brighter (0.25f));
 
     const juce::Rectangle<int> textArea (12, 0, width - kStarZoneW - 12, height);
     const auto width_f = [&g] (const juce::String& s)
@@ -151,9 +151,9 @@ void PresetBrowserPanel::paintListBoxItem (int row, juce::Graphics& g, int width
     {
         const juce::Rectangle<float> starArea ((float) width - 26.0f, (float) height * 0.5f - 8.0f, 16.0f, 16.0f);
         if (fav)
-            JetsonicIcons::fill (g, JetsonicIcons::star(), starArea, Jetsonic::goldBright());
+            AviationIcons::fill (g, AviationIcons::star(), starArea, Aviation::goldBright());
         else
-            JetsonicIcons::stroke (g, JetsonicIcons::star(), starArea, Jetsonic::gold().withAlpha (0.8f), 1.1f);
+            AviationIcons::stroke (g, AviationIcons::star(), starArea, Aviation::gold().withAlpha (0.8f), 1.1f);
     }
 
     // hairline row separator
@@ -186,14 +186,14 @@ void PresetBrowserPanel::paint (juce::Graphics& g)
     auto r = getLocalBounds().toFloat();
 
     // rounded dark metallic panel
-    Jetsonic::fillMetalPanel (g, r, 9.0f, juce::Colour (0xff0a141e), juce::Colour (0xff050b12));
+    Aviation::fillMetalPanel (g, r, 9.0f, juce::Colour (0xff0a141e), juce::Colour (0xff050b12));
     g.setColour (juce::Colour (0xff1b2c3c).withAlpha (0.8f));
     g.drawRoundedRectangle (r.reduced (0.5f), 9.0f, 1.0f);
-    Jetsonic::topSpecular (g, r, 0.06f);
+    Aviation::topSpecular (g, r, 0.06f);
 
     // header: CATEGORY / PRESETS
-    g.setFont (Jetsonic::label (12.5f, 0.14f));
-    g.setColour (Jetsonic::textPrimary().withAlpha (0.92f));
+    g.setFont (Aviation::label (12.5f, 0.14f));
+    g.setColour (Aviation::textPrimary().withAlpha (0.92f));
     g.drawText (category.toUpperCase() + " / PRESETS", 14, 6, getWidth() - 28, kHeaderH - 8,
                 juce::Justification::centredLeft);
 
@@ -203,7 +203,7 @@ void PresetBrowserPanel::paintOverChildren (juce::Graphics& g)
 {
     // magnifier icon inside the search box (children paint before this)
     const auto sb = searchBox.getBounds().toFloat();
-    JetsonicIcons::fill (g, JetsonicIcons::magnifier(),
+    AviationIcons::fill (g, AviationIcons::magnifier(),
                          { sb.getRight() - 24.0f, sb.getCentreY() - 7.0f, 14.0f, 14.0f },
-                         Jetsonic::textSecondary());
+                         Aviation::textSecondary());
 }

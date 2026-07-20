@@ -1,6 +1,6 @@
-#include "JetsonicMainView.h"
-#include "JetsonicIcons.h"
-#include "JetsonicTheme.h"
+#include "AviationMainView.h"
+#include "AviationIcons.h"
+#include "AviationTheme.h"
 #include "../../PluginProcessor.h"
 #include "../../State/FactoryResources.h"
 #include "../../State/StateSchema.h"
@@ -56,7 +56,7 @@ juce::String prettySourceName (const juce::String& sampleId)
 }
 } // namespace
 
-JetsonicMainView::JetsonicMainView (AviatorKeyzProcessor& p)
+AviationMainView::AviationMainView (AviatorKeyzProcessor& p)
     : processor (p)
 {
     setOpaque (true);
@@ -153,7 +153,7 @@ JetsonicMainView::JetsonicMainView (AviatorKeyzProcessor& p)
                                                                               int rootNote)
     {
         // Break out of ListBox/mouse stack before heavy work and UI refresh.
-        juce::Timer::callAfterDelay (0, [safe = juce::Component::SafePointer<JetsonicMainView> (this),
+        juce::Timer::callAfterDelay (0, [safe = juce::Component::SafePointer<AviationMainView> (this),
                                          loadSampleHook, category, name, sampleId, rootNote]
         {
             if (safe == nullptr)
@@ -169,11 +169,11 @@ JetsonicMainView::JetsonicMainView (AviatorKeyzProcessor& p)
     categoryTabs.setCategories (pm.getAllCategories());
 
     // Children exist now — safe to trigger the initial resized() pass.
-    setSize (Jetsonic::kDesignW, Jetsonic::kDesignH);
+    setSize (Aviation::kDesignW, Aviation::kDesignH);
     refreshPresetUI();
 }
 
-JetsonicMainView::~JetsonicMainView()
+AviationMainView::~AviationMainView()
 {
     auto& pm = processor.getPresetManager();
     if (pm.onPresetLoaded)
@@ -183,14 +183,14 @@ JetsonicMainView::~JetsonicMainView()
 // -----------------------------------------------------------------------------
 //  Favorites
 // -----------------------------------------------------------------------------
-juce::File JetsonicMainView::favouritesFile() const
+juce::File AviationMainView::favouritesFile() const
 {
     return juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
         .getChildFile ("AviatorKeyz")
         .getChildFile ("favorites.txt");
 }
 
-void JetsonicMainView::loadFavourites()
+void AviationMainView::loadFavourites()
 {
     favourites.clear();
     juce::StringArray lines;
@@ -200,7 +200,7 @@ void JetsonicMainView::loadFavourites()
             favourites.insert (line.toStdString());
 }
 
-void JetsonicMainView::saveFavourites() const
+void AviationMainView::saveFavourites() const
 {
     auto file = favouritesFile();
     file.getParentDirectory().createDirectory();
@@ -210,17 +210,17 @@ void JetsonicMainView::saveFavourites() const
     file.replaceWithText (content);
 }
 
-juce::String JetsonicMainView::favouriteKey (const juce::String& cat, const juce::String& name) const
+juce::String AviationMainView::favouriteKey (const juce::String& cat, const juce::String& name) const
 {
     return cat + "|" + name;
 }
 
-bool JetsonicMainView::isFavourited (const juce::String& cat, const juce::String& name) const
+bool AviationMainView::isFavourited (const juce::String& cat, const juce::String& name) const
 {
     return favourites.count (favouriteKey (cat, name).toStdString()) > 0;
 }
 
-void JetsonicMainView::setFavourited (const juce::String& cat, const juce::String& name, bool fav)
+void AviationMainView::setFavourited (const juce::String& cat, const juce::String& name, bool fav)
 {
     const auto key = favouriteKey (cat, name).toStdString();
     if (fav)
@@ -238,7 +238,7 @@ void JetsonicMainView::setFavourited (const juce::String& cat, const juce::Strin
 // -----------------------------------------------------------------------------
 //  Preset flow
 // -----------------------------------------------------------------------------
-void JetsonicMainView::selectCategory (const juce::String& category)
+void AviationMainView::selectCategory (const juce::String& category)
 {
     auto& pm = processor.getPresetManager();
     categoryTabs.setActiveCategory (category);
@@ -255,7 +255,7 @@ void JetsonicMainView::selectCategory (const juce::String& category)
         refreshPresetUI();
 }
 
-void JetsonicMainView::refreshPresetUI()
+void AviationMainView::refreshPresetUI()
 {
     auto& pm = processor.getPresetManager();
     const auto category = pm.getCurrentCategory();
@@ -273,10 +273,10 @@ void JetsonicMainView::refreshPresetUI()
 
     sourceDropdown.setSourceText (prettySourceName (pm.getCurrentSampleId()));
 
-    repaint (Jetsonic::presetCountBounds());
+    repaint (Aviation::presetCountBounds());
 }
 
-void JetsonicMainView::openSourceMenu()
+void AviationMainView::openSourceMenu()
 {
     auto& pm = processor.getPresetManager();
     const auto category = pm.getCurrentCategory();
@@ -336,7 +336,7 @@ void JetsonicMainView::openSourceMenu()
 // -----------------------------------------------------------------------------
 //  A/B compare
 // -----------------------------------------------------------------------------
-void JetsonicMainView::openAbMenu()
+void AviationMainView::openAbMenu()
 {
     juce::PopupMenu menu;
     menu.addItem (1, "Slot A", true, currentAbSlot == 0);
@@ -374,18 +374,18 @@ void JetsonicMainView::openAbMenu()
 // -----------------------------------------------------------------------------
 //  Layout / paint
 // -----------------------------------------------------------------------------
-void JetsonicMainView::resized()
+void AviationMainView::resized()
 {
-    cockpitBackground.setBounds (Jetsonic::cockpitBounds());
-    topHeader.setBounds (Jetsonic::topHeaderBounds());
-    presetHeader.setBounds (Jetsonic::presetHeaderBounds());
-    categoryTabs.setBounds (Jetsonic::categoryTabsBounds());
-    presetBrowser.setBounds (Jetsonic::browserBounds());
-    sourceDropdown.setBounds (Jetsonic::sourceDropdownBounds());
-    macroDeck->setBounds (Jetsonic::macroDeckBounds());
-    statusBar.setBounds (Jetsonic::statusBarBounds());
+    cockpitBackground.setBounds (Aviation::cockpitBounds());
+    topHeader.setBounds (Aviation::topHeaderBounds());
+    presetHeader.setBounds (Aviation::presetHeaderBounds());
+    categoryTabs.setBounds (Aviation::categoryTabsBounds());
+    presetBrowser.setBounds (Aviation::browserBounds());
+    sourceDropdown.setBounds (Aviation::sourceDropdownBounds());
+    macroDeck->setBounds (Aviation::macroDeckBounds());
+    statusBar.setBounds (Aviation::statusBarBounds());
 
-    const auto cockpit = Jetsonic::cockpitBounds();
+    const auto cockpit = Aviation::cockpitBounds();
 
     // center console
     dashboard->setBounds (cockpit.getCentreX() - 305, cockpit.getY() + 222, 610, 250);
@@ -404,32 +404,32 @@ void JetsonicMainView::resized()
         aboutOverlay->setBounds (getLocalBounds());
 }
 
-void JetsonicMainView::paint (juce::Graphics& g)
+void AviationMainView::paint (juce::Graphics& g)
 {
     // background behind all panels
-    juce::ColourGradient grad (Jetsonic::bgDeep(), 0.0f, 0.0f,
-                               Jetsonic::bgBlack(), 0.0f, (float) getHeight(), false);
+    juce::ColourGradient grad (Aviation::bgDeep(), 0.0f, 0.0f,
+                               Aviation::bgBlack(), 0.0f, (float) getHeight(), false);
     g.setGradientFill (grad);
     g.fillAll();
 }
 
-void JetsonicMainView::paintOverChildren (juce::Graphics& g)
+void AviationMainView::paintOverChildren (juce::Graphics& g)
 {
     // preset count strip — floats over the macro deck's top-left corner
     {
-        auto strip = Jetsonic::presetCountBounds().toFloat();
-        Jetsonic::fillMetalPanel (g, strip, 6.0f, juce::Colour (0xff0b151f), juce::Colour (0xff060d14));
-        g.setColour (Jetsonic::goldDeep().withAlpha (0.35f));
+        auto strip = Aviation::presetCountBounds().toFloat();
+        Aviation::fillMetalPanel (g, strip, 6.0f, juce::Colour (0xff0b151f), juce::Colour (0xff060d14));
+        g.setColour (Aviation::goldDeep().withAlpha (0.35f));
         g.drawRoundedRectangle (strip.reduced (0.5f), 6.0f, 1.0f);
 
         const int total = processor.getPresetManager().getTotalPresetCount();
-        g.setFont (Jetsonic::label (11.0f, 0.12f));
-        g.setColour (Jetsonic::textPrimary().withAlpha (0.9f));
+        g.setFont (Aviation::label (11.0f, 0.12f));
+        g.setColour (Aviation::textPrimary().withAlpha (0.9f));
         g.drawText (juce::String (total) + " PRESETS",
                     strip.toNearestInt().withTrimmedLeft (14), juce::Justification::centredLeft);
 
-        JetsonicIcons::fill (g, JetsonicIcons::star(),
+        AviationIcons::fill (g, AviationIcons::star(),
                              { strip.getRight() - 26.0f, strip.getCentreY() - 7.0f, 14.0f, 14.0f },
-                             Jetsonic::goldBright());
+                             Aviation::goldBright());
     }
 }

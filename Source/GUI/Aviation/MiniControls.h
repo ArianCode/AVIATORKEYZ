@@ -14,7 +14,7 @@
 //  fine dragging with Cmd/Ctrl/Shift.
 // =============================================================================
 
-namespace JetsonicMini
+namespace AviationMini
 {
     /** Slider subclass with modifier-based fine dragging. */
     class FineDragSlider : public juce::Slider
@@ -46,7 +46,7 @@ namespace JetsonicMini
 
     juce::String parameterText (juce::AudioProcessorValueTreeState& apvts, const juce::String& paramId);
     float parameterNorm (juce::AudioProcessorValueTreeState& apvts, const juce::String& paramId);
-} // namespace JetsonicMini
+} // namespace AviationMini
 
 // -----------------------------------------------------------------------------
 class MiniRotary : public juce::Component
@@ -64,7 +64,7 @@ private:
     juce::AudioProcessorValueTreeState& apvtsRef;
     juce::String paramId, labelText;
     bool showValue;
-    JetsonicMini::FineDragSlider slider { juce::Slider::RotaryVerticalDrag, juce::Slider::NoTextBox };
+    AviationMini::FineDragSlider slider { juce::Slider::RotaryVerticalDrag, juce::Slider::NoTextBox };
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MiniRotary)
@@ -86,7 +86,7 @@ private:
     juce::AudioProcessorValueTreeState& apvtsRef;
     juce::String paramId, labelText;
     bool emphasize;
-    JetsonicMini::FineDragSlider slider { juce::Slider::RotaryVerticalDrag, juce::Slider::NoTextBox };
+    AviationMini::FineDragSlider slider { juce::Slider::RotaryVerticalDrag, juce::Slider::NoTextBox };
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MiniParam)
@@ -107,7 +107,7 @@ public:
 private:
     juce::AudioProcessorValueTreeState& apvtsRef;
     juce::String paramId, labelText;
-    JetsonicMini::FineDragSlider slider { juce::Slider::LinearVertical, juce::Slider::NoTextBox };
+    AviationMini::FineDragSlider slider { juce::Slider::LinearVertical, juce::Slider::NoTextBox };
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachment;
 
     class FaderLookAndFeel;

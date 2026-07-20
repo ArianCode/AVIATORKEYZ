@@ -8,7 +8,7 @@
 
 // =============================================================================
 //  MacroDeck — bottom macro control deck: black leather/metal panel, fine
-//  gold dividers, eight heavy rotary macros around the Jetsonic brand block.
+//  gold dividers, eight heavy rotary macros around the Aviation brand block.
 //
 //  THROTTLE/Glide  ENGINE/Gain  WINGS/Brightness  ALTITUDE/Reverb  [brand]
 //  CABIN/Tone  TURBULENCE/Filter  ATTACK  RELEASE

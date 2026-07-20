@@ -1,6 +1,6 @@
 #include "CenterDashboard.h"
-#include "JetsonicIcons.h"
-#include "JetsonicTheme.h"
+#include "AviationIcons.h"
+#include "AviationTheme.h"
 #include "../../State/StateSchema.h"
 
 namespace
@@ -49,8 +49,8 @@ public:
         auto r = getLocalBounds().toFloat();
         const bool on = button.getToggleState();
 
-        g.setFont (Jetsonic::label (9.5f, 0.14f));
-        g.setColour (Jetsonic::gold().withAlpha (0.92f));
+        g.setFont (Aviation::label (9.5f, 0.14f));
+        g.setColour (Aviation::gold().withAlpha (0.92f));
         g.drawText ("LIMITER", r.toNearestInt().removeFromTop (14), juce::Justification::centred);
 
         // output dial
@@ -69,17 +69,17 @@ public:
         {
             juce::Path arc;
             arc.addCentredArc (cx, cy, radius, radius, 0.0f, a0, a1 - 0.12f, true);
-            g.setColour (Jetsonic::cyan().withAlpha (0.9f));
+            g.setColour (Aviation::cyan().withAlpha (0.9f));
             g.strokePath (arc, juce::PathStrokeType (2.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         }
 
-        g.setFont (Jetsonic::value (12.5f));
-        g.setColour (on ? juce::Colours::white : Jetsonic::textSecondary());
+        g.setFont (Aviation::value (12.5f));
+        g.setColour (on ? juce::Colours::white : Aviation::textSecondary());
         g.drawText (on ? juce::String ("-0.5 dB") : juce::String ("OFF"),
                     (int) (cx - 40.0f), (int) (cy - 8.0f), 80, 16, juce::Justification::centred);
 
-        g.setFont (Jetsonic::label (8.5f, 0.12f));
-        g.setColour (Jetsonic::textSecondary());
+        g.setFont (Aviation::label (8.5f, 0.12f));
+        g.setColour (Aviation::textSecondary());
         g.drawText ("OUTPUT", r.toNearestInt().removeFromBottom (12), juce::Justification::centred);
     }
 
@@ -112,7 +112,7 @@ CenterDashboard::CenterDashboard (juce::AudioProcessorValueTreeState& apvts)
     tuneSlider.setAlpha (0.0f);
     tuneSlider.setWantsKeyboardFocus (false);
     addAndMakeVisible (tuneSlider);
-    JetsonicMini::configureAttachment (apvtsRef, P::SRC_TUNE, tuneSlider, tuneAttachment);
+    AviationMini::configureAttachment (apvtsRef, P::SRC_TUNE, tuneSlider, tuneAttachment);
     tuneSlider.onValueChange = [this] { repaint (miniDisplayArea()); };
 
     startTimerHz (15);
@@ -123,7 +123,7 @@ CenterDashboard::~CenterDashboard() = default;
 void CenterDashboard::timerCallback()
 {
     // Radar sweep speed follows LFO1 rate so the instruments track real state.
-    const float rateNorm = JetsonicMini::parameterNorm (apvtsRef, AviatorKeyz::ParamID::LFO1_RATE);
+    const float rateNorm = AviationMini::parameterNorm (apvtsRef, AviatorKeyz::ParamID::LFO1_RATE);
     sweepPhase += (0.010f + rateNorm * 0.05f);
     if (sweepPhase > 1.0f)
         sweepPhase -= 1.0f;
@@ -194,7 +194,7 @@ void CenterDashboard::resized()
 void CenterDashboard::paintMiniDisplay (juce::Graphics& g)
 {
     auto strip = miniDisplayArea().toFloat();
-    Jetsonic::fillGlassScreen (g, strip, 4.0f, 0.22f);
+    Aviation::fillGlassScreen (g, strip, 4.0f, 0.22f);
 
     struct Cell { const char* label; juce::String value; };
     const Cell cells[] = {
@@ -207,12 +207,12 @@ void CenterDashboard::paintMiniDisplay (juce::Graphics& g)
     for (int i = 0; i < 3; ++i)
     {
         juce::Rectangle<float> cell (strip.getX() + cellW * (float) i, strip.getY(), cellW, strip.getHeight());
-        g.setFont (Jetsonic::label (8.5f, 0.14f));
-        g.setColour (Jetsonic::gold().withAlpha (0.8f));
+        g.setFont (Aviation::label (8.5f, 0.14f));
+        g.setColour (Aviation::gold().withAlpha (0.8f));
         g.drawText (cells[i].label, cell.toNearestInt().removeFromLeft ((int) (cellW * 0.42f)),
                     juce::Justification::centredRight);
-        g.setFont (Jetsonic::value (11.0f));
-        g.setColour (Jetsonic::cyanBright());
+        g.setFont (Aviation::value (11.0f));
+        g.setColour (Aviation::cyanBright());
         g.drawText (" " + cells[i].value, cell.toNearestInt().removeFromRight ((int) (cellW * 0.55f)),
                     juce::Justification::centredLeft);
 
@@ -226,7 +226,7 @@ void CenterDashboard::paintMiniDisplay (juce::Graphics& g)
 
 void CenterDashboard::paintRadar (juce::Graphics& g, juce::Rectangle<float> area, float phase, bool clockwise)
 {
-    Jetsonic::fillGlassScreen (g, area, 6.0f, 0.30f);
+    Aviation::fillGlassScreen (g, area, 6.0f, 0.30f);
 
     auto scope = area.reduced (8.0f);
     const float cx = scope.getCentreX();
@@ -234,7 +234,7 @@ void CenterDashboard::paintRadar (juce::Graphics& g, juce::Rectangle<float> area
     const float maxR = juce::jmin (scope.getWidth(), scope.getHeight()) * 0.5f;
 
     // concentric rings + cross grid
-    g.setColour (Jetsonic::cyan().withAlpha (0.30f));
+    g.setColour (Aviation::cyan().withAlpha (0.30f));
     for (float f : { 1.0f, 0.66f, 0.33f })
         g.drawEllipse (cx - maxR * f, cy - maxR * f, maxR * f * 2.0f, maxR * f * 2.0f, 0.8f);
     g.drawLine (cx - maxR, cy, cx + maxR, cy, 0.6f);
@@ -245,22 +245,22 @@ void CenterDashboard::paintRadar (juce::Graphics& g, juce::Rectangle<float> area
     for (int t = 0; t < 10; ++t)
     {
         const float trailA = a - (clockwise ? 1.0f : -1.0f) * 0.05f * (float) t;
-        g.setColour (Jetsonic::cyan().withAlpha (0.30f * (1.0f - (float) t / 10.0f)));
+        g.setColour (Aviation::cyan().withAlpha (0.30f * (1.0f - (float) t / 10.0f)));
         g.drawLine (cx, cy, cx + maxR * std::sin (trailA), cy - maxR * std::cos (trailA), t == 0 ? 1.4f : 1.0f);
     }
 
-    g.setColour (Jetsonic::cyanBright().withAlpha (0.9f));
+    g.setColour (Aviation::cyanBright().withAlpha (0.9f));
     g.fillEllipse (cx - 1.5f, cy - 1.5f, 3.0f, 3.0f);
 }
 
 void CenterDashboard::paintBlueprint (juce::Graphics& g, juce::Rectangle<float> area)
 {
-    Jetsonic::fillGlassScreen (g, area, 6.0f, 0.32f);
+    Aviation::fillGlassScreen (g, area, 6.0f, 0.32f);
 
     auto inner = area.reduced (6.0f);
 
     // thin cyan grid
-    g.setColour (Jetsonic::cyan().withAlpha (0.14f));
+    g.setColour (Aviation::cyan().withAlpha (0.14f));
     for (float x = inner.getX(); x <= inner.getRight(); x += 14.0f)
         g.drawLine (x, inner.getY(), x, inner.getBottom(), 0.5f);
     for (float y = inner.getY(); y <= inner.getBottom(); y += 14.0f)
@@ -268,12 +268,12 @@ void CenterDashboard::paintBlueprint (juce::Graphics& g, juce::Rectangle<float> 
 
     // gold aircraft illustration
     auto planeArea = inner.withSizeKeepingCentre (inner.getHeight() * 1.15f, inner.getHeight() * 0.92f);
-    const auto plane = JetsonicIcons::aircraftTop();
-    JetsonicIcons::fill (g, plane, planeArea, Jetsonic::goldBright().withAlpha (0.9f));
-    JetsonicIcons::stroke (g, plane, planeArea.expanded (4.0f), Jetsonic::gold().withAlpha (0.35f), 0.8f);
+    const auto plane = AviationIcons::aircraftTop();
+    AviationIcons::fill (g, plane, planeArea, Aviation::goldBright().withAlpha (0.9f));
+    AviationIcons::stroke (g, plane, planeArea.expanded (4.0f), Aviation::gold().withAlpha (0.35f), 0.8f);
 
     // corner ticks
-    g.setColour (Jetsonic::cyan().withAlpha (0.5f));
+    g.setColour (Aviation::cyan().withAlpha (0.5f));
     const float tick = 7.0f;
     g.drawLine (inner.getX(), inner.getY(), inner.getX() + tick, inner.getY(), 1.0f);
     g.drawLine (inner.getX(), inner.getY(), inner.getX(), inner.getY() + tick, 1.0f);
@@ -291,7 +291,7 @@ void CenterDashboard::paint (juce::Graphics& g)
                                juce::Colour (0xe6050b12), bezel.getX(), bezel.getBottom(), false);
     g.setGradientFill (grad);
     g.fillRoundedRectangle (bezel, 8.0f);
-    g.setColour (Jetsonic::goldDeep().withAlpha (0.30f));
+    g.setColour (Aviation::goldDeep().withAlpha (0.30f));
     g.drawRoundedRectangle (bezel, 8.0f, 1.0f);
     g.setColour (juce::Colours::white.withAlpha (0.05f));
     g.fillRect (juce::Rectangle<float> (bezel.getX() + 3.0f, bezel.getY() + 1.0f, bezel.getWidth() - 6.0f, 1.0f));
@@ -299,13 +299,13 @@ void CenterDashboard::paint (juce::Graphics& g)
     paintMiniDisplay (g);
 
     // gold preset title
-    g.setFont (Jetsonic::value (17.0f));
-    g.setColour (Jetsonic::goldBright());
+    g.setFont (Aviation::value (17.0f));
+    g.setColour (Aviation::goldBright());
     g.drawText (titleText, 0, kMiniStripH + 4, getWidth(), kTitleH - 6, juce::Justification::centred);
 
     // GLOBALS section label above the output knob
-    g.setFont (Jetsonic::label (9.5f, 0.14f));
-    g.setColour (Jetsonic::gold().withAlpha (0.92f));
+    g.setFont (Aviation::label (9.5f, 0.14f));
+    g.setColour (Aviation::gold().withAlpha (0.92f));
     g.drawText ("GLOBALS", 6, kMiniStripH + kTitleH + 4, 80, 12, juce::Justification::centred);
 
     paintRadar (g, radarLeftArea().toFloat(), sweepPhase, true);

@@ -1,6 +1,6 @@
 #include "PresetHeader.h"
-#include "JetsonicIcons.h"
-#include "JetsonicTheme.h"
+#include "AviationIcons.h"
+#include "AviationTheme.h"
 
 namespace
 {
@@ -91,16 +91,16 @@ void PresetHeader::paint (juce::Graphics& g)
     auto r = getLocalBounds();
 
     // FACTORY PRESETS — upper left, underlined section label
-    g.setFont (Jetsonic::label (11.0f, 0.16f));
-    g.setColour (Jetsonic::textPrimary().withAlpha (0.85f));
+    g.setFont (Aviation::label (11.0f, 0.16f));
+    g.setColour (Aviation::textPrimary().withAlpha (0.85f));
     const juce::Rectangle<int> fpArea (27, 0, 150, r.getHeight());
     g.drawText ("FACTORY PRESETS", fpArea, juce::Justification::centredLeft);
-    g.setColour (Jetsonic::textSecondary().withAlpha (0.6f));
+    g.setColour (Aviation::textSecondary().withAlpha (0.6f));
     g.fillRect (27, r.getHeight() / 2 + 10, 112, 1);
 
     // Centered preset name
-    g.setFont (Jetsonic::body (15.0f));
-    g.setColour (Jetsonic::textPrimary());
+    g.setFont (Aviation::body (15.0f));
+    g.setColour (Aviation::textPrimary());
     const juce::Rectangle<int> nameArea (r.getCentreX() - kNameHalfWidth, 0,
                                          kNameHalfWidth * 2, r.getHeight());
     const auto fitted = [&]() -> juce::String
@@ -118,16 +118,16 @@ void PresetHeader::paint (juce::Graphics& g)
     g.drawText (fitted, nameArea, juce::Justification::centred);
 
     // Prev / next triangles
-    JetsonicIcons::fill (g, JetsonicIcons::triangle (true), prevArea().toFloat().reduced (3.0f),
-                         Jetsonic::textPrimary().withAlpha (hovered == Hit::prev ? 1.0f : 0.7f));
-    JetsonicIcons::fill (g, JetsonicIcons::triangle (false), nextArea().toFloat().reduced (3.0f),
-                         Jetsonic::textPrimary().withAlpha (hovered == Hit::next ? 1.0f : 0.7f));
+    AviationIcons::fill (g, AviationIcons::triangle (true), prevArea().toFloat().reduced (3.0f),
+                         Aviation::textPrimary().withAlpha (hovered == Hit::prev ? 1.0f : 0.7f));
+    AviationIcons::fill (g, AviationIcons::triangle (false), nextArea().toFloat().reduced (3.0f),
+                         Aviation::textPrimary().withAlpha (hovered == Hit::next ? 1.0f : 0.7f));
 
     // Favorite heart
-    const auto heartCol = favourited ? Jetsonic::goldBright()
-                                     : Jetsonic::textSecondary().withAlpha (hovered == Hit::heart ? 1.0f : 0.8f);
+    const auto heartCol = favourited ? Aviation::goldBright()
+                                     : Aviation::textSecondary().withAlpha (hovered == Hit::heart ? 1.0f : 0.8f);
     if (favourited)
-        JetsonicIcons::fill (g, JetsonicIcons::heart(), heartArea().toFloat(), heartCol);
+        AviationIcons::fill (g, AviationIcons::heart(), heartArea().toFloat(), heartCol);
     else
-        JetsonicIcons::stroke (g, JetsonicIcons::heart(), heartArea().toFloat().reduced (1.0f), heartCol, 1.3f);
+        AviationIcons::stroke (g, AviationIcons::heart(), heartArea().toFloat().reduced (1.0f), heartCol, 1.3f);
 }

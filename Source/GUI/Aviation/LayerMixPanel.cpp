@@ -1,5 +1,5 @@
 #include "LayerMixPanel.h"
-#include "JetsonicTheme.h"
+#include "AviationTheme.h"
 #include "../../State/StateSchema.h"
 
 LayerMixPanel::LayerMixPanel (juce::AudioProcessorValueTreeState& apvts)
@@ -45,9 +45,9 @@ void LayerMixPanel::resized()
 void LayerMixPanel::paint (juce::Graphics& g)
 {
     auto r = getLocalBounds().toFloat();
-    Jetsonic::fillGlassScreen (g, r, 6.0f, 0.28f);
+    Aviation::fillGlassScreen (g, r, 6.0f, 0.28f);
 
-    g.setFont (Jetsonic::label (9.5f, 0.12f));
-    g.setColour (Jetsonic::gold().withAlpha (0.92f));
+    g.setFont (Aviation::label (9.5f, 0.12f));
+    g.setColour (Aviation::gold().withAlpha (0.92f));
     g.drawText ("LAYER MIX", r.toNearestInt().removeFromTop (18), juce::Justification::centred);
 }

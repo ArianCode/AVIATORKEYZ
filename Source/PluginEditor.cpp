@@ -1,10 +1,10 @@
 #include "PluginEditor.h"
-#include "GUI/Jetsonic/JetsonicTheme.h"
+#include "GUI/Aviation/AviationTheme.h"
 #include "DSP/Performance/PerformanceTypes.h"
 
 namespace
 {
-constexpr float kAspect = (float) Jetsonic::kDesignW / (float) Jetsonic::kDesignH;
+constexpr float kAspect = (float) Aviation::kDesignW / (float) Aviation::kDesignH;
 } // namespace
 
 AviatorKeyzEditor::AviatorKeyzEditor (AviatorKeyzProcessor& p)
@@ -22,9 +22,9 @@ AviatorKeyzEditor::AviatorKeyzEditor (AviatorKeyzProcessor& p)
         constrainer->setSizeLimits (kMinWidth, juce::roundToInt ((float) kMinWidth / kAspect),
                                     kMaxWidth, juce::roundToInt ((float) kMaxWidth / kAspect));
     }
-    setSize (Jetsonic::kDesignW, Jetsonic::kDesignH);
+    setSize (kDefaultWidth, juce::roundToInt ((float) kDefaultWidth / kAspect));
 
-    mainView = std::make_unique<JetsonicMainView> (p);
+    mainView = std::make_unique<AviationMainView> (p);
     mainView->onModeChanged = [this] (bool performance) { setPerformanceView (performance); };
     addAndMakeVisible (*mainView);
 
@@ -113,14 +113,14 @@ void AviatorKeyzEditor::layoutContent()
         return;
 
     // The main view lives in the fixed design space; scale it as one unit.
-    const float scale = (float) getWidth() / (float) Jetsonic::kDesignW;
+    const float scale = (float) getWidth() / (float) Aviation::kDesignW;
     mainView->setTransform (juce::AffineTransform::scale (scale));
-    mainView->setBounds (0, 0, Jetsonic::kDesignW, Jetsonic::kDesignH);
+    mainView->setBounds (0, 0, Aviation::kDesignW, Aviation::kDesignH);
 
     // PERFORMANCE panel replaces everything below the top header.
     if (advancedPanel != nullptr && advancedPanel->isVisible())
     {
-        const int headerBottom = juce::roundToInt ((float) (Jetsonic::topHeaderBounds().getBottom() + 2) * scale);
+        const int headerBottom = juce::roundToInt ((float) (Aviation::topHeaderBounds().getBottom() + 2) * scale);
         advancedPanel->setBounds (0, headerBottom, getWidth(), getHeight() - headerBottom);
         advancedPanel->toFront (false);
     }
@@ -128,7 +128,7 @@ void AviatorKeyzEditor::layoutContent()
 
 void AviatorKeyzEditor::paint (juce::Graphics& g)
 {
-    g.fillAll (Jetsonic::bgBlack());
+    g.fillAll (Aviation::bgBlack());
 }
 
 void AviatorKeyzEditor::resized()

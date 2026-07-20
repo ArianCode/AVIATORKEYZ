@@ -1,5 +1,5 @@
 #include "VelocityPanel.h"
-#include "JetsonicTheme.h"
+#include "AviationTheme.h"
 #include "../../State/StateSchema.h"
 
 VelocityPanel::VelocityPanel (juce::AudioProcessorValueTreeState& apvts)
@@ -8,7 +8,7 @@ VelocityPanel::VelocityPanel (juce::AudioProcessorValueTreeState& apvts)
     slider.setAlpha (0.0f);
     slider.setWantsKeyboardFocus (false);
     addAndMakeVisible (slider);
-    JetsonicMini::configureAttachment (apvtsRef, AviatorKeyz::ParamID::VELOCITY_SENSITIVITY,
+    AviationMini::configureAttachment (apvtsRef, AviatorKeyz::ParamID::VELOCITY_SENSITIVITY,
                                        slider, attachment);
     slider.onValueChange = [this] { repaint(); };
 }
@@ -21,16 +21,16 @@ void VelocityPanel::resized()
 void VelocityPanel::paint (juce::Graphics& g)
 {
     auto r = getLocalBounds().toFloat();
-    Jetsonic::fillGlassScreen (g, r, 6.0f, slider.isMouseOverOrDragging() ? 0.45f : 0.28f);
+    Aviation::fillGlassScreen (g, r, 6.0f, slider.isMouseOverOrDragging() ? 0.45f : 0.28f);
 
-    g.setFont (Jetsonic::label (9.5f, 0.12f));
-    g.setColour (Jetsonic::gold().withAlpha (0.92f));
+    g.setFont (Aviation::label (9.5f, 0.12f));
+    g.setColour (Aviation::gold().withAlpha (0.92f));
     g.drawText ("VELOCITY CURVE", r.toNearestInt().removeFromTop (18), juce::Justification::centred);
 
     auto graph = r.reduced (10.0f).withTrimmedTop (16.0f);
 
     // faint grid
-    g.setColour (Jetsonic::cyan().withAlpha (0.12f));
+    g.setColour (Aviation::cyan().withAlpha (0.12f));
     for (int i = 1; i < 4; ++i)
     {
         const float fx = graph.getX() + graph.getWidth() * (float) i / 4.0f;
@@ -53,8 +53,8 @@ void VelocityPanel::paint (juce::Graphics& g)
     }
 
     // glow + line
-    g.setColour (Jetsonic::cyan().withAlpha (0.25f));
+    g.setColour (Aviation::cyan().withAlpha (0.25f));
     g.strokePath (curve, juce::PathStrokeType (4.0f, juce::PathStrokeType::curved));
-    g.setColour (Jetsonic::cyanBright());
+    g.setColour (Aviation::cyanBright());
     g.strokePath (curve, juce::PathStrokeType (1.6f, juce::PathStrokeType::curved));
 }

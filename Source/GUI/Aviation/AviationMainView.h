@@ -24,16 +24,16 @@
 class AviatorKeyzProcessor;
 
 // =============================================================================
-//  JetsonicMainView — the complete MAIN interface at the canonical
+//  AviationMainView — the complete MAIN interface at the canonical
 //  1647 x 955 design size. The editor scales this view as one unit.
 // =============================================================================
 
-class JetsonicMainView : public juce::Component,
+class AviationMainView : public juce::Component,
                          private juce::AsyncUpdater
 {
 public:
-    explicit JetsonicMainView (AviatorKeyzProcessor& processor);
-    ~JetsonicMainView() override;
+    explicit AviationMainView (AviatorKeyzProcessor& processor);
+    ~AviationMainView() override;
 
     /** Forwarded to the embedded top header (editor switches views). */
     std::function<void (bool performance)> onModeChanged;
@@ -92,5 +92,5 @@ private:
     int currentAbSlot { 0 };
     bool abUsed { false };
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JetsonicMainView)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AviationMainView)
 };

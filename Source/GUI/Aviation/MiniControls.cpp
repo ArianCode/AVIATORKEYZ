@@ -1,7 +1,7 @@
 #include "MiniControls.h"
-#include "JetsonicTheme.h"
+#include "AviationTheme.h"
 
-namespace JetsonicMini
+namespace AviationMini
 {
 
 void configureAttachment (juce::AudioProcessorValueTreeState& apvts,
@@ -28,7 +28,7 @@ float parameterNorm (juce::AudioProcessorValueTreeState& apvts, const juce::Stri
     return 0.0f;
 }
 
-} // namespace JetsonicMini
+} // namespace AviationMini
 
 // =============================================================================
 //  MiniRotary
@@ -42,7 +42,7 @@ MiniRotary::MiniRotary (juce::AudioProcessorValueTreeState& apvts,
     slider.setAlpha (0.0f);
     slider.setWantsKeyboardFocus (false);
     addAndMakeVisible (slider);
-    JetsonicMini::configureAttachment (apvtsRef, paramId, slider, attachment);
+    AviationMini::configureAttachment (apvtsRef, paramId, slider, attachment);
     slider.onValueChange = [this] { repaint(); };
 }
 
@@ -71,7 +71,7 @@ void MiniRotary::paint (juce::Graphics& g)
     g.setColour (juce::Colour (0xff17262f));
     g.strokePath (track, juce::PathStrokeType (2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     arc.addCentredArc (cx, cy, radius + 2.5f, radius + 2.5f, 0.0f, a0, angle, true);
-    g.setColour (Jetsonic::cyan().withAlpha (hover ? 1.0f : 0.85f));
+    g.setColour (Aviation::cyan().withAlpha (hover ? 1.0f : 0.85f));
     g.strokePath (arc, juce::PathStrokeType (2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
     // bronze cap
@@ -89,15 +89,15 @@ void MiniRotary::paint (juce::Graphics& g)
                 cx + r1 * std::sin (angle), cy - r1 * std::cos (angle), 1.6f);
 
     // label / value
-    g.setFont (Jetsonic::label (9.0f, 0.10f));
-    g.setColour (Jetsonic::gold().withAlpha (0.9f));
+    g.setFont (Aviation::label (9.0f, 0.10f));
+    g.setColour (Aviation::gold().withAlpha (0.9f));
     g.drawText (labelText, 0, (int) knob.getBottom() + 1, getWidth(), 11, juce::Justification::centred);
 
     if (showValue)
     {
-        g.setFont (Jetsonic::value (10.0f));
-        g.setColour (Jetsonic::textPrimary());
-        g.drawText (JetsonicMini::parameterText (apvtsRef, paramId),
+        g.setFont (Aviation::value (10.0f));
+        g.setColour (Aviation::textPrimary());
+        g.drawText (AviationMini::parameterText (apvtsRef, paramId),
                     0, (int) knob.getBottom() + 12, getWidth(), 12, juce::Justification::centred);
     }
 }
@@ -114,7 +114,7 @@ MiniParam::MiniParam (juce::AudioProcessorValueTreeState& apvts,
     slider.setAlpha (0.0f);
     slider.setWantsKeyboardFocus (false);
     addAndMakeVisible (slider);
-    JetsonicMini::configureAttachment (apvtsRef, paramId, slider, attachment);
+    AviationMini::configureAttachment (apvtsRef, paramId, slider, attachment);
     slider.onValueChange = [this] { repaint(); };
 }
 
@@ -128,22 +128,22 @@ void MiniParam::paint (juce::Graphics& g)
     auto r = getLocalBounds().toFloat();
     const bool hover = slider.isMouseOverOrDragging();
 
-    Jetsonic::fillGlassScreen (g, r, 5.0f, hover ? 0.5f : 0.28f);
+    Aviation::fillGlassScreen (g, r, 5.0f, hover ? 0.5f : 0.28f);
 
     const float norm = (float) juce::jmap (slider.getValue(), slider.getMinimum(), slider.getMaximum(), 0.0, 1.0);
 
     // thin cyan fill meter along the bottom edge
-    g.setColour (Jetsonic::cyan().withAlpha (0.55f));
+    g.setColour (Aviation::cyan().withAlpha (0.55f));
     g.fillRect (juce::Rectangle<float> (r.getX() + 4.0f, r.getBottom() - 4.0f,
                                         (r.getWidth() - 8.0f) * norm, 2.0f));
 
-    g.setFont (Jetsonic::label (emphasize ? 10.5f : 9.5f, 0.12f));
-    g.setColour (Jetsonic::gold().withAlpha (0.92f));
+    g.setFont (Aviation::label (emphasize ? 10.5f : 9.5f, 0.12f));
+    g.setColour (Aviation::gold().withAlpha (0.92f));
     g.drawText (labelText, 0, 7, getWidth(), 12, juce::Justification::centred);
 
     // These macro cells are all 0..1 amounts — display as percentages.
-    g.setFont (Jetsonic::value (emphasize ? 19.0f : 13.0f));
-    g.setColour (emphasize ? juce::Colour (0xffffffff) : Jetsonic::cyanBright());
+    g.setFont (Aviation::value (emphasize ? 19.0f : 13.0f));
+    g.setColour (emphasize ? juce::Colour (0xffffffff) : Aviation::cyanBright());
     g.drawText (juce::String (juce::roundToInt (norm * 100.0f)) + "%",
                 0, 21, getWidth(), getHeight() - 26, juce::Justification::centred);
 }
@@ -167,7 +167,7 @@ public:
         g.drawRoundedRectangle (cx - 2.0f, (float) y, 4.0f, (float) height, 2.0f, 1.0f);
 
         // cyan level fill below the cap
-        g.setColour (Jetsonic::cyan().withAlpha (0.6f));
+        g.setColour (Aviation::cyan().withAlpha (0.6f));
         g.fillRoundedRectangle (cx - 1.5f, sliderPos, 3.0f, (float) (y + height) - sliderPos, 1.5f);
 
         // cap
@@ -177,7 +177,7 @@ public:
                                    juce::Colour (0xff11161c), cap.getX(), cap.getBottom(), false);
         g.setGradientFill (grad);
         g.fillRoundedRectangle (cap, 2.5f);
-        g.setColour (hover ? Jetsonic::cyanBright() : juce::Colour (0xff59667a));
+        g.setColour (hover ? Aviation::cyanBright() : juce::Colour (0xff59667a));
         g.drawRoundedRectangle (cap, 2.5f, 1.0f);
     }
 };
@@ -191,7 +191,7 @@ MiniFader::MiniFader (juce::AudioProcessorValueTreeState& apvts,
     slider.setLookAndFeel (lookAndFeel.get());
     slider.setWantsKeyboardFocus (false);
     addAndMakeVisible (slider);
-    JetsonicMini::configureAttachment (apvtsRef, paramId, slider, attachment);
+    AviationMini::configureAttachment (apvtsRef, paramId, slider, attachment);
 }
 
 MiniFader::~MiniFader()
@@ -206,8 +206,8 @@ void MiniFader::resized()
 
 void MiniFader::paint (juce::Graphics& g)
 {
-    g.setFont (Jetsonic::label (8.0f, 0.06f));
-    g.setColour (Jetsonic::gold().withAlpha (0.85f));
+    g.setFont (Aviation::label (8.0f, 0.06f));
+    g.setColour (Aviation::gold().withAlpha (0.85f));
     g.drawText (labelText, 0, getHeight() - 12, getWidth(), 11, juce::Justification::centred);
 }
 
@@ -224,13 +224,13 @@ void MiniToggle::SquareButton::paintButton (juce::Graphics& g, bool highlighted,
 
     if (on)
     {
-        g.setColour (Jetsonic::cyan().withAlpha (0.35f));
+        g.setColour (Aviation::cyan().withAlpha (0.35f));
         g.fillRoundedRectangle (r.expanded (1.5f), 3.5f);
-        g.setColour (Jetsonic::cyanBright());
+        g.setColour (Aviation::cyanBright());
         g.fillRoundedRectangle (r.reduced (2.5f), 1.5f);
     }
 
-    g.setColour ((highlighted || down) ? Jetsonic::cyan() : juce::Colour (0xff2b3c4c));
+    g.setColour ((highlighted || down) ? Aviation::cyan() : juce::Colour (0xff2b3c4c));
     g.drawRoundedRectangle (r, 2.5f, 1.0f);
 }
 
@@ -251,7 +251,7 @@ void MiniToggle::resized()
 
 void MiniToggle::paint (juce::Graphics& g)
 {
-    g.setFont (Jetsonic::label (8.0f, 0.06f));
-    g.setColour (Jetsonic::gold().withAlpha (0.85f));
+    g.setFont (Aviation::label (8.0f, 0.06f));
+    g.setColour (Aviation::gold().withAlpha (0.85f));
     g.drawText (labelText, 0, getHeight() - 11, getWidth(), 10, juce::Justification::centred);
 }

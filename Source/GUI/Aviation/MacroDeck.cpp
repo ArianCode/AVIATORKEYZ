@@ -1,6 +1,6 @@
 #include "MacroDeck.h"
-#include "JetsonicIcons.h"
-#include "JetsonicTheme.h"
+#include "AviationIcons.h"
+#include "AviationTheme.h"
 #include "../../State/StateSchema.h"
 
 namespace
@@ -68,15 +68,15 @@ void MacroDeck::paint (juce::Graphics& g)
                 g.fillEllipse (x, y, 1.6f, 1.6f);
         }
 
-        g.setColour (Jetsonic::goldDeep().withAlpha (0.40f));
+        g.setColour (Aviation::goldDeep().withAlpha (0.40f));
         g.drawRoundedRectangle (r.reduced (0.5f), 9.0f, 1.0f);
-        Jetsonic::topSpecular (g, r, 0.07f);
+        Aviation::topSpecular (g, r, 0.07f);
     }
 
     const float cx = r.getCentreX();
 
     // fine gold dividers between sections (stronger around the brand block)
-    g.setColour (Jetsonic::gold().withAlpha (0.16f));
+    g.setColour (Aviation::gold().withAlpha (0.16f));
     const int knobCenters[] = { 141, 316, 491, 656, 972, 1140, 1307, 1478 };
     for (int i = 0; i < 3; ++i)
     {
@@ -85,22 +85,22 @@ void MacroDeck::paint (juce::Graphics& g)
         g.fillRect (juce::Rectangle<float> (r.getX() + leftDiv, r.getY() + 18.0f, 1.0f, r.getHeight() - 36.0f));
         g.fillRect (juce::Rectangle<float> (r.getX() + rightDiv, r.getY() + 18.0f, 1.0f, r.getHeight() - 36.0f));
     }
-    g.setColour (Jetsonic::gold().withAlpha (0.35f));
+    g.setColour (Aviation::gold().withAlpha (0.35f));
     g.fillRect (juce::Rectangle<float> (cx - (float) kBrandHalfW, r.getY() + 12.0f, 1.0f, r.getHeight() - 24.0f));
     g.fillRect (juce::Rectangle<float> (cx + (float) kBrandHalfW, r.getY() + 12.0f, 1.0f, r.getHeight() - 24.0f));
 
     // --- Center brand section ------------------------------------------------
-    JetsonicIcons::fill (g, JetsonicIcons::wingLogo(),
+    AviationIcons::fill (g, AviationIcons::wingLogo(),
                          { cx - 34.0f, r.getY() + 26.0f, 68.0f, 52.0f },
-                         Jetsonic::goldBright());
+                         Aviation::goldBright());
 
-    g.setFont (Jetsonic::label (15.0f, 0.30f));
-    g.setColour (Jetsonic::goldBright());
-    g.drawText ("JETSONIC", (int) cx - kBrandHalfW, (int) r.getY() + 86,
+    g.setFont (Aviation::label (15.0f, 0.30f));
+    g.setColour (Aviation::goldBright());
+    g.drawText ("AVIATION", (int) cx - kBrandHalfW, (int) r.getY() + 86,
                 kBrandHalfW * 2, 18, juce::Justification::centred);
 
-    g.setFont (Jetsonic::label (8.5f, 0.32f));
-    g.setColour (Jetsonic::gold().withAlpha (0.8f));
+    g.setFont (Aviation::label (8.5f, 0.32f));
+    g.setColour (Aviation::gold().withAlpha (0.8f));
     g.drawText ("FLAGSHIP SERIES", (int) cx - kBrandHalfW, (int) r.getY() + 106,
                 kBrandHalfW * 2, 12, juce::Justification::centred);
 }

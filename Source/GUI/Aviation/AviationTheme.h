@@ -3,15 +3,15 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 
 // =============================================================================
-//  JetsonicTheme — style system for the Jetsonic Audio cockpit interface.
+//  AviationTheme — style system for the Aviation Audio cockpit interface.
 //
-//  All Jetsonic components are laid out in a fixed 1647 x 955 design space;
+//  All Aviation components are laid out in a fixed 1647 x 955 design space;
 //  the editor scales the whole view with an AffineTransform, so components
 //  never apply their own scale factors. Coordinates in these files are
 //  literal reference-image pixels.
 // =============================================================================
 
-namespace Jetsonic
+namespace Aviation
 {
     // --- Canonical design space -------------------------------------------
     static constexpr int kDesignW = 1647;
@@ -130,4 +130,4 @@ namespace Jetsonic
         g.fillRect (juce::Rectangle<float> (r.getX() + 2.0f, r.getY() + 1.0f, r.getWidth() - 4.0f, 1.0f));
     }
 
-} // namespace Jetsonic
+} // namespace Aviation

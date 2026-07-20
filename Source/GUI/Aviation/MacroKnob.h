@@ -11,7 +11,7 @@
 //
 //  Bound to one APVTS parameter (SliderAttachment => host automation, preset
 //  recall and double-click-to-default all work). Hold Cmd/Ctrl/Shift for fine
-//  drag. Layout is in Jetsonic design pixels (whole view is scaled outside).
+//  drag. Layout is in Aviation design pixels (whole view is scaled outside).
 // =============================================================================
 
 class MacroKnob : public juce::Component

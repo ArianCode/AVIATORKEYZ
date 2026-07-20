@@ -5,7 +5,7 @@
 
 // =============================================================================
 //  TopHeader — deep metallic application header.
-//  Jetsonic wing branding (left), MAIN / PERFORMANCE navigation (center),
+//  Aviation wing branding (left), MAIN / PERFORMANCE navigation (center),
 //  settings gear + utility icon + SAVE button (right).
 // =============================================================================
 

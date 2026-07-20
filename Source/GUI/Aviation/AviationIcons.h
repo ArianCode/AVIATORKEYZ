@@ -3,13 +3,13 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 
 // =============================================================================
-//  JetsonicIcons — thin-gold vector icon language for the Jetsonic interface.
+//  AviationIcons — thin-gold vector icon language for the Aviation interface.
 //  Paths are built in a 0..1 unit box; use draw()/fill() helpers to place them.
 // =============================================================================
 
-namespace JetsonicIcons
+namespace AviationIcons
 {
-    /** Jetsonic wing emblem: swept twin wings around a central diamond. */
+    /** Aviation wing emblem: swept twin wings around a central diamond. */
     inline juce::Path wingLogo()
     {
         juce::Path p;
@@ -194,4 +194,4 @@ namespace JetsonicIcons
                                                     juce::PathStrokeType::rounded));
     }
 
-} // namespace JetsonicIcons
+} // namespace AviationIcons

@@ -2,11 +2,11 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "GUI/Advanced/AdvancedPanel.h"
-#include "GUI/Jetsonic/JetsonicMainView.h"
+#include "GUI/Aviation/AviationMainView.h"
 #include "PluginProcessor.h"
 
 // =============================================================================
-//  AviatorKeyzEditor — hosts the Jetsonic MAIN interface (fixed 1647 x 955
+//  AviatorKeyzEditor — hosts the Aviation MAIN interface (fixed 1647 x 955
 //  design space, scaled proportionally as one unit) and the PERFORMANCE
 //  (advanced) panel, switched from the main view's top header.
 // =============================================================================
@@ -27,10 +27,13 @@ private:
 
     AviatorKeyzProcessor& processorRef;
 
+    // Default opens at 1035 x 600 — inside the requested 1000-1200 x 400-600
+    // window while preserving the 1647:955 design aspect ratio.
+    static constexpr int kDefaultWidth = 1035;
     static constexpr int kMinWidth  = 824;
     static constexpr int kMaxWidth  = 1976;
 
-    std::unique_ptr<JetsonicMainView> mainView;
+    std::unique_ptr<AviationMainView> mainView;
     std::unique_ptr<AdvancedPanel> advancedPanel;
     bool performanceView { false };
 

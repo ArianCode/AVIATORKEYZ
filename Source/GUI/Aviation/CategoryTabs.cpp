@@ -1,5 +1,5 @@
 #include "CategoryTabs.h"
-#include "JetsonicTheme.h"
+#include "AviationTheme.h"
 
 namespace
 {
@@ -96,7 +96,7 @@ void CategoryTabs::paint (juce::Graphics& g)
             grad.addColour (0.5, juce::Colour (0xff473413));
             g.setGradientFill (grad);
             g.fillRoundedRectangle (tab.reduced (1.0f, 1.0f), 4.0f);
-            g.setColour (Jetsonic::goldBright().withAlpha (0.55f));
+            g.setColour (Aviation::goldBright().withAlpha (0.55f));
             g.drawRoundedRectangle (tab.reduced (1.0f, 1.0f), 4.0f, 1.0f);
         }
         else
@@ -111,7 +111,7 @@ void CategoryTabs::paint (juce::Graphics& g)
             g.drawRoundedRectangle (tab.reduced (1.0f, 1.0f), 4.0f, 1.0f);
             if (hover)
             {
-                g.setColour (Jetsonic::cyan().withAlpha (0.18f));
+                g.setColour (Aviation::cyan().withAlpha (0.18f));
                 g.fillRoundedRectangle (tab.reduced (1.0f, 1.0f), 4.0f);
             }
         }
@@ -123,15 +123,15 @@ void CategoryTabs::paint (juce::Graphics& g)
             g.fillRect (juce::Rectangle<float> (tab.getX() - 0.5f, tab.getY() + 6.0f, 1.0f, tab.getHeight() - 12.0f));
         }
 
-        g.setFont (Jetsonic::label (12.5f, 0.10f));
-        g.setColour (active ? Jetsonic::textPrimary()
-                            : Jetsonic::textSecondary().withAlpha (hover ? 1.0f : 0.85f));
+        g.setFont (Aviation::label (12.5f, 0.10f));
+        g.setColour (active ? Aviation::textPrimary()
+                            : Aviation::textSecondary().withAlpha (hover ? 1.0f : 0.85f));
         g.drawText (categories[i].toUpperCase(), tab.toNearestInt(), juce::Justification::centred);
     }
 
     // version stamp — far right
-    g.setFont (Jetsonic::body (11.0f));
-    g.setColour (Jetsonic::textSecondary().withAlpha (0.8f));
+    g.setFont (Aviation::body (11.0f));
+    g.setColour (Aviation::textSecondary().withAlpha (0.8f));
     g.drawText (versionText, getWidth() - kVersionW - 4, 0, kVersionW, getHeight(),
                 juce::Justification::centred);
 }
