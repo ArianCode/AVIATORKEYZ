@@ -5,9 +5,9 @@
 namespace
 {
 constexpr int kRowH      = 33;
-constexpr int kHeaderH   = 40;
+constexpr int kHeaderH   = 44;
 constexpr int kSearchH   = 30;
-constexpr int kStarZoneW = 34;
+constexpr int kStarZoneW = 32;
 } // namespace
 
 // Slim bronze scrollbar for the preset list.

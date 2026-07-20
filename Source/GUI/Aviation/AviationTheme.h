@@ -22,7 +22,7 @@ namespace Aviation
     inline juce::Rectangle<int> presetHeaderBounds()  { return { 6, 82, 1635, 45 }; }
     inline juce::Rectangle<int> categoryTabsBounds()  { return { 6, 127, 1635, 43 }; }
     inline juce::Rectangle<int> cockpitBounds()       { return { 346, 170, 1295, 556 }; }
-    inline juce::Rectangle<int> browserBounds()       { return { 8, 177, 348, 546 }; }
+    inline juce::Rectangle<int> browserBounds()       { return { 8, 177, 337, 546 }; }
     inline juce::Rectangle<int> presetCountBounds()   { return { 8, 745, 230, 26 }; }
     inline juce::Rectangle<int> macroDeckBounds()     { return { 6, 726, 1635, 178 }; }
     inline juce::Rectangle<int> statusBarBounds()     { return { 6, 908, 1635, 41 }; }
