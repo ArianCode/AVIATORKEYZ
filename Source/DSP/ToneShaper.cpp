@@ -9,6 +9,14 @@ void ToneShaper::prepare (const juce::dsp::ProcessSpec& s)
     juce::dsp::ProcessSpec mono = s;
     mono.numChannels = 1;
 
+    // Allocate one shared Coefficients object per shelf pair here (message
+    // thread). updateCoeffs() then rewrites them in place from the audio
+    // thread with no heap allocation.
+    lowShelfL.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowShelf (s.sampleRate, 180.0f, 0.707f, 1.f);
+    lowShelfR.coefficients = lowShelfL.coefficients;
+    highShelfL.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighShelf (s.sampleRate, 6500.0f, 0.707f, 1.f);
+    highShelfR.coefficients = highShelfL.coefficients;
+
     lowShelfL.prepare (mono);
     lowShelfR.prepare (mono);
     highShelfL.prepare (mono);
@@ -31,6 +39,9 @@ void ToneShaper::reset()
 
 void ToneShaper::updateCoeffs (float toneValue)
 {
+    // Audio-thread safe: ArrayCoefficients returns a stack std::array and
+    // Coefficients::operator= reuses the storage allocated in prepare().
+    // L/R share one Coefficients object per shelf, so one write updates both.
     const double sr = spec.sampleRate;
 
     const float lowGainDb  = -toneValue * 5.f;
@@ -39,11 +50,8 @@ void ToneShaper::updateCoeffs (float toneValue)
     const float lowG  = juce::Decibels::decibelsToGain (lowGainDb);
     const float highG = juce::Decibels::decibelsToGain (highGainDb);
 
-    *lowShelfL.coefficients = *juce::dsp::IIR::Coefficients<float>::makeLowShelf (sr, 180.0f, 0.707f, lowG);
-    *lowShelfR.coefficients = *lowShelfL.coefficients;
-
-    *highShelfL.coefficients = *juce::dsp::IIR::Coefficients<float>::makeHighShelf (sr, 6500.0f, 0.707f, highG);
-    *highShelfR.coefficients = *highShelfL.coefficients;
+    *lowShelfL.coefficients  = juce::dsp::IIR::ArrayCoefficients<float>::makeLowShelf (sr, 180.0f, 0.707f, lowG);
+    *highShelfL.coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeHighShelf (sr, 6500.0f, 0.707f, highG);
 }
 
 void ToneShaper::process (juce::AudioBuffer<float>& buffer, float toneValue)

@@ -10,8 +10,8 @@ cd "$ROOT"
 : "${APP_PASSWORD:?Set APP_PASSWORD (app-specific password)}"
 : "${TEAM_ID:?Set TEAM_ID}"
 
-VST3="build/AviatorKeyz_artefacts/Release/VST3/AviatorKeyz.vst3"
-STANDALONE="build/AviatorKeyz_artefacts/Release/Standalone/AviatorKeyz.app"
+VST3="build/Aviation_artefacts/Release/VST3/Aviation.vst3"
+STANDALONE="build/Aviation_artefacts/Release/Standalone/Aviation.app"
 
 if [[ ! -d "$VST3" ]]; then
   echo "Build Release first: ./scripts/build_macos.sh"
@@ -20,7 +20,7 @@ fi
 
 echo "Signing VST3..."
 codesign --force --options runtime --sign "$DEVELOPER_ID" \
-  "$VST3/Contents/MacOS/AviatorKeyz"
+  "$VST3/Contents/MacOS/Aviation"
 
 if [[ -d "$STANDALONE" ]]; then
   codesign --force --options runtime --deep --sign "$DEVELOPER_ID" "$STANDALONE"
@@ -28,7 +28,7 @@ fi
 
 codesign --verify --deep --strict --verbose=2 "$VST3"
 
-ZIP="$ROOT/build/AviatorKeyz-notarize.zip"
+ZIP="$ROOT/build/Aviation-notarize.zip"
 ditto -c -k --keepParent "$VST3" "$ZIP"
 
 echo "Submitting for notarization..."

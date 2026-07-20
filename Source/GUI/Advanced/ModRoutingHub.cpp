@@ -10,7 +10,7 @@ constexpr ParamDest kMap[] {
     { AviatorKeyz::ParamID::TONE,           ModDest::tone },
     { AviatorKeyz::ParamID::REVERB_AMOUNT,  ModDest::reverbAmount },
     { AviatorKeyz::ParamID::REVERB_SIZE,    ModDest::reverbSize },
-    { AviatorKeyz::ParamID::STEREO_WIDTH,   ModDest::stereoWidth },
+    { AviatorKeyz::ParamID::STEREO_WIDTH,   ModDest::brightness },
     { AviatorKeyz::ParamID::PAN,            ModDest::pan },
     { AviatorKeyz::ParamID::FX_DELAY_MIX,   ModDest::delayMix },
     { AviatorKeyz::ParamID::FX_CHORUS_MIX,  ModDest::chorusMix },

@@ -1,5 +1,5 @@
-<?xml version='1.0' encoding='UTF-8'?>
-<Preset category="Leads" name="THE_GLITCH_MOB_how_could_this_be_wrong_one_shot_distorted_lead_2_C5" schemaVersion="1" sampleId="factory_leads_the_glitch_mob_how_could_this_be_wrong_one_shot_distorted_lead_2_c5" author="AviatorKeyz" rootNote="72">
+<?xml version="1.0" encoding="UTF-8"?>
+<Preset category="Leads" name="THE_GLITCH_MOB_how_could_this_be_wrong_one_shot_distorted_lead_2_C5" schemaVersion="1" sampleId="factory_leads_the_glitch_mob_how_could_this_be_wrong_one_shot_distorted_lead_2_c5" author="AviatorKeyz" rootNote="72" soundType="one_shot">
   <AviatorKeyzState stateVersion="1">
     <PARAM id="input_gain" value="0.0" />
     <PARAM id="output_gain" value="0.0" />
@@ -13,5 +13,5 @@
     <PARAM id="env_attack" value="5.0" />
     <PARAM id="env_release" value="150.0" />
     <PARAM id="pan" value="0.0" />
-  </AviatorKeyzState>
+  <PARAM id="src_playback_mode" value="2" /><PARAM id="src_keytrack" value="0" /><PARAM id="src_loop_mode" value="2" /><PARAM id="src_bpm_sync" value="0" /></AviatorKeyzState>
 </Preset>

@@ -36,7 +36,7 @@ public:
         // -------------------------------------------------------------------
         beginTest ("All ParamID constants are non-empty strings");
         {
-            const auto ids = allSchemaParamIDs();
+            const auto ids = allPerformanceParamIDs();
             for (const auto& id : ids)
                 expect (id.isNotEmpty(), "ParamID constant must not be empty");
         }
@@ -44,7 +44,7 @@ public:
         // -------------------------------------------------------------------
         beginTest ("All ParamID constants use lower_snake_case");
         {
-            const auto ids = allSchemaParamIDs();
+            const auto ids = allPerformanceParamIDs();
             for (const auto& id : ids)
             {
                 // must be all lowercase, digits, or underscores
@@ -61,7 +61,7 @@ public:
         // -------------------------------------------------------------------
         beginTest ("No duplicate ParamID values (global)");
         {
-            const auto ids = allSchemaParamIDs();
+            const auto ids = allPerformanceParamIDs();
             // Expected count — update this when you add new params so the
             // test will catch an accidental omission as well as a collision.
             constexpr int kExpectedCount = kExpectedSchemaParamCount;

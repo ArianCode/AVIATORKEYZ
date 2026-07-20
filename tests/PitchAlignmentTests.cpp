@@ -77,6 +77,14 @@ public:
             snap.setMono (sineA4, kTestFrames, 69);
             engine.setSampleSnapshot (&snap.snapshot);
             engine.setEnvelopeTimesMs (0.5f, 300.f, 1.f, 50.f);
+
+            SourceSettings settings;
+            settings.playbackMode = SamplePlaybackMode::ChromaticResample;
+            settings.rootNote = 60; // stale APVTS default — must be ignored
+            settings.bpmSync = false;
+            engine.setSourceSettings (settings, 120.0);
+            engine.setPlaybackContext (AviatorKeyz::SoundType::OneShot, AviatorKeyz::Category::LEADS);
+
             engine.noteOn (69, 1.f, false, 0.f);
 
             juce::AudioBuffer<float> buf (2, 512);
@@ -90,7 +98,7 @@ public:
 
             const float outHz = peakFrequencyHz (mono.getData(), 512, 69);
             expectWithinAbsoluteError (outHz, 440.f, 25.f,
-                                       "Played A4 with root 69 should output ~440 Hz");
+                                       "Played A4 with sample root 69 must output ~440 Hz even if settings.rootNote is 60");
             engine.allSoundOff();
         }
 
@@ -103,6 +111,14 @@ public:
             snap.setMono (sineA4, kTestFrames, 60);
             engine.setSampleSnapshot (&snap.snapshot);
             engine.setEnvelopeTimesMs (0.5f, 300.f, 1.f, 50.f);
+
+            SourceSettings settings;
+            settings.playbackMode = SamplePlaybackMode::ChromaticResample;
+            settings.rootNote = 72; // wrong on purpose
+            settings.bpmSync = false;
+            engine.setSourceSettings (settings, 120.0);
+            engine.setPlaybackContext (AviatorKeyz::SoundType::OneShot, AviatorKeyz::Category::LEADS);
+
             engine.noteOn (60, 1.f, false, 0.f);
 
             juce::AudioBuffer<float> buf (2, 512);
@@ -116,8 +132,44 @@ public:
 
             const float outHz = peakFrequencyHz (mono.getData(), 512, 69);
             expectWithinAbsoluteError (outHz, 440.f, 25.f,
-                                       "MIDI 60 with A4 buffer and root 60 should still be ~440 Hz");
+                                       "MIDI 60 with A4 buffer and sample root 60 should still be ~440 Hz");
             engine.allSoundOff();
+        }
+
+        beginTest ("Sample root 72 + MIDI 72 is unity; MIDI 60 is one octave down");
+        {
+            SamplerEngine engine;
+            juce::dsp::ProcessSpec spec { kTestSr, 2048, 2 };
+            engine.prepare (spec);
+            TestSampleSnapshot snap;
+            snap.setMono (sineA4, kTestFrames, 72);
+            engine.setSampleSnapshot (&snap.snapshot);
+            engine.setEnvelopeTimesMs (0.5f, 300.f, 1.f, 50.f);
+
+            SourceSettings settings;
+            settings.playbackMode = SamplePlaybackMode::ChromaticResample;
+            settings.rootNote = 60;
+            settings.bpmSync = false;
+            engine.setSourceSettings (settings, 120.0);
+            engine.setPlaybackContext (AviatorKeyz::SoundType::OneShot, AviatorKeyz::Category::BELLS);
+
+            juce::AudioBuffer<float> buf (2, 2048);
+
+            engine.noteOn (72, 1.f, false, 0.f);
+            buf.clear();
+            engine.process (buf);
+            const float unityInc = engine.getActiveVoiceReadIncrementForTest();
+            engine.allSoundOff();
+
+            engine.noteOn (60, 1.f, false, 0.f);
+            buf.clear();
+            engine.process (buf);
+            const float lowInc = engine.getActiveVoiceReadIncrementForTest();
+            engine.allSoundOff();
+
+            expectWithinAbsoluteError (unityInc, 1.f, 0.02f, "MIDI at sample root must be ~unity rate");
+            expect (lowInc < unityInc * 0.55f && lowInc > unityInc * 0.45f,
+                    "MIDI one octave below sample root must half the read rate");
         }
 
         beginTest ("Two SamplerEngines with identical snapshot produce matching output");
@@ -133,6 +185,13 @@ public:
             b.setSampleSnapshot (&snap.snapshot);
             a.setEnvelopeTimesMs (0.5f, 300.f, 1.f, 50.f);
             b.setEnvelopeTimesMs (0.5f, 300.f, 1.f, 50.f);
+
+            SourceSettings settings;
+            settings.playbackMode = SamplePlaybackMode::ChromaticResample;
+            settings.bpmSync = false;
+            a.setSourceSettings (settings, 120.0);
+            b.setSourceSettings (settings, 120.0);
+
             a.noteOn (60, 1.f, false, 0.f);
             b.noteOn (60, 1.f, false, 0.f);
 

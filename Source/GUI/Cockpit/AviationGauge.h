@@ -14,6 +14,7 @@ public:
     {
         percent,
         glideSeconds,
+        envelopeMs,
         toneDb,
         decibels,
         stereoWidth

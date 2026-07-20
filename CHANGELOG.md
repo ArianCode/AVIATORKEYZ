@@ -5,6 +5,35 @@ Format: [Version] — Date — Summary
 
 ---
 
+## [Unreleased] — 2026-07-20 — Aviation cockpit MAIN interface
+
+### Added
+- New MAIN interface (`Source/GUI/Aviation/`): full-width cockpit view on a
+  fixed 1647x955 design canvas, scaled proportionally by the editor
+  (default window 1100x638, fixed aspect ratio, resizable 824–1976 wide)
+- Top-right preset dropdown as the preset selector (category presets,
+  favorites starred, current preset marked with a gold suitcase) with
+  overhead-luggage-compartment menu styling
+- Center dashboard: RPM (host BPM) / KEY / TUNE readouts, radar instruments,
+  aircraft blueprint, GLOBALS output gain, LIMITER toggle, and
+  LOFI / STEREO / DYNAMICS / WIDTH / HUMANIZE cells
+- Cockpit glass side panels: velocity curve, layer mix, filter curve,
+  amplitude envelope (all bound to existing parameters)
+- Macro deck: eight LED-ring macro knobs mirrored around the Aviation brand
+  block (Glide, Gain, Brightness, Reverb, Tone, Filter, Attack, Release)
+- Live status bar (sample rate, host BPM, A/B state compare) and persisted
+  preset favorites
+- Debug-only screenshot harness (`AVIATORKEYZ_SNAPSHOT_PATH`) rendering the
+  canonical 1647x955 UI for visual regression checks
+
+### Changed
+- Loaded sample region is the authoritative pitch/tempo source; root note and
+  inferred original BPM sync back into APVTS on preset load
+- Legacy MainPanel/ViewModeTabBar removed from the visible hierarchy
+  (still compiled); PERFORMANCE tab shows the Advanced panel
+
+---
+
 ## [0.1.0] — 2026-04-15 — M0: Initial Scaffold
 
 ### Added

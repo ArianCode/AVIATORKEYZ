@@ -2,7 +2,6 @@
 
 #include "AviatorTokens.h"
 #include "Cockpit/CockpitCrossworldPanel.h"
-#include "PresetBrowser.h"
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <memory>
 
@@ -21,13 +20,15 @@ public:
     static int getDesignHeight() { return AviatorTokens::kDesignHeight + AviatorTokens::kFooterH; }
 
 private:
-    void refreshPresetUI();
-    void showLibraryPopup();
+    using PresetLoadedHandler = std::function<void (const juce::String& category,
+                                                    const juce::String& name,
+                                                    const juce::String& sampleId,
+                                                    int rootNote)>;
 
     AviatorKeyzProcessor& processor;
     std::unique_ptr<juce::LookAndFeel> lookAndFeel;
     CockpitCrossworldPanel cockpit;
-    juce::Component::SafePointer<juce::CallOutBox> libraryCallout;
+    PresetLoadedHandler previousPresetLoadedHandler;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainPanel)
 };

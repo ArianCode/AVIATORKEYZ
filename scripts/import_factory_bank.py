@@ -16,6 +16,12 @@ from generate_factory_assets import (
     preset_params,
     write_preset_xml,
 )
+from category_sound_policy import (
+    CANONICAL_CATEGORIES,
+    playback_params_for,
+    SOUND_TYPE_NAMES,
+    infer_sound_type,
+)
 
 DEFAULT_ROOT_NOTE = 60  # C4 — all factory samples play at native pitch on MIDI C4
 DEFAULT_SOURCE_BPM = 120.0
@@ -24,19 +30,6 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SOURCE = ROOT / "ContentImport"
 FACTORY_WAV = ROOT / "Resources" / "Factory"
 PRESETS = ROOT / "Resources" / "Presets" / "Factory"
-
-CANONICAL_CATEGORIES = [
-    "Leads",
-    "Brass",
-    "Ensembles",
-    "Strings",
-    "Pads",
-    "Chords",
-    "Synths",
-    "Arps",
-    "Vocals",
-    "Bells",
-]
 
 AUDIO_EXTENSIONS = {".wav", ".WAV"}
 PROTECTED_WAV = {"factory_default"}
@@ -122,6 +115,7 @@ def params_for_preset(category: str, display_name: str) -> dict[str, str | float
     if category == "Pads":
         p["env_attack"] = 80.0
         p["env_release"] = 800.0
+    p.update(playback_params_for(category, display_name))
     return p
 
 
@@ -257,7 +251,9 @@ def run_import(
             continue
 
         root_note = infer_root_note_midi(src.stem)
-        write_preset_xml(xml_out, category, display_name, sample_id, params, root_note=root_note)
+        sound_type = SOUND_TYPE_NAMES[infer_sound_type(category, display_name)]
+        write_preset_xml(xml_out, category, display_name, sample_id, params,
+                         root_note=root_note, sound_type=sound_type)
 
     if failures:
         print(f"Import finished with {failures} failure(s).", file=sys.stderr)

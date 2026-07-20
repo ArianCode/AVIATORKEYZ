@@ -7,6 +7,8 @@
 #include "InstrumentPanelBar.h"
 #include "PhotoAnchoredKnob.h"
 #include "PresetCenterNavigator.h"
+#include "AboutOverlay.h"
+#include "PresetLibraryOverlay.h"
 #include "PresetSearchOverlay.h"
 #include "../Advanced/AdvancedPresetSidebar.h"
 #include "../FooterBar.h"
@@ -21,7 +23,8 @@
 class AviatorKeyzProcessor;
 
 /** Main cockpit: preset sidebar, full-bleed photo, centered navigator, bottom gauges. */
-class CockpitCrossworldPanel : public juce::Component
+class CockpitCrossworldPanel : public juce::Component,
+                               private juce::AsyncUpdater
 {
 public:
     static constexpr int kTopPresetBarH = 52;
@@ -34,12 +37,14 @@ public:
     void paint (juce::Graphics& g) override;
     void resized() override;
 
-    std::function<void()> onLibraryRequested;
-    std::function<void()> onAboutRequested;
-
+    void requestPresetUiRefresh();
     void refreshPresetUI();
 
 private:
+    void handleAsyncUpdate() override;
+    void refreshPresetUIImpl();
+    void openLibraryOverlay();
+    void openAboutOverlay();
     void buildInstrumentGauges();
     void buildPhotoAnchors();
     void buildTopPresetBar();
@@ -58,6 +63,8 @@ private:
     PresetCenterNavigator presetNavigator;
     std::unique_ptr<AdvancedPresetSidebar> presetSidebar;
     std::unique_ptr<PresetSearchOverlay> searchOverlay;
+    std::unique_ptr<PresetLibraryOverlay> libraryOverlay;
+    std::unique_ptr<AboutOverlay> aboutOverlay;
 
     std::unique_ptr<InstrumentPanelBar> instrumentBar;
     FooterBar footer;

@@ -14,6 +14,8 @@
 #include "State/PresetManager.h"
 #include "DSP/SamplerEngine.h"
 #include "DSP/FilterProcessor.h"
+#include "DSP/Performance/PerformanceTypes.h"
+#include "State/CategorySoundPolicy.h"
 
 namespace
 {
@@ -242,23 +244,22 @@ public:
                 "Neutral baseline must keep filter bypassed");
         }
 
-        beginTest ("Release default is ten milliseconds, not 0.01 milliseconds");
+        beginTest ("Chromatic instrument uses gated playback policy");
         {
-            RawTestProcessor proc;
-            AviatorKeyz::resetApvtsToDefaults (proc.apvts);
-
-            expectWithinAbsoluteError (
-                proc.apvts.getRawParameterValue (AviatorKeyz::ParamID::ENV_RELEASE)->load(),
-                10.f, 0.05f,
-                "Default release must be 10 ms");
-
             SamplerEngine engine;
-            engine.setEnvelopeTimesMs (0.f, 0.f, 1.f,
-                proc.apvts.getRawParameterValue (AviatorKeyz::ParamID::ENV_RELEASE)->load());
-            expect (engine.isOneShotPlayback(), "Neutral envelope should be one-shot playback");
+            engine.setEnvelopeTimesMs (0.f, 0.f, 1.f, 10.f);
+
+            SourceSettings settings;
+            settings.playbackMode = SamplePlaybackMode::ChromaticResample;
+            settings.loopMode = LoopMode::Gate;
+            engine.setSourceSettings (settings, 120.0);
+            engine.setPlaybackContext (AviatorKeyz::SoundType::OneShot, AviatorKeyz::Category::LEADS);
+
+            expect (! engine.isOneShotPlayback(), "Chromatic instrument must honor note-off");
+            expect (engine.getNoteGatePolicy() == NoteGatePolicy::Gated);
         }
 
-        beginTest ("One-shot continues after MIDI note-off");
+        beginTest ("TriggerToEnd one-shot continues after MIDI note-off");
         {
             SampleLibrary library;
             const auto wav = makeFlatWav (4096);
@@ -271,6 +272,15 @@ public:
             engine.setSampleSnapshot (library.getPublishedSnapshot());
             engine.setEnvelopeTimesMs (0.f, 0.f, 1.f, 10.f);
             engine.setVelocitySensitivity (0.f);
+
+            SourceSettings settings;
+            settings.playbackMode = SamplePlaybackMode::OneShotOriginal;
+            settings.loopMode = LoopMode::OneShot;
+            settings.bpmSync = false;
+            engine.setSourceSettings (settings, 120.0);
+            engine.setPlaybackContext (AviatorKeyz::SoundType::OneShot, AviatorKeyz::Category::CHORDS);
+            expect (engine.getNoteGatePolicy() == NoteGatePolicy::TriggerToEnd);
+
             engine.noteOn (60, 1.f, false, 0.f);
 
             juce::AudioBuffer<float> block (2, 256);
@@ -290,8 +300,9 @@ public:
 
             expect (peakBeforeOff > 0.1f, "Sample should be audible before note-off");
             expect (peakAfterOff > 0.1f,
-                    "One-shot playback must continue after note-off (peak="
+                    "TriggerToEnd must continue after note-off (peak="
                     + juce::String (peakAfterOff) + ")");
+            engine.allSoundOff();
         }
     }
 };

@@ -11,10 +11,10 @@ python3 scripts/validate_factory_presets.py
 
 find_vst3() {
   local candidates=(
-    "$ROOT/build/AviatorKeyz_artefacts/VST3/AviatorKeyz.vst3"
-    "$ROOT/build/AviatorKeyz_artefacts/Release/VST3/AviatorKeyz.vst3"
-    "$ROOT/build/AviatorKeyz_artefacts/RelWithDebInfo/VST3/AviatorKeyz.vst3"
-    "$ROOT/build/AviatorKeyz_artefacts/Debug/VST3/AviatorKeyz.vst3"
+    "$ROOT/build/Aviation_artefacts/VST3/Aviation.vst3"
+    "$ROOT/build/Aviation_artefacts/Release/VST3/Aviation.vst3"
+    "$ROOT/build/Aviation_artefacts/RelWithDebInfo/VST3/Aviation.vst3"
+    "$ROOT/build/Aviation_artefacts/Debug/VST3/Aviation.vst3"
   )
   for path in "${candidates[@]}"; do
     if [[ -d "$path" ]]; then
@@ -30,7 +30,7 @@ if VST3="$(find_vst3)"; then
   if [[ -x "$ROOT/scripts/finalize_production_bundle.sh" ]]; then
     "$ROOT/scripts/finalize_production_bundle.sh" \
       "$VST3" \
-      "$VST3/Contents/MacOS/AviatorKeyz" \
+      "$VST3/Contents/MacOS/Aviation" \
       "release candidate VST3" \
       "${AVIATORKEYZ_CODESIGN_IDENTITY:--}"
   fi

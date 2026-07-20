@@ -93,8 +93,19 @@ public:
 private:
     void parameterChanged (const juce::String& id, float) override
     {
-        if (id == choiceId)
-            syncFromParam();
+        if (id != choiceId)
+            return;
+
+        const auto apply = [self = juce::Component::SafePointer<ChoiceToggleRow> (this)]
+        {
+            if (self != nullptr)
+                self->syncFromParam();
+        };
+
+        if (juce::MessageManager::getInstance()->isThisTheMessageThread())
+            apply();
+        else
+            juce::MessageManager::callAsync (apply);
     }
 
     void setChoiceIndex (int index)

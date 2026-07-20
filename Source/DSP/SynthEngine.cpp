@@ -8,6 +8,9 @@ void SynthEngine::prepare (const juce::dsp::ProcessSpec& spec)
         allSoundOff();
 
     sampleRate = spec.sampleRate;
+
+    for (auto& v : voices)
+        v.glideEngine.setSampleRate (sampleRate);
 }
 
 void SynthEngine::releaseResources()
@@ -138,31 +141,27 @@ int SynthEngine::findMonoVoice() noexcept
 void SynthEngine::startVoice (Voice& v, int midiNote, float velocity, float glideTimeMs) noexcept
 {
     const bool wasActive = v.active;
+    const bool legatoOverlap = ! wasActive && activeVoiceCount > 0;
+    const bool legatoReuse = wasActive;
     v.active = true;
     if (! wasActive)
         ++activeVoiceCount;
     v.noteNumber = midiNote;
     v.velocity = juce::jlimit (0.f, 1.f, velocity);
-    v.targetPitch = static_cast<float> (midiNote);
 
-    const bool useGlide = glideTimeMs > 1.f
-                          && ((glideMode == GlideMode::always)
-                              || (glideMode == GlideMode::legato && lastNote >= 0));
+    const bool glideTimeOn = glideTimeMs > 1.f;
+    const bool useGlide = glideTimeOn
+                          && lastNote >= 0
+                          && (glideMode != GlideMode::legato || legatoOverlap || legatoReuse);
 
-    if (useGlide && lastNote >= 0)
+    if (useGlide)
     {
-        v.currentPitch = static_cast<float> (lastNote);
-        v.gliding = std::abs (v.targetPitch - v.currentPitch) > 0.001f;
-        const double glideSamples = (glideTimeMs * 0.001) * sampleRate;
-        v.glideIncPerSample = v.gliding
-                                  ? (v.targetPitch - v.currentPitch) / static_cast<float> (glideSamples)
-                                  : 0.f;
+        v.glideEngine.snapToPitch (static_cast<float> (lastNote));
+        v.glideEngine.noteOn (midiNote, glideTimeMs);
     }
     else
     {
-        v.currentPitch = v.targetPitch;
-        v.gliding = false;
-        v.glideIncPerSample = 0.f;
+        v.glideEngine.noteOn (midiNote, 0.f);
     }
 
     lastNote = midiNote;
@@ -315,24 +314,19 @@ void SynthEngine::advanceFilterEnv (EnvStage) noexcept
 
 void SynthEngine::advanceGlide (Voice& v) noexcept
 {
-    if (! v.gliding)
+    if (! v.glideEngine.isGliding())
         return;
 
-    v.currentPitch += v.glideIncPerSample;
-    if ((v.glideIncPerSample > 0.f && v.currentPitch >= v.targetPitch) ||
-        (v.glideIncPerSample < 0.f && v.currentPitch <= v.targetPitch))
-    {
-        v.currentPitch = v.targetPitch;
-        v.gliding = false;
-    }
+    v.glideEngine.tick();
 }
 
 float SynthEngine::renderVoice (Voice& v) noexcept
 {
     advanceGlide (v);
 
-    const float pitch1 = v.currentPitch + osc1.tune + osc1.fine / 100.f;
-    const float pitch2 = v.currentPitch + osc2.tune + osc2.fine / 100.f;
+    const float currentPitch = v.glideEngine.getCurrentPitchSemitones();
+    const float pitch1 = currentPitch + osc1.tune + osc1.fine / 100.f;
+    const float pitch2 = currentPitch + osc2.tune + osc2.fine / 100.f;
     const float hz1 = midiNoteToHz (pitch1);
     const float hz2 = midiNoteToHz (pitch2);
 
@@ -398,6 +392,7 @@ void SynthEngine::allSoundOff() noexcept
         v.active = false;
         v.ampStage = EnvStage::idle;
         v.ampLevel = 0.f;
+        v.glideEngine.snapToPitch (60.f);
     }
     activeVoiceCount = 0;
     filterEnvStage = EnvStage::idle;

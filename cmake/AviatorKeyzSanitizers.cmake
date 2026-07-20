@@ -20,10 +20,10 @@ option(AVIATORKEYZ_BUILD_TESTS
     ON)
 
 set(_AVIATORKEYZ_PRODUCTION_TARGETS
-    AviatorKeyz
-    AviatorKeyz_VST3
-    AviatorKeyz_AU
-    AviatorKeyz_Standalone
+    Aviation
+    Aviation_VST3
+    Aviation_AU
+    Aviation_Standalone
 )
 
 function(_aviatorkeyz_string_contains_sanitize out_var input)

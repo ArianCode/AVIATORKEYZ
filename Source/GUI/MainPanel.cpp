@@ -3,64 +3,47 @@
 #include "LuxuryLookAndFeel.h"
 
 MainPanel::MainPanel (AviatorKeyzProcessor& p)
-    : processor (p)
-    , lookAndFeel (std::make_unique<LuxuryLookAndFeel>())
-    , cockpit (p)
+    : processor (p),
+      cockpit (p)
 {
-    setOpaque (true);
+    lookAndFeel = std::make_unique<LuxuryLookAndFeel>();
     setLookAndFeel (lookAndFeel.get());
+
     addAndMakeVisible (cockpit);
 
-    cockpit.onLibraryRequested = [this] { showLibraryPopup(); };
-    cockpit.onAboutRequested = [] {
-        juce::AlertWindow::showMessageBoxAsync (
-            juce::AlertWindow::InfoIcon,
-            "AviatorKeyz",
-            "Photo-anchored cockpit UI.\nAviatorKeyz v1.0.0");
-    };
+    auto& pm = processor.getPresetManager();
+    previousPresetLoadedHandler = pm.onPresetLoaded;
+    pm.onPresetLoaded = [this, loadSampleHook = previousPresetLoadedHandler] (const juce::String& category,
+                                                                              const juce::String& name,
+                                                                              const juce::String& sampleId,
+                                                                              int rootNote)
+    {
+        // Break out of ListBox/mouse stack before suspendProcessing and UI refresh.
+        juce::Timer::callAfterDelay (0, [safe = juce::Component::SafePointer<MainPanel> (this),
+                                         loadSampleHook,
+                                         category,
+                                         name,
+                                         sampleId,
+                                         rootNote]
+        {
+            if (safe == nullptr)
+                return;
 
-    auto& pm = p.getPresetManager();
-    auto loadSampleHook = pm.onPresetLoaded;
-    pm.onPresetLoaded = [this, loadSampleHook] (const juce::String& category,
-                                                const juce::String& name,
-                                                const juce::String& sampleId,
-                                                int rootNote) {
-        if (loadSampleHook)
-            loadSampleHook (category, name, sampleId, rootNote);
-        refreshPresetUI();
-    };
+            if (loadSampleHook)
+                loadSampleHook (category, name, sampleId, rootNote);
 
-    refreshPresetUI();
+            safe->cockpit.requestPresetUiRefresh();
+        });
+    };
 }
 
 MainPanel::~MainPanel()
 {
+    auto& pm = processor.getPresetManager();
+    if (pm.onPresetLoaded)
+        pm.onPresetLoaded = previousPresetLoadedHandler;
+
     setLookAndFeel (nullptr);
-}
-
-void MainPanel::refreshPresetUI()
-{
-    cockpit.refreshPresetUI();
-}
-
-void MainPanel::showLibraryPopup()
-{
-    if (libraryCallout != nullptr)
-    {
-        libraryCallout->dismiss();
-        return;
-    }
-
-    auto browser = std::make_unique<PresetBrowser> (processor, [this] {
-        refreshPresetUI();
-        if (libraryCallout != nullptr)
-            libraryCallout->dismiss();
-    });
-    browser->setSize (320, 200);
-
-    auto popupArea = juce::Rectangle<int> (320, 200).withCentre (getScreenBounds().getCentre());
-    libraryCallout = &juce::CallOutBox::launchAsynchronously (
-        std::move (browser), popupArea, nullptr);
 }
 
 void MainPanel::paint (juce::Graphics& g)

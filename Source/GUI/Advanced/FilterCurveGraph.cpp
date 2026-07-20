@@ -26,7 +26,16 @@ FilterCurveGraph::~FilterCurveGraph()
 
 void FilterCurveGraph::parameterChanged (const juce::String&, float)
 {
-    repaint();
+    const auto apply = [self = juce::Component::SafePointer<FilterCurveGraph> (this)]
+    {
+        if (self != nullptr)
+            self->repaint();
+    };
+
+    if (juce::MessageManager::getInstance()->isThisTheMessageThread())
+        apply();
+    else
+        juce::MessageManager::callAsync (apply);
 }
 
 juce::Rectangle<float> FilterCurveGraph::plotArea() const

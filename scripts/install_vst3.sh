@@ -3,8 +3,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SOURCE_BUNDLE="${1:?Usage: $0 <path/to/AviatorKeyz.vst3>}"
-DEST="${HOME}/Library/Audio/Plug-Ins/VST3/AviatorKeyz.vst3"
+SOURCE_BUNDLE="${1:?Usage: $0 <path/to/Aviation.vst3>}"
+DEST="${HOME}/Library/Audio/Plug-Ins/VST3/Aviation.vst3"
 FINALIZE="${ROOT}/scripts/finalize_production_bundle.sh"
 VERIFY="${ROOT}/scripts/verify_plugin_binary.sh"
 
@@ -13,13 +13,13 @@ if [[ ! -d "$SOURCE_BUNDLE" ]]; then
   exit 1
 fi
 
-SOURCE_EXE="${SOURCE_BUNDLE}/Contents/MacOS/AviatorKeyz"
+SOURCE_EXE="${SOURCE_BUNDLE}/Contents/MacOS/Aviation"
 if [[ ! -f "$SOURCE_EXE" ]]; then
   echo "ERROR: Source executable not found: $SOURCE_EXE" >&2
   exit 1
 fi
 
-echo "== Installing AviatorKeyz VST3 =="
+echo "== Installing Aviation VST3 =="
 echo "Source: ${SOURCE_BUNDLE}"
 
 # 1. Source bundle must already be finalized (sign + sanitizer check).
@@ -35,7 +35,7 @@ mkdir -p "$(dirname "$DEST")"
 rm -rf "$DEST"
 cp -R "$SOURCE_BUNDLE" "$DEST"
 
-INSTALLED_EXE="${DEST}/Contents/MacOS/AviatorKeyz"
+INSTALLED_EXE="${DEST}/Contents/MacOS/Aviation"
 
 echo "-- installed executable SHA-256 --"
 shasum -a 256 "$INSTALLED_EXE"

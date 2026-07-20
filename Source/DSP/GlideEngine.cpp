@@ -9,6 +9,13 @@ void GlideEngine::setSampleRate (double sr)
     sampleRate = sr;
 }
 
+void GlideEngine::snapToPitch (float semitones) noexcept
+{
+    currentPitch   = semitones;
+    glideActive    = false;
+    glideIncrement = 0.0f;
+}
+
 void GlideEngine::noteOn (int midiNote, float glideTimeMs)
 {
     targetPitch = static_cast<float> (midiNote);

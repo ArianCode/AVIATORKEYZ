@@ -3,6 +3,8 @@
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_dsp/juce_dsp.h>
 
+#include "GlideEngine.h"
+
 /** Dual-oscillator subtractive synth voice engine (polyphonic). */
 class SynthEngine
 {
@@ -53,10 +55,7 @@ private:
         float osc1Phase = 0.f;
         float osc2Phase = 0.f;
         float noiseSeed = 0.f;
-        float currentPitch = 60.f;
-        float targetPitch = 60.f;
-        float glideIncPerSample = 0.f;
-        bool gliding = false;
+        GlideEngine glideEngine;
         EnvStage ampStage = EnvStage::idle;
         float ampLevel = 0.f;
         float ampStep = 0.f;

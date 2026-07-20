@@ -45,7 +45,7 @@ if %errorlevel% neq 0 (
 REM --- Locate output ---
 echo.
 echo [3/3] Locating VST3...
-set VST3_PATH=%BUILD_DIR%\AviatorKeyz_artefacts\%CONFIG%\VST3\AviatorKeyz.vst3
+set VST3_PATH=%BUILD_DIR%\Aviation_artefacts\%CONFIG%\VST3\Aviation.vst3
 if exist "%VST3_PATH%" (
     echo.
     echo ===================================================

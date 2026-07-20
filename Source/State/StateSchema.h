@@ -51,6 +51,9 @@ namespace PresetKey {
     static constexpr const char* SAMPLE_ID   = "sampleId";
     /** MIDI note at which embedded sample plays at native pitch (default 60 = C4). */
     static constexpr const char* ROOT_NOTE   = "rootNote";
+    static constexpr const char* SOUND_TYPE  = "soundType";
+    /** Sample tempo used for host BPM sync (varispeed until a stretch engine exists). */
+    static constexpr const char* ORIGINAL_BPM = "originalBpm";
 }
 
 // ---------------------------------------------------------------------------
@@ -94,7 +97,8 @@ namespace ParamID {
     // v1: glide/portamento time, 0–500 ms, default 0 (off), skewed curve
     static constexpr const char* GLIDE_TIME     = "glide_time";
 
-    // v1: smear (transient blur), 0–1, default 0
+    // v1: macro highpass filter, 0 (off) to 1 (aggressive low-cut), default 0
+    // ID kept as smear for host/preset recall compatibility.
     static constexpr const char* SMEAR          = "smear";
 
     // v1: tone tilt, -1.0 (dark/warm) to +1.0 (bright/clean), default 0
@@ -107,7 +111,8 @@ namespace ParamID {
     // v1: reverb size/decay, 0–1, default 0.5
     static constexpr const char* REVERB_SIZE    = "reverb_size";
 
-    // v1: stereo width via M-S matrix, 0 (mono) to 2.0 (hyper-wide), default 1.0
+    // v1: overall tonal brightness, 0 (dark) to 1.0 (bright), default 0.5 (neutral).
+    // ID kept as stereo_width for host/preset recall compatibility.
     static constexpr const char* STEREO_WIDTH   = "stereo_width";
 
     // v1: envelope attack time, 0.5–5000 ms, default ~5 ms
@@ -266,6 +271,56 @@ namespace ParamID {
     static constexpr const char* PERF_MACRO_2 = "perf_macro_2";
     static constexpr const char* PERF_MACRO_3 = "perf_macro_3";
     static constexpr const char* PERF_MACRO_4 = "perf_macro_4";
+
+    // --- Performance / Texture engine (v4) ---
+    static constexpr const char* SRC_START         = "src_start";
+    static constexpr const char* SRC_END           = "src_end";
+    static constexpr const char* SRC_TUNE          = "src_tune";
+    static constexpr const char* SRC_SPEED         = "src_speed";
+    static constexpr const char* SRC_REVERSE       = "src_reverse";
+    static constexpr const char* SRC_LOOP_MODE     = "src_loop_mode";
+    static constexpr const char* SRC_BPM_SYNC        = "src_bpm_sync";
+    static constexpr const char* SRC_ORIGINAL_BPM    = "src_original_bpm";
+    static constexpr const char* SRC_ROOT_NOTE       = "src_root_note";
+    static constexpr const char* SRC_PLAYBACK_MODE = "src_playback_mode";
+    static constexpr const char* SRC_KEYTRACK       = "src_keytrack";
+
+    static constexpr const char* CHOP_ON             = "chop_on";
+    static constexpr const char* CHOP_AMOUNT         = "chop_amount";
+    static constexpr const char* CHOP_RATE           = "chop_rate";
+    static constexpr const char* CHOP_GATE           = "chop_gate";
+    static constexpr const char* CHOP_SWING          = "chop_swing";
+    static constexpr const char* CHOP_RANDOM         = "chop_random";
+    static constexpr const char* CHOP_REVERSE_CHANCE = "chop_reverse_chance";
+    static constexpr const char* CHOP_SMOOTH         = "chop_smooth";
+    static constexpr int CHOP_STEP_COUNT = 16;
+
+    static constexpr const char* PTEX_ON             = "ptex_on";
+    static constexpr const char* PTEX_FREEZE         = "ptex_freeze";
+    static constexpr const char* PTEX_GRAIN_SIZE     = "ptex_grain_size";
+    static constexpr const char* PTEX_DENSITY        = "ptex_density";
+    static constexpr const char* PTEX_POSITION       = "ptex_position";
+    static constexpr const char* PTEX_PITCH_SPREAD   = "ptex_pitch_spread";
+    static constexpr const char* PTEX_SMEAR          = "ptex_smear";
+    static constexpr const char* PTEX_WIDTH          = "ptex_width";
+    static constexpr const char* PTEX_MIX            = "ptex_mix";
+
+    static constexpr const char* PERF_MODE           = "perf_mode";
+    static constexpr const char* PERF_FX_STUTTER     = "perf_fx_stutter";
+    static constexpr const char* PERF_FX_REVERSE     = "perf_fx_reverse";
+    static constexpr const char* PERF_FX_HALF_TIME   = "perf_fx_half_time";
+    static constexpr const char* PERF_FX_FREEZE      = "perf_fx_freeze";
+    static constexpr const char* PERF_FX_TAPE_STOP     = "perf_fx_tape_stop";
+    static constexpr const char* PERF_FX_SCATTER       = "perf_fx_scatter";
+    static constexpr const char* PERF_FX_PITCH_DROP    = "perf_fx_pitch_drop";
+    static constexpr const char* PERF_FX_FILTER_SWEEP  = "perf_fx_filter_sweep";
+
+    /** chop_stepNN_on / vol / offset / rev / pitch — NN = 00..15 */
+    inline juce::String chopStepParamId (int step, const char* suffix)
+    {
+        jassert (step >= 0 && step < CHOP_STEP_COUNT);
+        return juce::String::formatted ("chop_step%02d_%s", step, suffix);
+    }
 
 } // namespace ParamID
 

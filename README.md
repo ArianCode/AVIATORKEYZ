@@ -220,12 +220,13 @@ AviatorKeyz/
 │   │   ├── GlideEngine.*   Portamento pitch tracking (M2)
 │   │   └── ReversePlayer.* Reversed sample playback (M2)
 │   ├── GUI/
-│   │   ├── LuxuryLookAndFeel.* Dark gold visual identity (M4)
-│   │   ├── MainPanel.*     Root layout component (M4)
-│   │   ├── HeaderBar.*     Logo + preset name + tabs (M4)
-│   │   ├── KnobComponent.* Reusable premium knob (M4)
-│   │   ├── WaveformDisplay.*Live sample viewer (M4)
-│   │   └── PresetBrowser.* Category + preset list (M3)
+│   │   ├── Aviation/       MAIN cockpit interface (1647x955 design canvas):
+│   │   │                   TopHeader, PresetHeader, CategoryTabs, preset
+│   │   │                   dropdown, CenterDashboard, side panels, MacroDeck,
+│   │   │                   StatusBar, luggage-style menus
+│   │   ├── Advanced/       PERFORMANCE page (LFOs, FX, mod matrix, chop)
+│   │   ├── LuxuryLookAndFeel.* Dark gold visual identity
+│   │   └── Cockpit/ + legacy components (out of the visible hierarchy)
 │   └── MIDI/
 │       └── MidiHandler.*   Note routing, CC, sustain (M1)
 ├── Resources/

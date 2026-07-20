@@ -7,7 +7,7 @@ REM ============================================================================
 
 setlocal
 
-set APP_PATH=build\AviatorKeyz_artefacts\Release\Standalone\AviatorKeyz.exe
+set APP_PATH=build\Aviation_artefacts\Release\Standalone\Aviation.exe
 
 if not exist "%APP_PATH%" (
     echo Standalone app not found at:

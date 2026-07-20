@@ -1,6 +1,10 @@
 #include "PresetManager.h"
 #include "ApvtsStateHelpers.h"
+#include "CategorySoundPolicy.h"
 #include "FactoryResources.h"
+#include "MacroPresetParser.h"
+#include "../DSP/Performance/PerformanceApvtsReader.h"
+#include "../Debug/AviatorDebug.h"
 #include <vector>
 
 PresetManager::PresetManager (juce::AudioProcessorValueTreeState& apvtsRef)
@@ -68,7 +72,7 @@ void restoreFxParams (juce::AudioProcessorValueTreeState& apvts, const FxSnapsho
 {
     for (const auto& [id, val] : snap)
         if (auto* p = apvts.getParameter (id))
-            p->setValueNotifyingHost (val);
+            p->setValue (val);
 }
 
 bool fxEditsEnabledInTree (const juce::ValueTree& state)
@@ -94,6 +98,17 @@ int PresetManager::parseRootNoteAttribute (const juce::XmlElement* presetRoot)
         return juce::jlimit (0, 127, presetRoot->getIntAttribute (AviatorKeyz::PresetKey::ROOT_NOTE, 60));
 
     return 60;
+}
+
+float PresetManager::parseOriginalBpmAttribute (const juce::XmlElement* presetRoot)
+{
+    if (presetRoot == nullptr)
+        return 0.f;
+
+    if (presetRoot->hasAttribute (AviatorKeyz::PresetKey::ORIGINAL_BPM))
+        return static_cast<float> (presetRoot->getDoubleAttribute (AviatorKeyz::PresetKey::ORIGINAL_BPM, 0.0));
+
+    return 0.f;
 }
 
 int PresetManager::inferRootNoteFromPresetName (const juce::String& presetName,
@@ -182,18 +197,7 @@ int PresetManager::inferRootNoteFromPresetName (const juce::String& presetName,
 
 juce::StringArray PresetManager::getAllCategories() const
 {
-    return {
-        AviatorKeyz::Category::LEADS,
-        AviatorKeyz::Category::BRASS,
-        AviatorKeyz::Category::ENSEMBLES,
-        AviatorKeyz::Category::STRINGS,
-        AviatorKeyz::Category::PADS,
-        AviatorKeyz::Category::CHORDS,
-        AviatorKeyz::Category::SYNTHS,
-        AviatorKeyz::Category::ARPS,
-        AviatorKeyz::Category::VOCALS,
-        AviatorKeyz::Category::BELLS
-    };
+    return AviatorKeyz::getCanonicalCategories();
 }
 
 juce::StringArray PresetManager::getPresetsForCategory (const juce::String& category) const
@@ -220,6 +224,7 @@ bool PresetManager::loadPreset (const juce::String& category, const juce::String
 {
     std::unique_ptr<juce::XmlElement> parsed;
     juce::String sampleId = AviatorKeyz::SampleID::DEFAULT;
+    bool isFactoryPreset = false;
 
     if (const auto* factory = [&]() -> const FactoryResources::PresetEntry* {
             for (const auto& e : FactoryResources::getFactoryPresets())
@@ -232,6 +237,7 @@ bool PresetManager::loadPreset (const juce::String& category, const juce::String
     {
         parsed = juce::XmlDocument::parse (juce::String::fromUTF8 (factory->xmlData, factory->xmlSize));
         sampleId = factory->sampleId;
+        isFactoryPreset = true;
     }
     else
     {
@@ -250,6 +256,8 @@ bool PresetManager::loadPreset (const juce::String& category, const juce::String
     juce::XmlElement* stateEl = nullptr;
 
     int rootNote = 60;
+    juce::String soundTypeAttr;
+    float originalBpm = 0.f;
 
     if (parsed->hasTagName ("Preset"))
     {
@@ -259,6 +267,10 @@ bool PresetManager::loadPreset (const juce::String& category, const juce::String
         rootNote = parseRootNoteAttribute (parsed.get());
         if (! parsed->hasAttribute (AviatorKeyz::PresetKey::ROOT_NOTE))
             rootNote = inferRootNoteFromPresetName (name, sampleId);
+        soundTypeAttr = parsed->getStringAttribute (AviatorKeyz::PresetKey::SOUND_TYPE);
+        originalBpm = parseOriginalBpmAttribute (parsed.get());
+        if (originalBpm < 1.f)
+            originalBpm = AviatorKeyz::inferOriginalBpmFromStem (name, sampleId);
         stateEl = parsed->getChildByName ("AviatorKeyzState");
     }
     else
@@ -275,10 +287,29 @@ bool PresetManager::loadPreset (const juce::String& category, const juce::String
     if (! state.isValid())
         return false;
 
+    if (! AviatorKeyz::isSampleIdCompatibleWithCategory (sampleId, category))
+    {
+        AK_LOG ("Preset sampleId/category mismatch: " + sampleId + " in tab " + category);
+        if (isFactoryPreset)
+            return false;
+    }
+
     const bool recallFx = fxEditsEnabledInTree (state);
     const auto fxSnap   = recallFx ? FxSnapshot {} : captureFxParams (apvts);
 
+    currentSoundType = soundTypeAttr.isNotEmpty()
+                           ? AviatorKeyz::soundTypeFromString (soundTypeAttr)
+                           : AviatorKeyz::inferSoundTypeFromStem (category, name);
+
     AviatorKeyz::applyStateTreeToApvts (apvts, state);
+    PerformanceApvtsReader::applyCategoryPlaybackDefaults (apvts, state, category, name,
+                                                           soundTypeAttr, isFactoryPreset);
+
+    if (originalBpm < 1.f)
+        originalBpm = 120.f;
+    currentOriginalBpm = juce::jlimit (40.f, 240.f, originalBpm);
+    AviatorKeyz::syncOriginalBpmToApvts (apvts, currentOriginalBpm);
+    AviatorKeyz::syncRootNoteToApvts (apvts, rootNote);
 
     if (! recallFx)
         restoreFxParams (apvts, fxSnap);
@@ -289,6 +320,12 @@ bool PresetManager::loadPreset (const juce::String& category, const juce::String
 
     if (onPresetLoaded)
         onPresetLoaded (category, name, sampleId, rootNote);
+
+    if (onMacroMapsLoaded)
+    {
+        const juce::XmlElement* presetRoot = parsed->hasTagName ("Preset") ? parsed.get() : nullptr;
+        onMacroMapsLoaded (MacroPresetParser::parseFromPresetXml (presetRoot, category));
+    }
 
     return true;
 }
@@ -315,6 +352,10 @@ bool PresetManager::saveUserPreset (const juce::String& category, const juce::St
     preset.setAttribute (AviatorKeyz::PresetKey::SAMPLE_ID,
                           currentSampleId.isNotEmpty() ? currentSampleId
                                                        : juce::String (AviatorKeyz::SampleID::DEFAULT));
+    preset.setAttribute (AviatorKeyz::PresetKey::ROOT_NOTE, currentRootNote);
+    preset.setAttribute (AviatorKeyz::PresetKey::SOUND_TYPE,
+                          AviatorKeyz::soundTypeToString (currentSoundType));
+    preset.setAttribute (AviatorKeyz::PresetKey::ORIGINAL_BPM, currentOriginalBpm);
 
     if (auto inner = state.createXml())
         preset.addChildElement (inner.release());
@@ -328,10 +369,17 @@ juce::String PresetManager::getCurrentCategory() const { return currentCategory;
 juce::String PresetManager::getCurrentSampleId() const { return currentSampleId; }
 int PresetManager::getCurrentRootNote() const { return currentRootNote; }
 
+void PresetManager::setCurrentRootNote (int rootNote) noexcept
+{
+    currentRootNote = juce::jlimit (0, 127, rootNote);
+}
+
 void PresetManager::setPresetIdentity (const juce::String& category,
                                          const juce::String& name,
                                          const juce::String& sampleId,
-                                         int rootNote)
+                                         int rootNote,
+                                         AviatorKeyz::SoundType soundType,
+                                         float originalBpm)
 {
     if (category.isNotEmpty())
         currentCategory = category;
@@ -340,6 +388,9 @@ void PresetManager::setPresetIdentity (const juce::String& category,
     if (sampleId.isNotEmpty())
         currentSampleId = sampleId;
     currentRootNote = juce::jlimit (0, 127, rootNote);
+    currentSoundType = soundType;
+    if (originalBpm > 1.f)
+        currentOriginalBpm = juce::jlimit (40.f, 240.f, originalBpm);
 }
 
 juce::Array<PresetManager::FlatPreset> PresetManager::buildFlatPresetList() const

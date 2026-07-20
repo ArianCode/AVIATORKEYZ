@@ -1,9 +1,12 @@
 #pragma once
 
+#include <array>
 #include <functional>
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include "CategorySoundPolicy.h"
 #include "StateSchema.h"
+#include "../DSP/Performance/PerformanceTypes.h"
 
 // =============================================================================
 //  PresetManager — M3
@@ -47,12 +50,19 @@ public:
     juce::String getCurrentCategory() const;
     juce::String getCurrentSampleId() const;
     int          getCurrentRootNote() const;
+    float        getCurrentOriginalBpm() const noexcept { return currentOriginalBpm; }
+    AviatorKeyz::SoundType getCurrentSoundType() const noexcept { return currentSoundType; }
 
     /** Update preset/sample tracking without reloading preset XML (host state restore). */
     void setPresetIdentity (const juce::String& category,
                             const juce::String& name,
                             const juce::String& sampleId,
-                            int rootNote);
+                            int rootNote,
+                            AviatorKeyz::SoundType soundType = AviatorKeyz::SoundType::Phrase,
+                            float originalBpm = 120.f);
+
+    /** Keep root note in sync after sample load resolves smpl vs preset. */
+    void setCurrentRootNote (int rootNote) noexcept;
 
     int  getTotalPresetCount() const;
     int  getCurrentPresetIndex() const;
@@ -70,10 +80,14 @@ public:
                         const juce::String& sampleId,
                         int rootNote)> onPresetLoaded;
 
+    /** Parsed macro mappings from preset XML — message thread only */
+    std::function<void (const std::array<MacroControl, 4>& macros)> onMacroMapsLoaded;
+
 private:
     static int inferRootNoteFromPresetName (const juce::String& presetName,
                                             const juce::String& sampleId);
     static int parseRootNoteAttribute (const juce::XmlElement* presetRoot);
+    static float parseOriginalBpmAttribute (const juce::XmlElement* presetRoot);
 
     struct FlatPreset
     {
@@ -89,6 +103,8 @@ private:
     juce::String currentCategory;
     juce::String currentSampleId { AviatorKeyz::SampleID::DEFAULT };
     int          currentRootNote { 60 };
+    float        currentOriginalBpm { 120.f };
+    AviatorKeyz::SoundType currentSoundType { AviatorKeyz::SoundType::Phrase };
 
     juce::File getFactoryPresetsDir() const;
     juce::File getUserPresetsDir()    const;

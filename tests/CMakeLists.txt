@@ -27,18 +27,29 @@ target_sources(${_AVIATORKEYZ_TEST_TARGET}
     PRIVATE
         AviatorKeyzTests.cpp
         ApvtsStateHelpersTests.cpp
+        FastMathTests.cpp
+        RealtimeSafetyTests.cpp
+        EnvelopeTests.cpp
+        RetriggerDeclickTests.cpp
         SamplerEngineTests.cpp
+        GlideEngineTests.cpp
         SampleLibraryTests.cpp
         StateSchemaTests.cpp
         ParameterWiringTests.cpp
         TextureEngineTests.cpp
         PerformanceMacroEngineTests.cpp
+        MacroMapperTests.cpp
+        MacroMapperTests.cpp
         PresetManagerTests.cpp
+        CategoryPolicyTests.cpp
         PitchAlignmentTests.cpp
         PerformanceBenchmarkTests.cpp
         PresetPlaybackTests.cpp
         RawSamplerTests.cpp
+        VoiceLifecycleTests.cpp
+        MidiHandlerTests.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/SamplerEngine.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/GlideEngine.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/FilterProcessor.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/SynthEngine.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/TextureEngine.cpp
@@ -47,12 +58,19 @@ target_sources(${_AVIATORKEYZ_TEST_TARGET}
         ${CMAKE_SOURCE_DIR}/Source/DSP/ModMatrix.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/LfoEngine.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/PerformanceMacroEngine.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/Performance/PerformanceApvtsReader.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/Performance/MacroMapper.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/Performance/PhraseChopper.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/Performance/MotionEngine.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/ToneShaper.cpp
         ${CMAKE_SOURCE_DIR}/Source/State/SampleLibrary.cpp
         ${CMAKE_SOURCE_DIR}/Source/State/PresetManager.cpp
+        ${CMAKE_SOURCE_DIR}/Source/State/MacroPresetParser.cpp
         ${CMAKE_SOURCE_DIR}/Source/State/FactoryResources.cpp
         ${CMAKE_SOURCE_DIR}/Source/State/ParameterLayout.cpp
         ${CMAKE_SOURCE_DIR}/Source/State/ApvtsStateHelpers.cpp
         ${CMAKE_SOURCE_DIR}/Source/GUI/Advanced/AdvancedParameterLayout.cpp
+        ${CMAKE_SOURCE_DIR}/Source/GUI/Advanced/PerformanceParameterLayout.cpp
         ${CMAKE_SOURCE_DIR}/Source/MIDI/MidiHandler.cpp
 )
 

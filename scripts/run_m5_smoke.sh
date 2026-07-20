@@ -27,9 +27,9 @@ echo ""
 echo "== Factory content =="
 python3 scripts/validate_factory_presets.py
 
-STANDALONE="build/AviatorKeyz_artefacts/Release/Standalone/AviatorKeyz.app"
+STANDALONE="build/Aviation_artefacts/Release/Standalone/Aviation.app"
 if [[ ! -d "$STANDALONE" ]]; then
-  STANDALONE="build/AviatorKeyz_artefacts/Debug/Standalone/AviatorKeyz.app"
+  STANDALONE="build/Aviation_artefacts/Debug/Standalone/Aviation.app"
 fi
 
 if [[ -d "$STANDALONE" ]]; then
@@ -37,9 +37,9 @@ if [[ -d "$STANDALONE" ]]; then
   echo "== Standalone launch (5s) =="
   open -a "$STANDALONE" || open "$STANDALONE"
   sleep 5
-  if pgrep -f "AviatorKeyz" >/dev/null 2>&1; then
+  if pgrep -f "Aviation" >/dev/null 2>&1; then
     echo "OK — Standalone process running"
-    pkill -f "AviatorKeyz.app" 2>/dev/null || true
+    pkill -f "Aviation.app" 2>/dev/null || true
   else
     echo "WARN — Standalone may have exited; check Console.app"
   fi

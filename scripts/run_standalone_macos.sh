@@ -8,7 +8,7 @@ set -euo pipefail
 # =============================================================================
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_PATH="${ROOT_DIR}/build/AviatorKeyz_artefacts/Release/Standalone/AviatorKeyz.app"
+APP_PATH="${ROOT_DIR}/build/Aviation_artefacts/Release/Standalone/Aviation.app"
 
 if [[ ! -d "${APP_PATH}" ]]; then
   echo "Standalone app not found at:"

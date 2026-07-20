@@ -86,9 +86,6 @@ void AdvancedPresetSidebar::listBoxItemClicked (int row, const juce::MouseEvent&
 
     auto& pm = processorRef.getPresetManager();
     pm.loadPreset (activeCategory, presetNames[row]);
-
-    if (onPresetChanged)
-        onPresetChanged();
 }
 
 void AdvancedPresetSidebar::paint (juce::Graphics& g)

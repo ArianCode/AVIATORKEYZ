@@ -2,10 +2,13 @@
 #include "PluginEditor.h"
 #include "State/ParameterLayout.h"
 #include "State/ApvtsStateHelpers.h"
+#include "State/CategorySoundPolicy.h"
 #include "Debug/AviatorDebug.h"
+#include "Debug/PlaybackProbe.h"
 #include "State/FactoryResources.h"
-#include "DSP/ModMatrix.h"
-#include "DSP/PerformanceMacroEngine.h"
+#include "DSP/Performance/PerformanceApvtsReader.h"
+#include "DSP/Performance/MacroMapper.h"
+#include "DSP/Performance/PerformanceTexturePipeline.h"
 #include "DSP/FastMath.h"
 
 using namespace juce;
@@ -22,12 +25,21 @@ AviatorKeyzProcessor::AviatorKeyzProcessor()
     , apvts (*this, nullptr, "AviatorKeyzState", createParameterLayout())
     , presetManager (std::make_unique<PresetManager> (apvts))
 {
-    presetManager->onPresetLoaded = [this] (const juce::String&,
+    presetManager->onPresetLoaded = [this] (const juce::String& category,
                                             const juce::String&,
                                             const juce::String& sampleId,
                                             int rootNote) {
+        juce::ignoreUnused (category);
         loadFactorySample (sampleId, rootNote);
     };
+
+    presetManager->onMacroMapsLoaded = [this] (const std::array<MacroControl, 4>& macros) {
+        macroControls = macros;
+    };
+
+    perfParamCache.init (apvts);
+
+    macroControls = MacroMapper::defaultsForCategory (AviatorKeyz::Category::LEADS);
 
     if (! presetManager->loadPreset (AviatorKeyz::Category::LEADS, "Init"))
     {
@@ -57,20 +69,17 @@ void AviatorKeyzProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
     const dsp::ProcessSpec spec { sampleRate, (uint32) samplesPerBlock, 2 };
 
     samplerEngine.prepare (spec);
-    synthEngine.prepare (spec);
-    filterProcessor.prepare (spec);
-    textureEngine.prepare (spec);
     outputLimiter.prepare (spec);
     toneShaper.prepare (spec);
+    brightnessShaper.prepare (spec);
     smearProcessor.prepare (spec);
     reverbTail.prepare (spec);
     fxChain.prepare (spec);
-    lfoEngine.prepare (sampleRate);
+    performancePipeline.prepare (spec);
 
-    synthScratch.setSize (2, samplesPerBlock, false, false, true);
-    samplerScratch.setSize (2, samplesPerBlock, false, false, true);
-
-    loadFactorySample (presetManager->getCurrentSampleId(), presetManager->getCurrentRootNote());
+    const auto sampleId = presetManager->getCurrentSampleId();
+    if (sampleId != loadedSampleId)
+        loadFactorySample (sampleId, presetManager->getCurrentRootNote());
 
     inputGainSmoothed.setCurrentAndTargetValue (
         Decibels::decibelsToGain (apvts.getRawParameterValue (ParamID::INPUT_GAIN)->load()));
@@ -88,9 +97,30 @@ const float* AviatorKeyzProcessor::getFactoryWaveformData() const noexcept
 
 bool AviatorKeyzProcessor::loadFactorySample (const juce::String& sampleId, int rootNote)
 {
+    {
+        const juce::ScopedLock lock (sampleLoadLock);
+        // Root is resolved from the sample (smpl > argument); identity is sampleId.
+        if (sampleId == loadedSampleId)
+        {
+            const int authoritativeRoot = sampleLibrary.getPrimaryRootNote();
+            factoryRootNote = authoritativeRoot;
+            presetManager->setCurrentRootNote (authoritativeRoot);
+            AviatorKeyz::syncRootNoteToApvts (apvts, authoritativeRoot);
+            juce::ignoreUnused (rootNote);
+            return true;
+        }
+    }
+
     if (sampleId.isEmpty())
     {
         AK_LOG ("Preset contains an empty sampleId");
+        return false;
+    }
+
+    if (! AviatorKeyz::isSampleIdCompatibleWithCategory (sampleId, presetManager->getCurrentCategory()))
+    {
+        AK_LOG ("loadFactorySample rejected — sampleId does not match active category: "
+                + sampleId + " tab=" + presetManager->getCurrentCategory());
         return false;
     }
 
@@ -142,7 +172,9 @@ bool AviatorKeyzProcessor::loadFactorySample (const juce::String& sampleId, int 
             sampleLibrary.publish();
             samplerEngine.setSampleSnapshot (sampleLibrary.getPublishedSnapshot());
 
-            factoryRootNote = juce::jlimit (0, 127, rootNote);
+            // smpl chunk may override the preset XML root — that resolved value is authoritative.
+            const int effectiveRoot = sampleLibrary.getPrimaryRootNote();
+            factoryRootNote = effectiveRoot;
             loadedSampleId = sampleId;
             factoryWaveformFrames = 0;
             factoryWaveformData = nullptr;
@@ -173,6 +205,12 @@ bool AviatorKeyzProcessor::loadFactorySample (const juce::String& sampleId, int 
     if (! loaded)
         return false;
 
+    // One authoritative root after load: sample region → PresetManager → APVTS.
+    const int authoritativeRoot = sampleLibrary.getPrimaryRootNote();
+    factoryRootNote = authoritativeRoot;
+    presetManager->setCurrentRootNote (authoritativeRoot);
+    AviatorKeyz::syncRootNoteToApvts (apvts, authoritativeRoot);
+
     const bool samplerValid = samplerEngine.validateCurrentState();
 
     const float sourceBlend = apvts.getRawParameterValue (AviatorKeyz::ParamID::SOURCE_BLEND)->load();
@@ -196,11 +234,11 @@ void AviatorKeyzProcessor::releaseResources()
     smearProcessor.reset();
     reverbTail.reset();
     toneShaper.reset();
-    textureEngine.reset();
-    filterProcessor.reset();
+    brightnessShaper.reset();
+    performancePipeline.reset();
     outputLimiter.reset();
     fxChain.reset();
-    lfoEngine.reset();
+    fxChain.reset();
 }
 
 bool AviatorKeyzProcessor::isBusesLayoutSupported (const AudioProcessor::BusesLayout& layouts) const
@@ -221,222 +259,105 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
     if (! isPrepared)
         return;
 
-    namespace P = AviatorKeyz::ParamID;
+    const int n = buffer.getNumSamples();
 
-    // --- LFO engine ---
-    const auto lfoShape = [] (int idx) {
-        return static_cast<LfoEngine::Shape> (juce::jlimit (0, 5, idx));
-    };
+    namespace P = AviatorKeyz::ParamID;
 
     const double hostBpm = [this] {
         if (auto* playHead = getPlayHead())
-        {
             if (auto pos = playHead->getPosition())
                 if (auto bpm = pos->getBpm())
                     return *bpm;
-        }
         return 120.0;
     }();
+    lastKnownHostBpm.store (hostBpm, std::memory_order_relaxed);
 
-    struct LfoParams { const char* rate, *depth, *shape, *sync, *phase; };
-    const LfoParams lfoIds[] {
-        { P::LFO1_RATE, P::LFO1_DEPTH, P::LFO1_SHAPE, P::LFO1_SYNC, P::LFO1_PHASE },
-        { P::LFO2_RATE, P::LFO2_DEPTH, P::LFO2_SHAPE, P::LFO2_SYNC, P::LFO2_PHASE },
-        { P::LFO3_RATE, P::LFO3_DEPTH, P::LFO3_SHAPE, P::LFO3_SYNC, P::LFO3_PHASE },
-    };
-
-    for (int i = 0; i < LfoEngine::kNumLfos; ++i)
-    {
-        const auto& ids = lfoIds[i];
-        lfoEngine.setRateHz (i, apvts.getRawParameterValue (ids.rate)->load());
-        lfoEngine.setDepth (i, apvts.getRawParameterValue (ids.depth)->load());
-        lfoEngine.setShape (i, lfoShape (static_cast<int> (apvts.getRawParameterValue (ids.shape)->load())));
-        lfoEngine.setSyncToHost (i, apvts.getRawParameterValue (ids.sync)->load() > 0.5f, hostBpm);
-        lfoEngine.setPhaseOffset (i, apvts.getRawParameterValue (ids.phase)->load());
-    }
-
-    lfoEngine.advance (buffer.getNumSamples());
-    modMatrix.updateFromApvts (apvts, lfoEngine);
-    const auto& mod = modMatrix.getOffsets();
-
-    const auto macros = PerformanceMacroEngine::compute (
-        apvts.getRawParameterValue (P::PERF_MACRO_1)->load(),
-        apvts.getRawParameterValue (P::PERF_MACRO_2)->load(),
-        apvts.getRawParameterValue (P::PERF_MACRO_3)->load(),
-        apvts.getRawParameterValue (P::PERF_MACRO_4)->load());
+    EngineState baseState = PerformanceApvtsReader::readBaseState (perfParamCache);
+    EngineState engineState = MacroMapper::applyMacros (baseState, macroControls, perfParamCache);
 
     inputGainSmoothed.setTargetValue (
         Decibels::decibelsToGain (apvts.getRawParameterValue (P::INPUT_GAIN)->load()
-                                  + mod.inputGainDb));
+                                  + engineState.outputLevelOffset * 6.f));
     outputGainSmoothed.setTargetValue (
-        Decibels::decibelsToGain (apvts.getRawParameterValue (P::OUTPUT_GAIN)->load()));
+        Decibels::decibelsToGain (apvts.getRawParameterValue (P::OUTPUT_GAIN)->load()
+                                  + engineState.outputLevelOffset * 6.f));
 
-    const bool reverse = apvts.getRawParameterValue (P::REVERSE)->load() > 0.5f;
+    const bool reverse = engineState.source.reverse
+                         || apvts.getRawParameterValue (P::REVERSE)->load() > 0.5f;
     const float glideMs = apvts.getRawParameterValue (P::GLIDE_TIME)->load();
     const float attackMs = apvts.getRawParameterValue (P::ENV_ATTACK)->load();
     const float decayMs = apvts.getRawParameterValue (P::ENV_AMP_DECAY)->load();
     const float sustain01 = apvts.getRawParameterValue (P::ENV_AMP_SUSTAIN)->load();
     const float releaseMs = apvts.getRawParameterValue (P::ENV_RELEASE)->load();
-    const float sourceBlend = apvts.getRawParameterValue (P::SOURCE_BLEND)->load();
 
     const int polyphony = static_cast<int> (apvts.getRawParameterValue (P::VOICE_POLYPHONY)->load());
     const int playMode = static_cast<int> (apvts.getRawParameterValue (P::VOICE_PLAY_MODE)->load());
     const int glideMode = static_cast<int> (apvts.getRawParameterValue (P::VOICE_GLIDE_MODE)->load());
 
     samplerEngine.setEnvelopeTimesMs (attackMs, decayMs, sustain01, releaseMs);
-    samplerEngine.setVelocitySensitivity (
-        apvts.getRawParameterValue (P::VELOCITY_SENSITIVITY)->load());
+    samplerEngine.setVelocitySensitivity (apvts.getRawParameterValue (P::VELOCITY_SENSITIVITY)->load());
     samplerEngine.setPolyphony (polyphony);
     samplerEngine.setPlayMode (playMode);
     samplerEngine.setGlideMode (glideMode);
-    samplerEngine.setPhraseParams (
-        apvts.getRawParameterValue (P::PHRASE_ENABLED)->load() > 0.5f,
-        apvts.getRawParameterValue (P::PHRASE_START)->load(),
-        apvts.getRawParameterValue (P::PHRASE_LENGTH)->load(),
-        static_cast<int> (apvts.getRawParameterValue (P::PHRASE_PITCH)->load()),
-        apvts.getRawParameterValue (P::PHRASE_LOOP)->load() > 0.5f,
-        apvts.getRawParameterValue (P::PHRASE_TEMPO_SYNC)->load() > 0.5f,
-        apvts.getRawParameterValue (P::PHRASE_KEY_SYNC)->load() > 0.5f,
-        hostBpm);
+    samplerEngine.setSourceSettings (engineState.source, hostBpm);
+    samplerEngine.setPlaybackContext (presetManager->getCurrentSoundType(),
+                                      presetManager->getCurrentCategory());
 
-    synthEngine.setPolyphony (polyphony);
-    synthEngine.setPlayMode (static_cast<SynthEngine::PlayMode> (playMode));
-    synthEngine.setGlideMode (static_cast<SynthEngine::GlideMode> (glideMode));
-    synthEngine.setAmpEnvelopeMs (attackMs, decayMs, sustain01, releaseMs);
-    synthEngine.setFilterEnvelopeMs (
-        apvts.getRawParameterValue (P::ENV_FLT_ATTACK)->load(),
-        apvts.getRawParameterValue (P::ENV_FLT_DECAY)->load(),
-        apvts.getRawParameterValue (P::ENV_FLT_SUSTAIN)->load(),
-        apvts.getRawParameterValue (P::ENV_FLT_RELEASE)->load());
+    const int sampleFrames = samplerEngine.getPrimarySampleNumFrames();
+    const auto chopPlayback = performancePipeline.advanceChopPlayback (engineState, sampleFrames, hostBpm);
+    samplerEngine.setChopPlaybackState (chopPlayback);
 
-    synthEngine.setOscParams (0,
-                              static_cast<int> (apvts.getRawParameterValue (P::OSC1_TYPE)->load()),
-                              apvts.getRawParameterValue (P::OSC1_TUNE)->load(),
-                              apvts.getRawParameterValue (P::OSC1_FINE)->load(),
-                              apvts.getRawParameterValue (P::OSC1_SHAPE)->load(),
-                              juce::jlimit (0.f, 1.f, apvts.getRawParameterValue (P::OSC1_LEVEL)->load()
-                                            + mod.osc1Level + macros.osc1Level),
-                              apvts.getRawParameterValue (P::OSC1_PAN)->load());
-    synthEngine.setOscParams (1,
-                              static_cast<int> (apvts.getRawParameterValue (P::OSC2_TYPE)->load()),
-                              apvts.getRawParameterValue (P::OSC2_TUNE)->load(),
-                              apvts.getRawParameterValue (P::OSC2_FINE)->load(),
-                              apvts.getRawParameterValue (P::OSC2_SHAPE)->load(),
-                              juce::jlimit (0.f, 1.f, apvts.getRawParameterValue (P::OSC2_LEVEL)->load()
-                                            + mod.osc2Level + macros.osc2Level),
-                              apvts.getRawParameterValue (P::OSC2_PAN)->load());
+    midiHandler.process (midiMessages, samplerEngine, synthEngine, reverse, glideMs, 0.f);
 
-    midiHandler.process (midiMessages, samplerEngine, synthEngine, reverse, glideMs, sourceBlend);
+    // Render voices directly into the host buffer (cleared above) — no
+    // scratch copy, no audio-thread buffer resizing.
+    samplerEngine.process (buffer);
 
-    const int n = buffer.getNumSamples();
-    samplerScratch.setSize (2, n, false, false, true);
-    synthScratch.setSize (2, n, false, false, true);
-    samplerScratch.clear();
-    synthScratch.clear();
-
-    if (sourceBlend < 0.999f)
-        samplerEngine.process (samplerScratch);
-    if (sourceBlend > 0.001f)
-        synthEngine.process (synthScratch);
-
-#if JUCE_DEBUG
-    if (sourceBlend < 0.999f)
-    {
-        printBufferLevel ("01 sampler render", samplerScratch);
-        DBG ("Sampler active voices: "
-             + juce::String (samplerEngine.getNumActiveVoices()));
-    }
+#if AVIATORKEYZ_DEBUG
+    PlaybackProbe::updateSamplerVoices (samplerEngine.getNumActiveVoices(),
+                                        samplerEngine.getRetriggerPolicy() == RetriggerPolicy::PhraseChoke
+                                            ? samplerEngine.getNumActiveVoices() : 0);
+    PlaybackProbe::updatePeak (PlaybackProbe::samplerPeak, PlaybackProbe::bufferPeak (buffer));
 #endif
-
-    auto* L = buffer.getWritePointer (0);
-    auto* R = buffer.getWritePointer (1);
-    const float sampleGain = 1.f - sourceBlend;
-    const float synthGain = sourceBlend;
-    const float* sL = samplerScratch.getReadPointer (0);
-    const float* sR = samplerScratch.getReadPointer (1);
-    const float* yL = synthScratch.getReadPointer (0);
-    const float* yR = synthScratch.getReadPointer (1);
 
     for (int i = 0; i < n; ++i)
     {
-        const float samplerOutputGain = inputGainSmoothed.getNextValue();
-        L[i] = sL[i] * sampleGain * samplerOutputGain + yL[i] * synthGain;
-        R[i] = sR[i] * sampleGain * samplerOutputGain + yR[i] * synthGain;
+        const float gIn = inputGainSmoothed.getNextValue();
+        buffer.getWritePointer (0)[i] *= gIn;
+        buffer.getWritePointer (1)[i] *= gIn;
     }
 
-#if JUCE_DEBUG
-    if (sourceBlend < 0.999f)
-    {
-        juce::AudioBuffer<float> gainProbe (samplerScratch);
-        gainProbe.applyGain (Decibels::decibelsToGain (
-            apvts.getRawParameterValue (P::INPUT_GAIN)->load() + mod.inputGainDb));
-        printBufferLevel ("02 source gain", gainProbe);
-    }
-    printBufferLevel ("03 source mix", buffer);
+    performancePipeline.process (buffer, engineState, hostBpm);
+
+#if AVIATORKEYZ_DEBUG
+    PlaybackProbe::updatePeak (PlaybackProbe::texturePeak, PlaybackProbe::bufferPeak (buffer));
 #endif
 
-    const bool filterEnabled = apvts.getRawParameterValue (P::FILTER_ENABLED)->load() > 0.5f;
+    auto perfFx = performancePipeline.updatePerformanceFx (engineState);
+    performancePipeline.applyPerformanceFx (buffer, perfFx);
 
-    if (filterEnabled)
-    {
-        const float cutoffNorm = juce::jlimit (0.f, 1.f,
-            juce::jmap (apvts.getRawParameterValue (P::FILTER_CUTOFF)->load(), 20.f, 20000.f, 0.f, 1.f)
-            + mod.filterCutoff + macros.filterCutoff);
-        const float cutoffHz = juce::jmap (cutoffNorm, 20.f, 20000.f);
-        const float filterReso = juce::jlimit (0.f, 1.f,
-            apvts.getRawParameterValue (P::FILTER_RESONANCE)->load() + mod.filterReso);
-        const auto filterType = static_cast<FilterProcessor::Type> (
-            static_cast<int> (apvts.getRawParameterValue (P::FILTER_TYPE)->load()));
-        filterProcessor.setParameters (cutoffHz,
-                                       filterReso,
-                                       filterType,
-                                       apvts.getRawParameterValue (P::FILTER_DRIVE)->load(),
-                                       apvts.getRawParameterValue (P::ENV_FLT_AMOUNT)->load(),
-                                       synthEngine.getFilterEnvLevel());
-        filterProcessor.process (buffer);
-#if JUCE_DEBUG
-        printBufferLevel ("04 filter", buffer);
-#endif
-    }
-
-    const float texAmount = juce::jlimit (0.f, 1.f,
-        apvts.getRawParameterValue (P::TEX_AMOUNT)->load() + mod.textureAmount + macros.textureAmount);
-    const bool texEnabled = apvts.getRawParameterValue (P::TEX_ENABLED)->load() > 0.5f
-                            && texAmount >= 0.001f;
-
-    if (texEnabled)
-    {
-        textureEngine.process (buffer,
-                               true,
-                               texAmount,
-                               apvts.getRawParameterValue (P::TEX_FREEZE)->load() > 0.5f,
-                               juce::jlimit (0.f, 1.f, apvts.getRawParameterValue (P::TEX_GRAIN_RATE)->load() + mod.grainRate + macros.grainRate),
-                               juce::jlimit (0.f, 1.f, apvts.getRawParameterValue (P::TEX_GRAIN_SIZE)->load() + mod.grainSize),
-                               static_cast<int> (apvts.getRawParameterValue (P::TEX_GRAIN_PITCH)->load()),
-                               apvts.getRawParameterValue (P::TEX_GRAIN_DENSITY)->load(),
-                               apvts.getRawParameterValue (P::TEX_GRAIN_SPREAD)->load(),
-                               apvts.getRawParameterValue (P::TEX_GRAIN_PAN)->load(),
-                               apvts.getRawParameterValue (P::TEX_MOTION)->load(),
-                               apvts.getRawParameterValue (P::TEX_DRIFT)->load(),
-                               apvts.getRawParameterValue (P::TEX_AIR)->load(),
-                               apvts.getRawParameterValue (P::TEX_REVERSE)->load() > 0.5f,
-                               apvts.getRawParameterValue (P::TEX_WIDTH)->load(),
-                               apvts.getRawParameterValue (P::TEX_GRAIN_SCAN)->load(),
-                               hostBpm);
-#if JUCE_DEBUG
-        printBufferLevel ("06 texture", buffer);
-#endif
-    }
-
-    const float tone = juce::jlimit (-1.f, 1.f, apvts.getRawParameterValue (P::TONE)->load() + mod.tone + macros.tone);
-    const float smear = juce::jlimit (0.f, 1.f, apvts.getRawParameterValue (P::SMEAR)->load() + mod.smear + macros.smear);
-    const float revAmt = juce::jlimit (0.f, 1.f, apvts.getRawParameterValue (P::REVERB_AMOUNT)->load() + mod.reverbAmount + macros.reverbAmount);
-    const float revSize = juce::jlimit (0.f, 1.f, apvts.getRawParameterValue (P::REVERB_SIZE)->load() + mod.reverbSize);
-    const float width = juce::jlimit (0.f, 2.f, apvts.getRawParameterValue (P::STEREO_WIDTH)->load() + mod.stereoWidth);
-    const float pan = juce::jlimit (-1.f, 1.f, apvts.getRawParameterValue (P::PAN)->load() + mod.pan);
+    const float tone = juce::jlimit (-1.f, 1.f,
+        apvts.getRawParameterValue (P::TONE)->load() + engineState.toneOffset);
+    const float smear = juce::jlimit (0.f, 1.f,
+        apvts.getRawParameterValue (P::SMEAR)->load() + engineState.smearOffset);
+    const float revAmt = juce::jlimit (0.f, 1.f,
+        apvts.getRawParameterValue (P::REVERB_AMOUNT)->load() + engineState.reverbMixOffset);
+    const float revSize = juce::jlimit (0.f, 1.f, apvts.getRawParameterValue (P::REVERB_SIZE)->load());
+    const float brightness = juce::jlimit (0.f, 1.f,
+        apvts.getRawParameterValue (P::STEREO_WIDTH)->load() + engineState.widthOffset);
+    const float pan = juce::jlimit (-1.f, 1.f, apvts.getRawParameterValue (P::PAN)->load());
     const bool reverbOn = apvts.getRawParameterValue (P::FX_REVERB_ON)->load() > 0.5f
                           && revAmt >= 0.001f;
     const float reverbDamp = apvts.getRawParameterValue (P::FX_REVERB_DAMP)->load();
+
+    const float brightnessTone = (brightness - 0.5f) * 2.f;
+    if (std::abs (brightnessTone) >= 0.001f)
+    {
+        brightnessShaper.process (buffer, brightnessTone);
+#if JUCE_DEBUG
+        printBufferLevel ("05 brightness", buffer);
+#endif
+    }
 
     if (std::abs (tone) >= 0.001f)
     {
@@ -450,7 +371,7 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
     {
         smearProcessor.process (buffer, smear);
 #if JUCE_DEBUG
-        printBufferLevel ("05 smear", buffer);
+        printBufferLevel ("05 filter macro", buffer);
 #endif
     }
 
@@ -465,19 +386,21 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
     const bool delayOn   = apvts.getRawParameterValue (P::FX_DELAY_ON)->load() > 0.5f;
     const float delayTime = apvts.getRawParameterValue (P::FX_DELAY_TIME)->load();
     const float delayFb  = apvts.getRawParameterValue (P::FX_DELAY_FEEDBACK)->load();
-    const float delayMix = juce::jlimit (0.f, 1.f, apvts.getRawParameterValue (P::FX_DELAY_MIX)->load() + mod.delayMix);
+    const float delayMix = juce::jlimit (0.f, 1.f,
+        apvts.getRawParameterValue (P::FX_DELAY_MIX)->load() + engineState.delayMixOffset);
     const bool delaySync = apvts.getRawParameterValue (P::FX_DELAY_SYNC)->load() > 0.5f;
 
     const bool chorusOn  = apvts.getRawParameterValue (P::FX_CHORUS_ON)->load() > 0.5f;
     const float chorusRate  = apvts.getRawParameterValue (P::FX_CHORUS_RATE)->load();
     const float chorusDepth = apvts.getRawParameterValue (P::FX_CHORUS_DEPTH)->load();
-    const float chorusMix   = juce::jlimit (0.f, 1.f, apvts.getRawParameterValue (P::FX_CHORUS_MIX)->load() + mod.chorusMix);
+    const float chorusMix   = apvts.getRawParameterValue (P::FX_CHORUS_MIX)->load();
 
     const bool lofiOn    = apvts.getRawParameterValue (P::FX_LOFI_ON)->load() > 0.5f;
-    const float lofiAmt  = juce::jlimit (0.f, 1.f, apvts.getRawParameterValue (P::FX_LOFI_AMOUNT)->load() + mod.lofiAmount);
+    const float lofiAmt  = apvts.getRawParameterValue (P::FX_LOFI_AMOUNT)->load();
 
     const bool distOn    = apvts.getRawParameterValue (P::FX_DIST_ON)->load() > 0.5f;
-    const float distDrv  = juce::jlimit (0.f, 1.f, apvts.getRawParameterValue (P::FX_DIST_DRIVE)->load() + mod.distDrive);
+    const float distDrv  = juce::jlimit (0.f, 1.f,
+        apvts.getRawParameterValue (P::FX_DIST_DRIVE)->load() + engineState.driveOffset);
 
     const bool fxActive = delayOn || chorusOn || lofiOn || distOn;
 
@@ -494,7 +417,10 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
 #endif
     }
 
-    const float w = juce::jlimit (0.f, 2.f, width);
+#if AVIATORKEYZ_DEBUG
+    PlaybackProbe::updatePeak (PlaybackProbe::fxPeak, PlaybackProbe::bufferPeak (buffer));
+#endif
+
     const float p = juce::jlimit (-1.f, 1.f, pan);
     float panGainL = 0.f;
     float panGainR = 0.f;
@@ -504,15 +430,13 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
 
     outputLimiter.process (buffer, apvts.getRawParameterValue (P::OUTPUT_LIMITER)->load() > 0.5f);
 
+    auto* L = buffer.getWritePointer (0);
+    auto* R = buffer.getWritePointer (1);
+
     for (int i = 0; i < n; ++i)
     {
         float l = L[i];
         float r = R[i];
-
-        const float mid = 0.5f * (l + r);
-        const float side = 0.5f * (l - r) * w;
-        l = mid + side;
-        r = mid - side;
 
         l *= panGainL;
         r *= panGainR;
@@ -521,10 +445,6 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
         L[i] = l * gOut;
         R[i] = r * gOut;
     }
-
-#if JUCE_DEBUG
-    printBufferLevel ("08 master", buffer);
-#endif
 }
 
 void AviatorKeyzProcessor::processBlockBypassed (AudioBuffer<float>& buffer,
@@ -552,6 +472,9 @@ void AviatorKeyzProcessor::getStateInformation (MemoryBlock& destData)
     state.setProperty ("presetName", presetManager->getCurrentPresetName(), nullptr);
     state.setProperty (AviatorKeyz::PresetKey::SAMPLE_ID, presetManager->getCurrentSampleId(), nullptr);
     state.setProperty (AviatorKeyz::PresetKey::ROOT_NOTE, presetManager->getCurrentRootNote(), nullptr);
+    state.setProperty (AviatorKeyz::PresetKey::SOUND_TYPE,
+                       AviatorKeyz::soundTypeToString (presetManager->getCurrentSoundType()), nullptr);
+    state.setProperty (AviatorKeyz::PresetKey::ORIGINAL_BPM, presetManager->getCurrentOriginalBpm(), nullptr);
     if (const auto xml = state.createXml())
         copyXmlToBinary (*xml, destData);
 }
@@ -575,9 +498,22 @@ void AviatorKeyzProcessor::setStateInformation (const void* data, int sizeInByte
                                              presetManager->getCurrentSampleId()).toString();
     const int rootNote  = static_cast<int> (state.getProperty (AviatorKeyz::PresetKey::ROOT_NOTE,
                                                                  presetManager->getCurrentRootNote()));
+    const auto soundType = AviatorKeyz::soundTypeFromString (
+        state.getProperty (AviatorKeyz::PresetKey::SOUND_TYPE,
+                           AviatorKeyz::soundTypeToString (presetManager->getCurrentSoundType())).toString());
+    const float originalBpm = static_cast<float> (state.getProperty (
+        AviatorKeyz::PresetKey::ORIGINAL_BPM, presetManager->getCurrentOriginalBpm()));
 
-    presetManager->setPresetIdentity (category, name, sampleId, rootNote);
+    presetManager->setPresetIdentity (category, name, sampleId, rootNote, soundType, originalBpm);
+    AviatorKeyz::applyPlaybackPolicyToApvts (apvts, category, soundType);
+    AviatorKeyz::syncOriginalBpmToApvts (apvts, originalBpm > 1.f ? originalBpm : 120.f);
+    AviatorKeyz::syncRootNoteToApvts (apvts, rootNote);
+
     loadFactorySample (sampleId, rootNote);
+
+    // Notify UI listeners (editor/cockpit) so selection matches restored identity.
+    if (presetManager->onPresetLoaded)
+        presetManager->onPresetLoaded (category, name, sampleId, presetManager->getCurrentRootNote());
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

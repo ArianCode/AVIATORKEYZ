@@ -78,6 +78,18 @@ const float* SampleLibrary::getPrimaryWaveformData (int& numFramesOut) const noe
     return r.data;
 }
 
+int SampleLibrary::getPrimaryRootNote() const noexcept
+{
+    const auto* snap = getPublishedSnapshot();
+    if (snap != nullptr && ! snap->regions.empty())
+        return snap->regions.front().rootNote;
+
+    if (! pendingMap.empty())
+        return pendingMap.front().rootNote;
+
+    return 60;
+}
+
 const SampleLibrary::AudioRegion* SampleLibrary::findRegionForNote (const AudioSnapshot& snapshot,
                                                                      int midiNote,
                                                                      float velocity) noexcept
@@ -188,6 +200,7 @@ bool SampleLibrary::loadFromMemory (const void* data,
                 + ") for " + displayName);
 
     region.rootNote     = juce::jlimit (0, 127, effectiveRoot);
+    region.fileSampleRate = reader->sampleRate;
     region.noteMin      = juce::jlimit (0, 127, noteMin);
     region.noteMax      = juce::jlimit (0, 127, noteMax);
     region.velocityMin  = juce::jlimit (0.0f, 1.0f, velocityMin);
@@ -247,6 +260,7 @@ bool SampleLibrary::loadSample (const juce::File& file,
     }
 
     region.rootNote     = juce::jlimit (0, 127, rootNote);
+    region.fileSampleRate = reader->sampleRate;
     region.noteMin      = juce::jlimit (0, 127, noteMin);
     region.noteMax      = juce::jlimit (0, 127, noteMax);
     region.velocityMin  = juce::jlimit (0.0f, 1.0f, velocityMin);
@@ -297,6 +311,7 @@ void SampleLibrary::buildSnapshotInto (const int storageIndex)
         AudioRegion published;
         published.data        = storage.monoBuffers.back().getData();
         published.numFrames   = numFrames;
+        published.fileSampleRate = region.fileSampleRate;
         published.rootNote    = region.rootNote;
         published.noteMin     = region.noteMin;
         published.noteMax     = region.noteMax;

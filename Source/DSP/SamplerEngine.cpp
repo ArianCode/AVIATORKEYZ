@@ -4,7 +4,12 @@
 #include "../Debug/AviatorDebug.h"
 #include <cmath>
 
-SamplerEngine::SamplerEngine()  = default;
+SamplerEngine::SamplerEngine()
+{
+    for (int n = 0; n < 128; ++n)
+        for (int s = 0; s < kMaxStackPerNote; ++s)
+            noteVoiceStack[n][s] = -1;
+}
 SamplerEngine::~SamplerEngine() = default;
 
 void SamplerEngine::prepare (const juce::dsp::ProcessSpec& spec)
@@ -13,6 +18,9 @@ void SamplerEngine::prepare (const juce::dsp::ProcessSpec& spec)
         allSoundOff();
 
     sampleRate = spec.sampleRate;
+
+    for (auto& v : voices)
+        v.glideEngine.setSampleRate (sampleRate);
 }
 
 void SamplerEngine::releaseResources()
@@ -80,6 +88,81 @@ void SamplerEngine::setPhraseParams (bool enabled,
     phraseHostBpm = juce::jmax (20.0, hostBpm);
 }
 
+void SamplerEngine::setSourceSettings (const SourceSettings& settings, double hostBpm) noexcept
+{
+    sourceSettings = settings;
+    sourceHostBpm = juce::jmax (20.0, hostBpm);
+
+    phraseEnabled = usesPhraseWindow();
+    phraseStartNorm = settings.start;
+    phraseLengthNorm = juce::jmax (0.01f, settings.end - settings.start);
+    phrasePitchSemis = static_cast<int> (settings.tune);
+    phraseLoop = settings.loopMode == LoopMode::Loop;
+    phraseTempoSync = settings.bpmSync;
+    phraseKeySync = settings.keytrack;
+    phraseHostBpm = settings.bpmSync ? sourceHostBpm : settings.originalBpm;
+
+    updatePlaybackPolicies();
+
+    for (int i = 0; i < maxVoices; ++i)
+        if (voices[i].active)
+            updateVoicePlaybackRates (voices[i]);
+}
+
+void SamplerEngine::setPlaybackContext (AviatorKeyz::SoundType soundType,
+                                        const juce::String& category) noexcept
+{
+    currentSoundType = soundType;
+    currentCategory = category;
+    updatePlaybackPolicies();
+}
+
+void SamplerEngine::updatePlaybackPolicies() noexcept
+{
+    noteGatePolicy = AviatorKeyz::gatePolicyFor (currentCategory,
+                                                 currentSoundType,
+                                                 sourceSettings.playbackMode,
+                                                 sourceSettings.loopMode);
+    retriggerPolicy = AviatorKeyz::retriggerPolicyFor (currentCategory,
+                                                       currentSoundType,
+                                                       sourceSettings.playbackMode);
+}
+
+bool SamplerEngine::usesPhraseWindow() const noexcept
+{
+    return sourceSettings.end > sourceSettings.start + 0.001f;
+}
+
+void SamplerEngine::setChopPlaybackState (const ChopPlaybackState& state) noexcept
+{
+    chopState = state;
+
+    if (! chopState.active)
+        return;
+
+    for (int i = 0; i < maxVoices; ++i)
+    {
+        auto& v = voices[i];
+        if (! v.active || v.sampleNumFrames <= 1)
+            continue;
+
+        v.phraseStartFrame = juce::jlimit (0, v.sampleNumFrames - 1, chopState.sliceStartFrame);
+        v.phraseEndFrame = juce::jmax (v.phraseStartFrame + 1,
+                                       juce::jmin (v.sampleNumFrames - 1, chopState.sliceEndFrame));
+        v.chopPitchOffsetSemis = chopState.pitchOffsetSemis;
+        if (chopState.stepReverse)
+            v.reversed = true;
+        updateVoicePlaybackRates (v);
+    }
+}
+
+int SamplerEngine::getPrimarySampleNumFrames() const noexcept
+{
+    if (sampleSnapshot == nullptr || sampleSnapshot->regions.empty())
+        return 0;
+    return sampleSnapshot->regions.front().numFrames;
+}
+
 float SamplerEngine::midiNoteToHz (float note) noexcept
 {
     return AviatorFastMath::midiNoteToHz (note);
@@ -90,6 +173,19 @@ int SamplerEngine::findFreeOrStealVoice() noexcept
     for (int i = 0; i < maxVoices; ++i)
         if (! voices[i].active)
             return i;
+
+    int releaseCandidate = -1;
+    float releaseLvl = 2.f;
+    for (int i = 0; i < maxVoices; ++i)
+    {
+        if (voices[i].envStage == EnvStage::release && voices[i].envLevel < releaseLvl)
+        {
+            releaseLvl = voices[i].envLevel;
+            releaseCandidate = i;
+        }
+    }
+    if (releaseCandidate >= 0)
+        return releaseCandidate;
 
     int best = 0;
     float bestLvl = 2.f;
@@ -104,14 +200,135 @@ int SamplerEngine::findFreeOrStealVoice() noexcept
     return best;
 }
 
+void SamplerEngine::clearAllNoteStacks() noexcept
+{
+    for (int n = 0; n < 128; ++n)
+    {
+        noteVoiceStackCount[n] = 0;
+        for (int s = 0; s < kMaxStackPerNote; ++s)
+            noteVoiceStack[n][s] = -1;
+    }
+}
+
+void SamplerEngine::pushNoteVoice (int midiNote, int voiceIndex) noexcept
+{
+    const int note = juce::jlimit (0, 127, midiNote);
+    if (noteVoiceStackCount[note] >= kMaxStackPerNote)
+        return;
+
+    noteVoiceStack[note][noteVoiceStackCount[note]++] = voiceIndex;
+}
+
+int SamplerEngine::popNoteVoiceFifo (int midiNote) noexcept
+{
+    const int note = juce::jlimit (0, 127, midiNote);
+    if (noteVoiceStackCount[note] <= 0)
+        return -1;
+
+    const int voiceIndex = noteVoiceStack[note][0];
+    for (int i = 1; i < noteVoiceStackCount[note]; ++i)
+        noteVoiceStack[note][i - 1] = noteVoiceStack[note][i];
+    --noteVoiceStackCount[note];
+    noteVoiceStack[note][noteVoiceStackCount[note]] = -1;
+    return voiceIndex;
+}
+
+void SamplerEngine::purgeNoteVoiceFromStack (int midiNote, int voiceIndex) noexcept
+{
+    const int note = juce::jlimit (0, 127, midiNote);
+    for (int i = 0; i < noteVoiceStackCount[note]; ++i)
+    {
+        if (noteVoiceStack[note][i] == voiceIndex)
+        {
+            for (int j = i + 1; j < noteVoiceStackCount[note]; ++j)
+                noteVoiceStack[note][j - 1] = noteVoiceStack[note][j];
+            --noteVoiceStackCount[note];
+            noteVoiceStack[note][noteVoiceStackCount[note]] = -1;
+            return;
+        }
+    }
+}
+
+void SamplerEngine::chokeSameNoteVoices (int midiNote) noexcept
+{
+    for (int i = 0; i < maxVoices; ++i)
+    {
+        auto& v = voices[i];
+        if (v.active && v.noteNumber == midiNote)
+            chokeVoice (v);
+    }
+}
+
+void SamplerEngine::resetVoiceState (Voice& v, bool wasActive) noexcept
+{
+    if (v.noteNumber >= 0 && v.noteNumber < 128)
+        purgeNoteVoiceFromStack (v.noteNumber, static_cast<int> (&v - voices));
+
+    if (wasActive)
+        --activeVoiceCount;
+
+    v.active = false;
+    v.noteNumber = 0;
+    v.velocity = 0.f;
+    v.phase = 0.f;
+    v.readPos = 0.f;
+    v.reversed = false;
+    v.envStage = EnvStage::idle;
+    v.envLevel = 0.f;
+    v.envLinearStep = 0.f;
+    v.envSegSamplesLeft = 0;
+    v.declickGain = 1.f;
+    v.declickStep = 0.f;
+    v.sampleData = nullptr;
+    v.sampleNumFrames = 0;
+    v.fileSampleRate = sampleRate;
+    v.sampleRootNote = 60;
+    v.playbackRates = {};
+    v.phraseStartFrame = 0;
+    v.phraseEndFrame = 0;
+    v.chopPitchOffsetSemis = 0;
+    v.voiceInstanceId = 0;
+    v.glideEngine.snapToPitch (60.f);
+}
+
+void SamplerEngine::chokeVoice (Voice& v) noexcept
+{
+    if (! v.active)
+        return;
+
+    const double chokeS = static_cast<double> (kChokeFadeMs) * 0.001;
+    const int n = juce::jmax (1, static_cast<int> (std::round (chokeS * sampleRate)));
+
+    if (v.envLevel <= 0.f)
+    {
+        resetVoiceState (v, true);
+        return;
+    }
+
+    v.envStage = EnvStage::release;
+    v.envSegSamplesLeft = n;
+    v.envLinearStep = -v.envLevel / static_cast<float> (n);
+}
+
+void SamplerEngine::chokeActiveVoicesForPhrase() noexcept
+{
+    for (int i = 0; i < maxVoices; ++i)
+        if (voices[i].active)
+            chokeVoice (voices[i]);
+}
+
 void SamplerEngine::startVoice (Voice& v,
                                  int midiNote,
                                  float velocity,
                                  bool reverse,
                                  float glideTimeMs,
-                                 const SampleLibrary::AudioRegion* region) noexcept
+                                 const SampleLibrary::AudioRegion* region,
+                                 bool declickFadeIn) noexcept
 {
     const bool wasActive = v.active;
+
+    const bool legatoOverlap = ! wasActive && activeVoiceCount > 0;
+    const bool legatoReuse = wasActive;
     v.active = true;
     if (! wasActive)
         ++activeVoiceCount;
@@ -119,13 +336,37 @@ void SamplerEngine::startVoice (Voice& v,
     v.velocity = calculateVelocityGain (velocity, velocitySensitivity);
     v.reversed = reverse;
     v.phase = 0.f;
-    v.targetPitch = static_cast<float> (midiNote);
+    v.chopPitchOffsetSemis = 0;
+
+    // Reusing an audible voice (steal) or replacing a choked mono voice can
+    // otherwise start with a hard onset; ramp the new note in over ~1.5 ms.
+    const bool needsFade = declickFadeIn || wasActive;
+    v.declickGain = needsFade ? 0.f : 1.f;
+    v.declickStep = needsFade
+                        ? 1.f / juce::jmax (1.f, static_cast<float> (kDeclickFadeMs * 0.001f * sampleRate))
+                        : 0.f;
+
+    const bool glideTimeOn = glideTimeMs > 1.f;
+    const bool useGlide = glideTimeOn
+                          && lastNoteForGlide >= 0
+                          && (glideMode != GlideMode::legato || legatoOverlap || legatoReuse);
+
+    if (useGlide)
+    {
+        v.glideEngine.snapToPitch (static_cast<float> (lastNoteForGlide));
+        v.glideEngine.noteOn (midiNote, glideTimeMs);
+    }
+    else
+    {
+        v.glideEngine.noteOn (midiNote, 0.f);
+    }
 
     if (region != nullptr && region->data != nullptr && region->numFrames > 1)
     {
         v.sampleData      = region->data;
         v.sampleNumFrames = region->numFrames;
         v.sampleRootNote  = region->rootNote;
+        v.fileSampleRate  = region->fileSampleRate > 0.0 ? region->fileSampleRate : sampleRate;
 
         if (phraseEnabled)
         {
@@ -150,40 +391,24 @@ void SamplerEngine::startVoice (Voice& v,
         v.sampleData      = nullptr;
         v.sampleNumFrames = 0;
         v.sampleRootNote  = 60;
+        v.fileSampleRate  = sampleRate;
         v.readPos = 0.f;
         v.phraseStartFrame = 0;
         v.phraseEndFrame = 0;
-        v.pitchRatio = 1.f;
+        v.playbackRates = {};
     }
 
-    const bool useGlide = glideTimeMs > 1.f
-                          && ((glideMode == GlideMode::always)
-                              || (glideMode == GlideMode::legato && lastNoteForGlide >= 0));
-
-    if (useGlide && lastNoteForGlide >= 0)
-    {
-        v.currentPitch = static_cast<float> (lastNoteForGlide);
-        v.gliding = std::abs (v.targetPitch - v.currentPitch) > 0.001f;
-        const double glideSamples = (glideTimeMs * 0.001) * sampleRate;
-        v.glideIncPerSample = v.gliding
-                                  ? (v.targetPitch - v.currentPitch) / static_cast<float> (glideSamples)
-                                  : 0.f;
-    }
-    else
-    {
-        v.currentPitch = v.targetPitch;
-        v.gliding = false;
-        v.glideIncPerSample = 0.f;
-    }
-
-    updateVoicePitchRatio (v);
+    updateVoicePlaybackRates (v);
     lastNoteForGlide = midiNote;
 
     const double attS = attackMs * 0.001;
     if (attS <= 0.0)
     {
-        v.envStage = EnvStage::decay;
-        v.envLevel = 1.f;
+        // Zero attack: enter the post-attack stage with a fully initialised
+        // segment. (Previously this left envLinearStep/envSegSamplesLeft
+        // stale from the voice's prior life, so the level jumped
+        // non-deterministically to sustain.)
+        finishAttack (v);
     }
     else
     {
@@ -195,6 +420,26 @@ void SamplerEngine::startVoice (Voice& v,
     }
 }
 
+void SamplerEngine::finishAttack (Voice& v) noexcept
+{
+    v.envLevel = 1.f;
+
+    if (decayMs <= 0.f || std::abs (sustainLevel - 1.f) < 1.0e-6f)
+    {
+        v.envStage = EnvStage::sustain;
+        v.envLinearStep = 0.f;
+        v.envSegSamplesLeft = 0;
+    }
+    else
+    {
+        v.envStage = EnvStage::decay;
+        const double decS = decayMs * 0.001;
+        const int n = juce::jmax (1, static_cast<int> (std::round (decS * sampleRate)));
+        v.envSegSamplesLeft = n;
+        v.envLinearStep = (sustainLevel - 1.f) / static_cast<float> (n);
+    }
+}
+
 void SamplerEngine::enterRelease (Voice& v) noexcept
 {
     if (! v.active) return;
@@ -202,13 +447,7 @@ void SamplerEngine::enterRelease (Voice& v) noexcept
     const double relS = releaseMs * 0.001;
     if (relS <= 0.0 || v.envLevel <= 0.f)
     {
-        if (v.active)
-        {
-            v.active = false;
-            --activeVoiceCount;
-        }
-        v.envStage = EnvStage::idle;
-        v.envLevel = 0.f;
+        resetVoiceState (v, true);
         return;
     }
 
@@ -220,43 +459,89 @@ void SamplerEngine::enterRelease (Voice& v) noexcept
 
 void SamplerEngine::advanceGlide (Voice& v) noexcept
 {
-    if (! v.gliding) return;
+    if (! v.glideEngine.isGliding())
+        return;
 
-    v.currentPitch += v.glideIncPerSample;
-    if ((v.glideIncPerSample > 0.f && v.currentPitch >= v.targetPitch) ||
-        (v.glideIncPerSample < 0.f && v.currentPitch <= v.targetPitch))
-    {
-        v.currentPitch = v.targetPitch;
-        v.gliding = false;
-    }
-
-    updateVoicePitchRatio (v);
+    v.glideEngine.tick();
+    updateVoicePlaybackRates (v);
 }
 
-void SamplerEngine::updateVoicePitchRatio (Voice& v) noexcept
+SamplePlaybackMode SamplerEngine::getEffectivePlaybackMode() const noexcept
 {
+    if (chopState.active)
+        return SamplePlaybackMode::SlicePhrase;
+
+    return sourceSettings.playbackMode;
+}
+
+void SamplerEngine::updateVoicePlaybackRates (Voice& v) noexcept
+{
+    PlaybackRates rates;
+
     if (v.sampleData == nullptr || v.sampleNumFrames <= 1)
     {
-        v.pitchRatio = 1.f;
+        v.playbackRates = rates;
         return;
     }
 
-    const float pitchNote = (! phraseEnabled || phraseKeySync)
-                                ? v.currentPitch + static_cast<float> (phrasePitchSemis)
-                                : static_cast<float> (v.sampleRootNote) + static_cast<float> (phrasePitchSemis);
-    float ratio = AviatorFastMath::semitoneRatio (pitchNote - static_cast<float> (v.sampleRootNote));
+    const auto mode = getEffectivePlaybackMode();
+    const double fileRate = v.fileSampleRate > 0.0 ? v.fileSampleRate : sampleRate;
+    rates.sourceRateRatio = fileRate / sampleRate;
 
-    if (phraseEnabled && phraseTempoSync)
+    // Authoritative root is the loaded sample region — never APVTS defaults.
+    const int rootNote = v.sampleRootNote;
+    const float staticPitchSemis = static_cast<float> (phrasePitchSemis + v.chopPitchOffsetSemis);
+    const bool tracksMidiPitch = (mode == SamplePlaybackMode::ChromaticResample);
+
+    if (tracksMidiPitch)
     {
-        const int regionFrames = juce::jmax (1, v.phraseEndFrame - v.phraseStartFrame);
-        const double regionSec = static_cast<double> (regionFrames) / sampleRate;
-        const double beatSec = 60.0 / phraseHostBpm;
-        const double targetSec = beatSec * 4.0;
-        if (regionSec > 0.0)
-            ratio *= static_cast<float> (regionSec / targetSec);
+        const float midiOffset = v.glideEngine.getCurrentPitchSemitones() - static_cast<float> (rootNote);
+        rates.pitchSemitones = midiOffset + staticPitchSemis;
+        rates.pitchRatio = AviatorFastMath::semitoneRatio (rates.pitchSemitones);
+    }
+    else if (mode == SamplePlaybackMode::OneShotOriginal)
+    {
+        rates.pitchSemitones = staticPitchSemis;
+        if (std::abs (staticPitchSemis) > 1.0e-6f)
+            rates.pitchRatio = AviatorFastMath::semitoneRatio (staticPitchSemis);
+    }
+    else
+    {
+        // PhraseOriginal, PhraseTimeStretch, SlicePhrase — fixed pitch (varispeed for BPM only).
+        rates.pitchRatio = 1.0;
+        rates.pitchSemitones = staticPitchSemis;
     }
 
-    v.pitchRatio = ratio;
+    double timeRatio = juce::jlimit (0.25, 4.0, static_cast<double> (sourceSettings.speed));
+
+    // Varispeed BPM sync: hostBpm / originalBpm.
+    // Host slower than the sample → slower read (sample stays aligned to the grid).
+    // Never combine with MIDI pitch tracking.
+    // (True pitch-preserving stretch is a future engine.)
+    if (! tracksMidiPitch
+        && sourceSettings.bpmSync
+        && sourceSettings.originalBpm > 1.f
+        && sourceHostBpm > 1.0)
+    {
+        timeRatio *= sourceHostBpm / static_cast<double> (sourceSettings.originalBpm);
+    }
+
+    rates.timeRatio = timeRatio;
+    v.playbackRates = rates;
+}
+
+float SamplerEngine::voiceReadIncrement (const Voice& v) const noexcept
+{
+    const auto& r = v.playbackRates;
+    const auto mode = getEffectivePlaybackMode();
+
+    double inc = r.sourceRateRatio * r.timeRatio;
+
+    if (mode == SamplePlaybackMode::ChromaticResample
+        || mode == SamplePlaybackMode::OneShotOriginal)
+        inc *= r.pitchRatio;
+
+    return static_cast<float> (inc);
 }
 
 void SamplerEngine::advanceEnvelope (Voice& v) noexcept
@@ -268,21 +553,7 @@ void SamplerEngine::advanceEnvelope (Voice& v) noexcept
         case EnvStage::attack:
             v.envLevel += v.envLinearStep;
             if (--v.envSegSamplesLeft <= 0 || v.envLevel >= 1.f)
-            {
-                v.envLevel = 1.f;
-                if (decayMs <= 0.f || std::abs (sustainLevel - 1.f) < 1.0e-6f)
-                {
-                    v.envStage = EnvStage::sustain;
-                }
-                else
-                {
-                    v.envStage = EnvStage::decay;
-                    const double decS = decayMs * 0.001;
-                    const int n = juce::jmax (1, static_cast<int> (std::round (decS * sampleRate)));
-                    v.envSegSamplesLeft = n;
-                    v.envLinearStep = (sustainLevel - 1.f) / static_cast<float> (n);
-                }
-            }
+                finishAttack (v);
             break;
         case EnvStage::decay:
             v.envLevel += v.envLinearStep;
@@ -299,12 +570,7 @@ void SamplerEngine::advanceEnvelope (Voice& v) noexcept
             if (--v.envSegSamplesLeft <= 0 || v.envLevel <= 0.f)
             {
                 v.envLevel = 0.f;
-                if (v.active)
-                {
-                    v.active = false;
-                    --activeVoiceCount;
-                }
-                v.envStage = EnvStage::idle;
+                resetVoiceState (v, true);
             }
             break;
     }
@@ -320,7 +586,7 @@ float SamplerEngine::renderVoiceSample (Voice& v) noexcept
 
     if (v.sampleData != nullptr && v.sampleNumFrames > 1)
     {
-        const float inc = ReversePlayer::getReadIncrement (v.pitchRatio, v.reversed);
+        const float inc = ReversePlayer::getReadIncrement (voiceReadIncrement (v), v.reversed);
 
         const int phraseStart = phraseEnabled ? v.phraseStartFrame : 0;
         const int phraseEnd = phraseEnabled ? v.phraseEndFrame : v.sampleNumFrames - 1;
@@ -332,13 +598,15 @@ float SamplerEngine::renderVoiceSample (Voice& v) noexcept
         {
             i0 = juce::jlimit (phraseStart, juce::jmax (phraseStart, phraseEnd - 1), i0);
             AK_ASSERT (i0 >= phraseStart && i0 + 1 <= phraseEnd);
-            const float s0 = v.sampleData[i0];
-            const float s1 = v.sampleData[juce::jmin (phraseEnd, i0 + 1)];
-            osc = s0 + frac * (s1 - s0);
+            const float y0 = v.sampleData[juce::jmax (phraseStart, i0 - 1)];
+            const float y1 = v.sampleData[i0];
+            const float y2 = v.sampleData[juce::jmin (phraseEnd, i0 + 1)];
+            const float y3 = v.sampleData[juce::jmin (phraseEnd, i0 + 2)];
+            osc = AviatorFastMath::hermite4 (y0, y1, y2, y3, frac);
             v.readPos += inc;
             if (v.readPos >= static_cast<float> (phraseEnd))
             {
-                if (phraseLoop && phraseEnabled)
+                if (phraseLoop && (phraseEnabled || sourceSettings.loopMode == LoopMode::Loop))
                     v.readPos = static_cast<float> (phraseStart);
                 else
                     enterRelease (v);
@@ -348,13 +616,15 @@ float SamplerEngine::renderVoiceSample (Voice& v) noexcept
         {
             i0 = juce::jlimit (phraseStart + 1, phraseEnd, i0);
             AK_ASSERT (i0 >= phraseStart + 1 && i0 <= phraseEnd);
-            const float s0 = v.sampleData[i0];
-            const float s1 = v.sampleData[juce::jmax (phraseStart, i0 - 1)];
-            osc = s0 + (1.f - frac) * (s1 - s0);
+            const float y0 = v.sampleData[juce::jmin (phraseEnd, i0 + 1)];
+            const float y1 = v.sampleData[i0];
+            const float y2 = v.sampleData[juce::jmax (phraseStart, i0 - 1)];
+            const float y3 = v.sampleData[juce::jmax (phraseStart, i0 - 2)];
+            osc = AviatorFastMath::hermite4 (y0, y1, y2, y3, 1.f - frac);
             v.readPos += inc;
             if (v.readPos <= static_cast<float> (phraseStart))
             {
-                if (phraseLoop && phraseEnabled)
+                if (phraseLoop && (phraseEnabled || sourceSettings.loopMode == LoopMode::Loop))
                     v.readPos = static_cast<float> (phraseEnd);
                 else
                     enterRelease (v);
@@ -363,14 +633,22 @@ float SamplerEngine::renderVoiceSample (Voice& v) noexcept
     }
     else
     {
-        const float hz = midiNoteToHz (v.currentPitch);
+        const float hz = midiNoteToHz (v.glideEngine.getCurrentPitchSemitones());
         const float delta = juce::MathConstants<float>::twoPi * hz / static_cast<float> (sampleRate);
         osc = AviatorFastMath::fastSin (v.phase);
         v.phase += delta;
         if (v.phase > juce::MathConstants<float>::twoPi) v.phase -= juce::MathConstants<float>::twoPi;
     }
 
-    const float out = osc * vel * env;
+    const float chopGain = chopState.active ? chopState.gateGain : 1.f;
+    float out = osc * vel * env * chopGain;
+
+    if (v.declickGain < 1.f)
+    {
+        out *= v.declickGain;
+        v.declickGain = juce::jmin (1.f, v.declickGain + v.declickStep);
+    }
+
     advanceEnvelope (v);
     return out;
 }
@@ -383,41 +661,78 @@ void SamplerEngine::noteOn (int midiNote, float velocity, bool reverse, float gl
 
     if (playMode == PlayMode::mono || playMode == PlayMode::legato)
     {
-        const int i = (monoVoiceIndex >= 0 && voices[monoVoiceIndex].active)
-                          ? monoVoiceIndex
-                          : findFreeOrStealVoice();
-        monoVoiceIndex = i;
-        if (voices[i].active && playMode == PlayMode::legato)
-            startVoice (voices[i], midiNote, velocity, reverse, glideTimeMs, region);
-        else
+        if (playMode == PlayMode::legato
+            && monoVoiceIndex >= 0 && monoVoiceIndex < kMaxVoices
+            && voices[monoVoiceIndex].active
+            && voices[monoVoiceIndex].envStage != EnvStage::release)
         {
-            allSoundOff();
-            monoVoiceIndex = i;
-            startVoice (voices[i], midiNote, velocity, reverse, glideTimeMs, region);
+            // True legato: the sample and envelope keep running; only the
+            // pitch moves (glide when set, snap otherwise). No restart means
+            // no discontinuity at all.
+            auto& v = voices[monoVoiceIndex];
+            purgeNoteVoiceFromStack (v.noteNumber, monoVoiceIndex);
+            v.noteNumber = midiNote;
+            v.glideEngine.noteOn (midiNote, glideTimeMs);
+            updateVoicePlaybackRates (v);
+            lastNoteForGlide = midiNote;
+            pushNoteVoice (midiNote, monoVoiceIndex);
+            return;
         }
+
+        // Mono retrigger: fade the previous note out over kChokeFadeMs
+        // instead of the old instant allSoundOff() (a hard click), and fade
+        // the new note in on a fresh voice — a brief crossfade. Registering
+        // the voice in the note stack also makes note-off work in mono mode
+        // (previously ignored → hung notes).
+        const bool hadActive = activeVoiceCount > 0;
+        if (hadActive)
+            chokeActiveVoicesForPhrase();
+
+        const int i = findFreeOrStealVoice();
+        monoVoiceIndex = i;
+        startVoice (voices[i], midiNote, velocity, reverse, glideTimeMs, region, hadActive);
+        voices[i].voiceInstanceId = ++nextVoiceInstanceId;
+        pushNoteVoice (midiNote, i);
         return;
     }
 
+    if (retriggerPolicy == RetriggerPolicy::PhraseChoke)
+    {
+        chokeActiveVoicesForPhrase();
+        clearAllNoteStacks();
+    }
+    else if (noteGatePolicy == NoteGatePolicy::Gated)
+        chokeSameNoteVoices (midiNote);
+
     const int i = findFreeOrStealVoice();
     startVoice (voices[i], midiNote, velocity, reverse, glideTimeMs, region);
+    voices[i].voiceInstanceId = ++nextVoiceInstanceId;
+    pushNoteVoice (midiNote, i);
 }
 
 void SamplerEngine::noteOff (int midiNote) noexcept
 {
-    if (isOneShotPlayback())
+    if (noteGatePolicy == NoteGatePolicy::TriggerToEnd)
         return;
 
-    for (int i = 0; i < maxVoices; ++i)
+    while (true)
     {
-        auto& v = voices[i];
-        if (v.active && v.noteNumber == midiNote)
+        const int voiceIndex = popNoteVoiceFifo (midiNote);
+        if (voiceIndex < 0)
+            break;
+
+        auto& v = voices[voiceIndex];
+        if (v.active)
+        {
             enterRelease (v);
+            break;
+        }
     }
 }
 
 void SamplerEngine::allNotesOff() noexcept
 {
-    if (isOneShotPlayback())
+    if (noteGatePolicy == NoteGatePolicy::TriggerToEnd)
         return;
 
     for (int i = 0; i < maxVoices; ++i)
@@ -425,6 +740,7 @@ void SamplerEngine::allNotesOff() noexcept
         if (voices[i].active)
             enterRelease (voices[i]);
     }
+    clearAllNoteStacks();
 }
 
 int SamplerEngine::getNumActiveVoices() const noexcept
@@ -483,26 +799,28 @@ bool SamplerEngine::validateCurrentState() const noexcept
 
 bool SamplerEngine::isOneShotPlayback() const noexcept
 {
-    return attackMs <= 0.001f
-           && decayMs <= 0.001f
-           && sustainLevel >= 0.999f
-           && ! phraseEnabled;
+    return noteGatePolicy == NoteGatePolicy::TriggerToEnd;
 }
 
 void SamplerEngine::allSoundOff() noexcept
 {
     for (int i = 0; i < kMaxVoices; ++i)
-    {
-        auto& v = voices[i];
-        v.active = false;
-        v.envStage = EnvStage::idle;
-        v.envLevel = 0.f;
-        v.sampleData = nullptr;
-        v.sampleNumFrames = 0;
-    }
+        resetVoiceState (voices[i], voices[i].active);
+
     activeVoiceCount = 0;
     lastNoteForGlide = -1;
     monoVoiceIndex = -1;
+    clearAllNoteStacks();
+}
+
+float SamplerEngine::getActiveVoiceReadIncrementForTest() const noexcept
+{
+    for (int i = 0; i < maxVoices; ++i)
+    {
+        if (voices[i].active)
+            return voiceReadIncrement (voices[i]);
+    }
+    return 0.f;
 }
 
 void SamplerEngine::process (juce::AudioBuffer<float>& buffer)

@@ -1,12 +1,25 @@
 #include "ApvtsStateHelpers.h"
 #include "StateSchema.h"
 #include "../Debug/AviatorDebug.h"
+#include "../DSP/Performance/PerformanceApvtsReader.h"
 
 namespace AviatorKeyz
 {
 namespace
 {
-constexpr int kExpectedApvtsParamCount = 132;
+constexpr int kExpectedApvtsParamCount = 249;
+
+void setParamNormalised (juce::RangedAudioParameter* param, float normalised)
+{
+    if (param != nullptr)
+        param->setValueNotifyingHost (normalised);
+}
+
+void setParamDefault (juce::AudioProcessorParameter* param)
+{
+    if (param != nullptr)
+        param->setValueNotifyingHost (param->getDefaultValue());
+}
 
 void applyParamChildrenFromState (juce::AudioProcessorValueTreeState& apvts,
                                   const juce::ValueTree& state)
@@ -21,10 +34,21 @@ void applyParamChildrenFromState (juce::AudioProcessorValueTreeState& apvts,
         if (id.isEmpty())
             continue;
 
-        const float value = static_cast<float> (child.getProperty ("value"));
+        const float value = [&]
+        {
+            float v = static_cast<float> (child.getProperty ("value"));
+            if (id == ParamID::STEREO_WIDTH)
+            {
+                if (v > 1.0f)
+                    v *= 0.5f; // migrate legacy 0–2 width scale to 0–1 brightness
+                else if (std::abs (v - 1.0f) < 0.0001f)
+                    v = 0.5f; // legacy neutral width (1.0) → neutral brightness (0.5)
+            }
+            return v;
+        }();
+
         if (auto* param = apvts.getParameter (id))
-            if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (param))
-                param->setValueNotifyingHost (ranged->convertTo0to1 (value));
+            setParamNormalised (param, param->convertTo0to1 (value));
     }
 }
 
@@ -33,14 +57,13 @@ void applyKnownGoodAdvancedDefaults (juce::AudioProcessorValueTreeState& apvts)
     auto setFloat = [&] (const char* id, float value)
     {
         if (auto* param = apvts.getParameter (id))
-            if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (param))
-                param->setValueNotifyingHost (ranged->convertTo0to1 (value));
+            setParamNormalised (param, param->convertTo0to1 (value));
     };
 
     auto setBool = [&] (const char* id, bool value)
     {
         if (auto* param = apvts.getParameter (id))
-            param->setValueNotifyingHost (value ? 1.f : 0.f);
+            setParamNormalised (param, value ? 1.f : 0.f);
     };
 
     // Neutral sampler baseline — applied before factory preset PARAM nodes merge.
@@ -98,8 +121,7 @@ bool isPartialFactoryPresetState (const juce::ValueTree& state)
 void resetApvtsToDefaults (juce::AudioProcessorValueTreeState& apvts)
 {
     for (auto* param : apvts.processor.getParameters())
-        if (param != nullptr)
-            param->setValueNotifyingHost (param->getDefaultValue());
+        setParamDefault (param);
 }
 
 void applyStateTreeToApvts (juce::AudioProcessorValueTreeState& apvts,
@@ -116,16 +138,18 @@ void applyStateTreeToApvts (juce::AudioProcessorValueTreeState& apvts,
                 + juce::String (state.getNumChildren()) + " PARAM nodes) — merge onto defaults");
         resetApvtsToDefaults (apvts);
         applyKnownGoodAdvancedDefaults (apvts);
-        applyParamChildrenFromState (apvts, state);
+        auto merged = state.createCopy();
+        migrateLegacyAdvancedParams (merged);
+        applyParamChildrenFromState (apvts, merged);
 
         if (auto* blend = apvts.getParameter (ParamID::SOURCE_BLEND))
-            if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (blend))
-                blend->setValueNotifyingHost (ranged->convertTo0to1 (0.f));
+            setParamNormalised (blend, blend->convertTo0to1 (0.f));
 
         return;
     }
 
     apvts.replaceState (state);
+    migrateLegacyAdvancedParams (apvts.state);
 }
 
 } // namespace AviatorKeyz
