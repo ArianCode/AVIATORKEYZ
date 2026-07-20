@@ -35,14 +35,16 @@ MacroDeck::MacroDeck (juce::AudioProcessorValueTreeState& apvts)
 
 void MacroDeck::resized()
 {
-    // Four knob cells each side of the central brand block.
-    const int knobCenters[] = { 141, 316, 491, 656, 972, 1140, 1307, 1478 };
+    // Four knob cells mirrored on each side of the central brand block.
+    const float centre = (float) getWidth() * 0.5f;
+    const float offsets[] = { -670.0f, -500.0f, -330.0f, -160.0f,
+                               160.0f,  330.0f,  500.0f,  670.0f };
     const int y = 6;
     const int h = getHeight() - 10;
 
     for (size_t i = 0; i < knobs.size(); ++i)
     {
-        const int cx = juce::roundToInt ((float) knobCenters[i] * (float) getWidth() / 1635.0f);
+        const int cx = juce::roundToInt (centre + offsets[i]);
         knobs[i]->setBounds (cx - kCellW / 2, y, kCellW, h);
     }
 }
@@ -77,13 +79,10 @@ void MacroDeck::paint (juce::Graphics& g)
 
     // fine gold dividers between sections (stronger around the brand block)
     g.setColour (Aviation::gold().withAlpha (0.16f));
-    const int knobCenters[] = { 141, 316, 491, 656, 972, 1140, 1307, 1478 };
-    for (int i = 0; i < 3; ++i)
+    for (float offset : { 245.0f, 415.0f, 585.0f })
     {
-        const float leftDiv  = ((float) (knobCenters[i] + knobCenters[i + 1]) * 0.5f) * r.getWidth() / 1635.0f;
-        const float rightDiv = ((float) (knobCenters[i + 4] + knobCenters[i + 5]) * 0.5f) * r.getWidth() / 1635.0f;
-        g.fillRect (juce::Rectangle<float> (r.getX() + leftDiv, r.getY() + 18.0f, 1.0f, r.getHeight() - 36.0f));
-        g.fillRect (juce::Rectangle<float> (r.getX() + rightDiv, r.getY() + 18.0f, 1.0f, r.getHeight() - 36.0f));
+        g.fillRect (juce::Rectangle<float> (cx - offset, r.getY() + 18.0f, 1.0f, r.getHeight() - 36.0f));
+        g.fillRect (juce::Rectangle<float> (cx + offset, r.getY() + 18.0f, 1.0f, r.getHeight() - 36.0f));
     }
     g.setColour (Aviation::gold().withAlpha (0.35f));
     g.fillRect (juce::Rectangle<float> (cx - (float) kBrandHalfW, r.getY() + 12.0f, 1.0f, r.getHeight() - 24.0f));

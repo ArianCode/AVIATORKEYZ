@@ -12,9 +12,10 @@ void TopHeader::resized()
     const int w = getWidth();
     const int h = getHeight();
 
-    // Centered navigation. MAIN sits left of center, PERFORMANCE right.
-    mainTabArea = { w / 2 - 290, 0, 240, h };
-    perfTabArea = { w / 2 + 50, 0, 300, h };
+    // Navigation mirrored around the header center: MAIN's center sits 150px
+    // left of center, PERFORMANCE's center 150px right.
+    mainTabArea = { w / 2 - 150 - 120, 0, 240, h };
+    perfTabArea = { w / 2 + 150 - 150, 0, 300, h };
 
     gearArea    = { w - 220, h / 2 - 14, 28, 28 };
     utilityArea = { w - 172, h / 2 - 13, 26, 26 };
