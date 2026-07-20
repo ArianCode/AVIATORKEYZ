@@ -69,23 +69,33 @@ A `LookAndFeel_V4` subclass providing the visual identity:
 - Warm off-white text
 - Custom rotary knob draw (thin arc track, gold pointer, glow on hover)
 
-### Component tree (M4)
+### Component tree (Aviation MAIN interface)
+
+The MAIN view lives in `Source/GUI/Aviation/` on a fixed 1647x955 design
+canvas; the editor scales it as one unit (fixed aspect ratio, default
+1100x638). Every element is centered/mirrored on the global center axis.
+
 ```
 AviatorKeyzEditor
-└── MainPanel
-    ├── HeaderBar          (logo | preset name | nav tabs)
-    ├── WaveformDisplay    (center — sample viewer)
-    ├── [Knob row]
-    │   ├── KnobComponent  (Reverse toggle)
-    │   ├── KnobComponent  (Glide)
-    │   ├── KnobComponent  (Smear)
-    │   └── KnobComponent  (Tone)
-    ├── [Space section]
-    │   ├── KnobComponent  (Reverb Amount)
-    │   ├── KnobComponent  (Reverb Size)
-    │   └── KnobComponent  (Width)
-    └── PresetBrowser      (overlaid panel, shown/hidden)
+├── AviationMainView            (1647x955 design space, scaled via transform)
+│   ├── CockpitBackground       (full-width cockpit photo, center-axis pan,
+│   │                            drop-in slot for cockpit_sunset_* asset)
+│   ├── TopHeader               (brand | MAIN/PERFORMANCE | gear, about, SAVE)
+│   ├── PresetHeader            (FACTORY PRESETS | prev/name/next | heart)
+│   ├── CategoryTabs            (10 categories, version stamp)
+│   ├── SourceDropdown          (top-right preset selector -> luggage menu)
+│   ├── CenterDashboard         (RPM/KEY/TUNE, radars, blueprint, GLOBALS
+│   │                            output gain, LIMITER, LOFI..HUMANIZE cells)
+│   ├── VelocityPanel / LayerMixPanel      (left cockpit glass displays)
+│   ├── FilterPanel / EnvelopePanel        (right cockpit glass displays)
+│   ├── MacroDeck               (8 MacroKnobs mirrored around brand block)
+│   ├── StatusBar               (ACTIVE, rate/bits/BPM, A/B, version)
+│   └── MenuLookAndFeel         (overhead-luggage popup styling)
+└── AdvancedPanel               (PERFORMANCE view, shown below the header)
 ```
+
+Legacy `MainPanel`/`CockpitCrossworldPanel` components remain compiled but
+are no longer in the visible hierarchy.
 
 ---
 
