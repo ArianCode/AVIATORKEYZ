@@ -146,7 +146,6 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
             Source/GUI/Aviation/TopHeader.cpp
             Source/GUI/Aviation/PresetHeader.cpp
             Source/GUI/Aviation/CategoryTabs.cpp
-            Source/GUI/Aviation/PresetBrowser.cpp
             Source/GUI/Aviation/CockpitBackground.cpp
             Source/GUI/Aviation/SourceDropdown.cpp
             Source/GUI/Aviation/CenterDashboard.cpp

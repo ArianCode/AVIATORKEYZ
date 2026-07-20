@@ -7,7 +7,6 @@
 #include "FilterPanel.h"
 #include "LayerMixPanel.h"
 #include "MacroDeck.h"
-#include "PresetBrowser.h"
 #include "PresetHeader.h"
 #include "SourceDropdown.h"
 #include "StatusBar.h"
@@ -26,6 +25,8 @@ class AviatorKeyzProcessor;
 // =============================================================================
 //  AviationMainView — the complete MAIN interface at the canonical
 //  1647 x 955 design size. The editor scales this view as one unit.
+//  Preset navigation: category tabs, prev/next arrows, and the top-right
+//  preset dropdown (full-width cockpit — no side browser panel).
 // =============================================================================
 
 class AviationMainView : public juce::Component,
@@ -43,7 +44,6 @@ public:
     void requestPresetUiRefresh() { triggerAsyncUpdate(); }
 
     void paint (juce::Graphics& g) override;
-    void paintOverChildren (juce::Graphics& g) override;
     void resized() override;
 
 private:
@@ -53,7 +53,7 @@ private:
     void handleAsyncUpdate() override { refreshPresetUI(); }
     void refreshPresetUI();
     void selectCategory (const juce::String& category);
-    void openSourceMenu();
+    void openPresetMenu();
     void openAbMenu();
 
     // favorites (persisted per user)
@@ -70,8 +70,7 @@ private:
     TopHeader topHeader;
     PresetHeader presetHeader;
     CategoryTabs categoryTabs;
-    PresetBrowserPanel presetBrowser;
-    SourceDropdown sourceDropdown;
+    SourceDropdown presetDropdown;
     std::unique_ptr<CenterDashboard> dashboard;
     std::unique_ptr<VelocityPanel> velocityPanel;
     std::unique_ptr<LayerMixPanel> layerMixPanel;

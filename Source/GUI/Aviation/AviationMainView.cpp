@@ -2,8 +2,6 @@
 #include "AviationIcons.h"
 #include "AviationTheme.h"
 #include "../../PluginProcessor.h"
-#include "../../State/FactoryResources.h"
-#include "../../State/StateSchema.h"
 #include "../Cockpit/PresetDisplayUtils.h"
 
 namespace
@@ -47,13 +45,6 @@ juce::String parseKeyFromPresetName (const juce::String& presetName, int fallbac
     static const char* names[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
     return names[juce::jlimit (0, 127, fallbackRootNote) % 12];
 }
-
-juce::String prettySourceName (const juce::String& sampleId)
-{
-    auto pretty = PresetDisplayUtils::shortenDisplayName (
-        sampleId.fromFirstOccurrenceOf ("factory_", false, true));
-    return pretty.isNotEmpty() ? pretty : sampleId;
-}
 } // namespace
 
 AviationMainView::AviationMainView (AviatorKeyzProcessor& p)
@@ -78,8 +69,9 @@ AviationMainView::AviationMainView (AviatorKeyzProcessor& p)
     envelopePanel = std::make_unique<EnvelopePanel> (apvts);
     addAndMakeVisible (*envelopePanel);
 
-    addAndMakeVisible (sourceDropdown);
-    sourceDropdown.onClicked = [this] { openSourceMenu(); };
+    // Top-right dropdown is the preset selector for the active category.
+    addAndMakeVisible (presetDropdown);
+    presetDropdown.onClicked = [this] { openPresetMenu(); };
 
     addAndMakeVisible (topHeader);
     topHeader.onModeChanged = [this] (bool performance) { if (onModeChanged) onModeChanged (performance); };
@@ -120,18 +112,6 @@ AviationMainView::AviationMainView (AviatorKeyzProcessor& p)
     categoryTabs.setVersionText ("v" + juce::String (JucePlugin_VersionString));
     categoryTabs.onCategorySelected = [this] (const juce::String& cat) { selectCategory (cat); };
 
-    addAndMakeVisible (presetBrowser);
-    presetBrowser.onPresetChosen = [this] (const juce::String& name) {
-        auto& pm = processor.getPresetManager();
-        pm.loadPreset (pm.getCurrentCategory(), name);
-    };
-    presetBrowser.isFavourited = [this] (const juce::String& name) {
-        return isFavourited (processor.getPresetManager().getCurrentCategory(), name);
-    };
-    presetBrowser.onFavouriteToggled = [this] (const juce::String& name, bool fav) {
-        setFavourited (processor.getPresetManager().getCurrentCategory(), name, fav);
-    };
-
     macroDeck = std::make_unique<MacroDeck> (apvts);
     addAndMakeVisible (*macroDeck);
 
@@ -152,7 +132,7 @@ AviationMainView::AviationMainView (AviatorKeyzProcessor& p)
                                                                               const juce::String& sampleId,
                                                                               int rootNote)
     {
-        // Break out of ListBox/mouse stack before heavy work and UI refresh.
+        // Break out of menu/mouse stack before heavy work and UI refresh.
         juce::Timer::callAfterDelay (0, [safe = juce::Component::SafePointer<AviationMainView> (this),
                                          loadSampleHook, category, name, sampleId, rootNote]
         {
@@ -232,7 +212,6 @@ void AviationMainView::setFavourited (const juce::String& cat, const juce::Strin
     auto& pm = processor.getPresetManager();
     if (pm.getCurrentCategory() == cat && pm.getCurrentPresetName() == name)
         presetHeader.setFavourited (fav);
-    presetBrowser.repaint();
 }
 
 // -----------------------------------------------------------------------------
@@ -244,7 +223,6 @@ void AviationMainView::selectCategory (const juce::String& category)
     categoryTabs.setActiveCategory (category);
 
     const auto names = pm.getPresetsForCategory (category);
-    presetBrowser.setPresets (category, names);
     if (names.isEmpty())
         return;
 
@@ -265,71 +243,41 @@ void AviationMainView::refreshPresetUI()
     presetHeader.setPresetName (name);
     presetHeader.setFavourited (isFavourited (category, name));
 
-    presetBrowser.setPresets (category, pm.getPresetsForCategory (category));
-    presetBrowser.setSelectedPreset (name);
-
     dashboard->setTitleText (PresetDisplayUtils::shortenDisplayName (name));
     dashboard->setKeyText (parseKeyFromPresetName (name, pm.getCurrentRootNote()));
 
-    sourceDropdown.setSourceText (prettySourceName (pm.getCurrentSampleId()));
-
-    repaint (Aviation::presetCountBounds());
+    presetDropdown.setSourceText (PresetDisplayUtils::shortenDisplayName (name));
 }
 
-void AviationMainView::openSourceMenu()
+void AviationMainView::openPresetMenu()
 {
     auto& pm = processor.getPresetManager();
     const auto category = pm.getCurrentCategory();
-    const auto currentSampleId = pm.getCurrentSampleId();
-
-    juce::PopupMenu menu;
-    juce::StringArray sampleIds;
-
-    for (const auto& entry : FactoryResources::getFactoryPresets())
-    {
-        if (! entry.category.equalsIgnoreCase (category) || entry.sampleId.isEmpty())
-            continue;
-        if (sampleIds.contains (entry.sampleId))
-            continue;
-
-        sampleIds.add (entry.sampleId);
-        menu.addItem (sampleIds.size(), PresetDisplayUtils::shortenDisplayName (entry.name),
-                      true, entry.sampleId == currentSampleId);
-    }
-
-    if (sampleIds.isEmpty())
+    const auto names = pm.getPresetsForCategory (category);
+    if (names.isEmpty())
         return;
 
+    const auto current = pm.getCurrentPresetName();
+
+    juce::PopupMenu menu;
+    for (int i = 0; i < names.size(); ++i)
+    {
+        auto display = PresetDisplayUtils::shortenDisplayName (names[i]);
+        if (isFavourited (category, names[i]))
+            display = juce::String::fromUTF8 ("\xe2\x98\x85 ") + display; // filled star prefix
+        menu.addItem (i + 1, display, true, names[i] == current);
+    }
+
     menu.showMenuAsync (juce::PopupMenu::Options()
-                            .withTargetComponent (&sourceDropdown)
-                            .withMinimumWidth (sourceDropdown.getWidth()),
-        [this, sampleIds] (int result)
+                            .withTargetComponent (&presetDropdown)
+                            .withMinimumWidth (presetDropdown.getWidth())
+                            .withMaximumNumColumns (1),
+        [this, names] (int result)
         {
-            if (result <= 0 || result > sampleIds.size())
+            if (result <= 0 || result > names.size())
                 return;
-
-            const auto sampleId = sampleIds[result - 1];
-
-            // Root note comes from the owning preset XML when present.
-            int rootNote = 60;
-            for (const auto& entry : FactoryResources::getFactoryPresets())
-            {
-                if (entry.sampleId != sampleId)
-                    continue;
-                if (auto xml = juce::XmlDocument::parse (juce::String::fromUTF8 (entry.xmlData,
-                                                                                 entry.xmlSize)))
-                    rootNote = xml->getIntAttribute (AviatorKeyz::PresetKey::ROOT_NOTE, 60);
-                break;
-            }
-
             auto& presetManager = processor.getPresetManager();
-            if (processor.loadFactorySample (sampleId, rootNote))
-            {
-                presetManager.setPresetIdentity (presetManager.getCurrentCategory(),
-                                                 presetManager.getCurrentPresetName(),
-                                                 sampleId, rootNote);
-                sourceDropdown.setSourceText (prettySourceName (sampleId));
-            }
+            presetManager.loadPreset (presetManager.getCurrentCategory(), names[result - 1]);
         });
 }
 
@@ -380,8 +328,7 @@ void AviationMainView::resized()
     topHeader.setBounds (Aviation::topHeaderBounds());
     presetHeader.setBounds (Aviation::presetHeaderBounds());
     categoryTabs.setBounds (Aviation::categoryTabsBounds());
-    presetBrowser.setBounds (Aviation::browserBounds());
-    sourceDropdown.setBounds (Aviation::sourceDropdownBounds());
+    presetDropdown.setBounds (Aviation::sourceDropdownBounds());
     macroDeck->setBounds (Aviation::macroDeckBounds());
     statusBar.setBounds (Aviation::statusBarBounds());
 
@@ -391,11 +338,9 @@ void AviationMainView::resized()
     // cockpit pillar and the macro deck's brand block
     dashboard->setBounds (Aviation::kDesignW / 2 - 305, cockpit.getY() + 222, 610, 250);
 
-    // left cockpit side panels
+    // cockpit side panels, mirrored insets from the cockpit edges
     velocityPanel->setBounds (cockpit.getX() + 26, cockpit.getY() + 274, 118, 104);
     layerMixPanel->setBounds (cockpit.getX() + 22, cockpit.getY() + 386, 126, 118);
-
-    // right cockpit side panels
     filterPanel->setBounds (cockpit.getRight() - 148, cockpit.getY() + 274, 122, 100);
     envelopePanel->setBounds (cockpit.getRight() - 152, cockpit.getY() + 382, 130, 132);
 
@@ -407,30 +352,8 @@ void AviationMainView::resized()
 
 void AviationMainView::paint (juce::Graphics& g)
 {
-    // background behind all panels
     juce::ColourGradient grad (Aviation::bgDeep(), 0.0f, 0.0f,
                                Aviation::bgBlack(), 0.0f, (float) getHeight(), false);
     g.setGradientFill (grad);
     g.fillAll();
-}
-
-void AviationMainView::paintOverChildren (juce::Graphics& g)
-{
-    // preset count strip — floats over the macro deck's top-left corner
-    {
-        auto strip = Aviation::presetCountBounds().toFloat();
-        Aviation::fillMetalPanel (g, strip, 6.0f, juce::Colour (0xff0b151f), juce::Colour (0xff060d14));
-        g.setColour (Aviation::goldDeep().withAlpha (0.35f));
-        g.drawRoundedRectangle (strip.reduced (0.5f), 6.0f, 1.0f);
-
-        const int total = processor.getPresetManager().getTotalPresetCount();
-        g.setFont (Aviation::label (11.0f, 0.12f));
-        g.setColour (Aviation::textPrimary().withAlpha (0.9f));
-        g.drawText (juce::String (total) + " PRESETS",
-                    strip.toNearestInt().withTrimmedLeft (14), juce::Justification::centredLeft);
-
-        AviationIcons::fill (g, AviationIcons::star(),
-                             { strip.getRight() - 26.0f, strip.getCentreY() - 7.0f, 14.0f, 14.0f },
-                             Aviation::goldBright());
-    }
 }
