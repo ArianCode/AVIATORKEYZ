@@ -387,8 +387,9 @@ void AviationMainView::resized()
 
     const auto cockpit = Aviation::cockpitBounds();
 
-    // center console
-    dashboard->setBounds (cockpit.getCentreX() - 305, cockpit.getY() + 222, 610, 250);
+    // center console — on the global center axis so it stacks over the
+    // cockpit pillar and the macro deck's brand block
+    dashboard->setBounds (Aviation::kDesignW / 2 - 305, cockpit.getY() + 222, 610, 250);
 
     // left cockpit side panels
     velocityPanel->setBounds (cockpit.getX() + 26, cockpit.getY() + 274, 118, 104);

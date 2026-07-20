@@ -47,9 +47,18 @@ void CockpitBackground::paint (juce::Graphics& g)
 
     if (photo.isValid())
     {
-        // Cover placement preserves the cockpit perspective (no distortion).
-        g.drawImage (photo, r, juce::RectanglePlacement::fillDestination
-                                   | juce::RectanglePlacement::centred);
+        // Cover placement, panned so the cockpit's central pillar (at the
+        // horizontal center of the source photo) sits on the interface's
+        // global center axis. The cockpit region is pushed right by the
+        // preset browser, so plain centering would leave the pillar — and
+        // everything stacked on it — visibly right of the window center.
+        const float axisX = (float) (Aviation::kDesignW / 2) - (float) Aviation::cockpitBounds().getX();
+        const float halfW = juce::jmax (axisX, r.getWidth() - axisX);
+        const float scale = juce::jmax (halfW * 2.0f / (float) photo.getWidth(),
+                                        r.getHeight() / (float) photo.getHeight());
+        const float drawW = (float) photo.getWidth() * scale;
+        const float drawH = (float) photo.getHeight() * scale;
+        g.drawImage (photo, { axisX - drawW * 0.5f, (r.getHeight() - drawH) * 0.5f, drawW, drawH });
     }
 
     if (! usingSunsetAsset)
