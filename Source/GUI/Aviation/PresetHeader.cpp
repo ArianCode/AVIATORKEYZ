@@ -22,6 +22,11 @@ juce::Rectangle<int> PresetHeader::nextArea() const
     return { getWidth() / 2 + kNameHalfWidth + 8, getHeight() / 2 - 9, 18, 18 };
 }
 
+juce::Rectangle<int> PresetHeader::nameArea() const
+{
+    return { getWidth() / 2 - kNameHalfWidth, 0, kNameHalfWidth * 2, getHeight() };
+}
+
 juce::Rectangle<int> PresetHeader::heartArea() const
 {
     return { getWidth() / 2 + kNameHalfWidth + 44, getHeight() / 2 - 9, 19, 18 };
@@ -32,6 +37,7 @@ PresetHeader::Hit PresetHeader::hitAt (juce::Point<int> pos) const
     if (prevArea().expanded (6).contains (pos))  return Hit::prev;
     if (nextArea().expanded (6).contains (pos))  return Hit::next;
     if (heartArea().expanded (6).contains (pos)) return Hit::heart;
+    if (nameArea().contains (pos))               return Hit::name;
     return Hit::none;
 }
 
@@ -59,6 +65,9 @@ void PresetHeader::mouseDown (const juce::MouseEvent& e)
     {
         case Hit::prev:  if (onPrevPreset) onPrevPreset(); break;
         case Hit::next:  if (onNextPreset) onNextPreset(); break;
+        case Hit::name:
+            if (onPresetNameClicked) onPresetNameClicked();
+            break;
         case Hit::heart:
             favourited = ! favourited;
             if (onFavoriteToggled) onFavoriteToggled (favourited);

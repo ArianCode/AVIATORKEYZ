@@ -21,8 +21,25 @@ if "%1"=="clean" (
     exit /b 0
 )
 
-echo === AviatorKeyz Build (%CONFIG%) ===
+echo === Aviation Build (%CONFIG%, x64) ===
 echo.
+
+REM --- Release identity guard -------------------------------------------------
+REM BuildInfo.h is regenerated on every configure below, so the SHA stamped into
+REM the binary is whatever HEAD is right now. A dirty tree yields "<sha>-dirty".
+for /f "delims=" %%i in ('git rev-parse --short^=10 HEAD 2^>nul') do set GIT_SHA=%%i
+for /f "delims=" %%i in ('git describe --tags --always --dirty 2^>nul') do set GIT_DESC=%%i
+if not defined GIT_SHA set GIT_SHA=unknown
+if not defined GIT_DESC set GIT_DESC=untagged
+echo Commit:   %GIT_SHA%
+echo Describe: %GIT_DESC%
+echo %GIT_DESC% | findstr /C:"dirty" >nul
+if %errorlevel% equ 0 (
+    echo.
+    echo WARNING: working tree is dirty — this binary is NOT reproducible from a SHA.
+    echo          Do not ship it as an RC. Commit and re-run.
+    echo.
+)
 
 REM --- Configure ---
 echo [1/3] Configuring CMake...
@@ -52,6 +69,9 @@ if exist "%VST3_PATH%" (
     echo  BUILD SUCCEEDED
     echo  VST3: %VST3_PATH%
     echo ===================================================
+    echo.
+    echo  Static MSVC runtime — no VC++ Redistributable needed on the client machine.
+    echo  ^(Confirm with: dumpbin /DEPENDENTS "%VST3_PATH%\Contents\x86_64-win\Aviation.vst3"^)
     echo.
     echo To install for FL Studio testing:
     echo   Copy "%VST3_PATH%" to:

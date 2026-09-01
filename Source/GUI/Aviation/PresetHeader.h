@@ -16,6 +16,7 @@ public:
 
     std::function<void()> onPrevPreset;
     std::function<void()> onNextPreset;
+    std::function<void()> onPresetNameClicked;
     std::function<void (bool)> onFavoriteToggled;
 
     void setPresetName (const juce::String& name);
@@ -27,10 +28,11 @@ public:
     void mouseExit (const juce::MouseEvent& e) override;
 
 private:
-    enum class Hit { none, prev, next, heart };
+    enum class Hit { none, prev, next, name, heart };
     Hit hitAt (juce::Point<int> pos) const;
     juce::Rectangle<int> prevArea() const;
     juce::Rectangle<int> nextArea() const;
+    juce::Rectangle<int> nameArea() const;
     juce::Rectangle<int> heartArea() const;
 
     juce::String presetName;

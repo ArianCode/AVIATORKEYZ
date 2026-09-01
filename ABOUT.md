@@ -12,10 +12,10 @@ AviatorKeyz exists to feel like **premium hardware translated to software** — 
 
 The goal is simple:
 
-1. **Inspire immediately** — 50 factory presets across 10 categories, browsable by sound family
+1. **Inspire immediately** — 114 factory presets across 10 categories, browsable by sound family
 2. **Make every preset feel alive** — four signature controls (Reverse, Glide, Smear, Tone) that reshape texture without deep sound design
-3. **Stay focused** — no keygroup editing, scripting, modulation matrix, or wavetable synthesis
-4. **Look and feel memorable** — a dark, gold-accented interface that reads as luxury, not utility
+3. **Stay focused** — no keygroup editing or scripting; PERFORMANCE (Advanced) adds macros, LFO, mod matrix, and FX without turning the MAIN cockpit into a sampler editor
+4. **Look and feel memorable** — a dark, gold-accented Aviation cockpit that reads as luxury, not utility
 
 AviatorKeyz is deliberately **not** a general-purpose sampler. It is an editorial instrument: curated sounds, a consistent creative engine, and a brand identity you remember after one session.
 
@@ -57,8 +57,8 @@ Supporting processing includes input/output gain, plate reverb, stereo width, pa
 
 ### Factory content
 
-- **11 embedded WAV** samples (one per category plus default)
-- **50 factory presets** (XML), embedded in the plugin binary
+- **111 embedded WAV** samples (per-preset factory files, plus default)
+- **114 factory presets** (XML), embedded in the plugin binary
 - User presets save to `Documents/AviatorKeyz/Presets/`
 - User sample import: load compatible WAV/AIFF, map to MIDI, play inside the plugin
 
@@ -68,7 +68,7 @@ Supporting processing includes input/output gain, plate reverb, stereo width, pa
 
 | | |
 |---|---|
-| **Format** | VST3 instrument (MIDI in, stereo audio out) |
+| **Format** | VST3 instrument (MIDI in, stereo audio out); AU + Standalone also built |
 | **Platform** | macOS 13+ (primary); Windows 10/11 x64 (secondary) |
 | **Primary DAWs** | Logic, Ableton, Reaper (macOS) |
 | **Stack** | C++20, JUCE 8, CMake |
@@ -81,13 +81,13 @@ Supporting processing includes input/output gain, plate reverb, stereo width, pa
 | Milestone | Focus | Status |
 |-----------|--------|--------|
 | M0 | Scaffold & build | Complete |
-| M1 | Core sampler + MIDI | Complete |
-| M2 | Creative DSP (Reverse, Glide, Smear, Tone, reverb) | Complete |
-| M3 | Preset system + factory bank | Complete |
-| M4 | Premium UI polish | In progress |
-| M5 | FL Studio certification & release signing | Planned |
+| M1 | Core sampler + MIDI | ~90% — engine + tests; DAW sign-off open; keytrack WIP |
+| M2 | Creative DSP (Reverse, Glide, Smear, Tone, reverb) | ~85% — wired; automation stress open |
+| M3 | Preset system + factory bank | ~80% — 114/111 bank; clearance and freeze open |
+| M4 | Premium UI (Aviation MAIN) | ~80% — MAIN landed Jul 20; polish remains |
+| M5 | Host certification & release signing | ~15% — scripts exist; DAW QA + codesign open |
 
-Current emphasis: finishing the premium UI, replacing placeholder factory audio with cleared/licensed material, and host QA on Windows + FL Studio before v1.0.
+Current emphasis: land MIDI keytrack, replace placeholder factory audio with cleared/licensed material, and M5 host QA (Logic / Ableton / Reaper) before v1.0. Engineering tracker: [`TODO.md`](TODO.md) and [`docs/PROGRESS.md`](docs/PROGRESS.md).
 
 ---
 
@@ -113,4 +113,4 @@ Legal entity, IP assignments, and sample clearance are documented under `license
 
 ---
 
-*Last updated: May 2026*
+*Last updated: August 2026*

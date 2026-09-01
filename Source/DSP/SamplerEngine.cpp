@@ -399,6 +399,34 @@ void SamplerEngine::startVoice (Voice& v,
     }
 
     updateVoicePlaybackRates (v);
+
+    // Publish a POD diagnostic outside any heap/lock path for off-thread inspection.
+    {
+        NotePitchDiag diag;
+        diag.midiNote = midiNote;
+        diag.rootNote = v.sampleRootNote;
+        diag.keytrack = sourceSettings.keytrack;
+        diag.playbackMode = static_cast<int> (getEffectivePlaybackMode());
+        diag.semitoneOffset = v.playbackRates.pitchSemitones;
+        diag.pitchRatio = static_cast<float> (v.playbackRates.pitchRatio);
+        diag.sourceRateRatio = static_cast<float> (v.playbackRates.sourceRateRatio);
+        diag.timeRatio = static_cast<float> (v.playbackRates.timeRatio);
+        diag.finalIncrement = voiceReadIncrement (v);
+        diag.voiceIndex = static_cast<int> (&v - voices);
+        diag.sequence = notePitchDiagSequence.fetch_add (1, std::memory_order_relaxed) + 1;
+        lastNotePitchDiag = diag;
+
+        AK_LOG ("NotePitch: midi=" + juce::String (diag.midiNote)
+                + " root=" + juce::String (diag.rootNote)
+                + " keytrack=" + juce::String (static_cast<int> (diag.keytrack))
+                + " mode=" + juce::String (diag.playbackMode)
+                + " semis=" + juce::String (diag.semitoneOffset, 2)
+                + " ratio=" + juce::String (diag.pitchRatio, 4)
+                + " srcRate=" + juce::String (diag.sourceRateRatio, 4)
+                + " inc=" + juce::String (diag.finalIncrement, 4)
+                + " voice=" + juce::String (diag.voiceIndex));
+    }
+
     lastNoteForGlide = midiNote;
 
     const double attS = attackMs * 0.001;
@@ -491,7 +519,10 @@ void SamplerEngine::updateVoicePlaybackRates (Voice& v) noexcept
     // Authoritative root is the loaded sample region — never APVTS defaults.
     const int rootNote = v.sampleRootNote;
     const float staticPitchSemis = static_cast<float> (phrasePitchSemis + v.chopPitchOffsetSemis);
-    const bool tracksMidiPitch = (mode == SamplePlaybackMode::ChromaticResample);
+    // Keytrack is the sole runtime MIDI-pitch switch. Category policy turns it
+    // on for ChromaticResample presets; users can disable it to lock pitch, or
+    // enable it on PhraseOriginal / OneShotOriginal sounds.
+    const bool tracksMidiPitch = sourceSettings.keytrack;
 
     if (tracksMidiPitch)
     {
@@ -533,15 +564,10 @@ void SamplerEngine::updateVoicePlaybackRates (Voice& v) noexcept
 float SamplerEngine::voiceReadIncrement (const Voice& v) const noexcept
 {
     const auto& r = v.playbackRates;
-    const auto mode = getEffectivePlaybackMode();
 
-    double inc = r.sourceRateRatio * r.timeRatio;
-
-    if (mode == SamplePlaybackMode::ChromaticResample
-        || mode == SamplePlaybackMode::OneShotOriginal)
-        inc *= r.pitchRatio;
-
-    return static_cast<float> (inc);
+    // pitchRatio is 1.0 when MIDI tracking / static tune are inactive.
+    // Always fold it so PhraseOriginal + keytrack ON actually repitches.
+    return static_cast<float> (r.sourceRateRatio * r.timeRatio * r.pitchRatio);
 }
 
 void SamplerEngine::advanceEnvelope (Voice& v) noexcept
@@ -821,6 +847,11 @@ float SamplerEngine::getActiveVoiceReadIncrementForTest() const noexcept
             return voiceReadIncrement (voices[i]);
     }
     return 0.f;
+}
+
+SamplerEngine::NotePitchDiag SamplerEngine::getLastNotePitchDiag() const noexcept
+{
+    return lastNotePitchDiag;
 }
 
 void SamplerEngine::process (juce::AudioBuffer<float>& buffer)

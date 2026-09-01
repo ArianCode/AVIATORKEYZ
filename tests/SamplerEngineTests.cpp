@@ -483,7 +483,7 @@ public:
 
             SourceSettings settings;
             settings.playbackMode = SamplePlaybackMode::ChromaticResample;
-            settings.keytrack = false;
+            settings.keytrack = true;
             settings.bpmSync = false;
             engine.setSourceSettings (settings, 120.0);
             engine.setPlaybackContext (AviatorKeyz::SoundType::OneShot, AviatorKeyz::Category::LEADS);

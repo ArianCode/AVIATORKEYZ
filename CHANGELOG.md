@@ -5,6 +5,19 @@ Format: [Version] — Date — Summary
 
 ---
 
+## [Unreleased] — 2026-08-19 — MIDI keytrack (working tree; not committed)
+
+### Changed
+- Runtime MIDI pitch follows `sourceSettings.keytrack` (not playback-mode-only)
+- Ensembles one-shots (including Electric Guitar Fading) use chromatic resample + keytrack; phrases stay phrase
+- Advanced source section exposes a KEY TRACK control
+- Category policy (C++ and Python) sets `SRC_KEYTRACK` from chromatic mode
+
+### Tests
+- `tests/PitchTrackingTests.cpp` (untracked until the keytrack change is committed)
+
+---
+
 ## [Unreleased] — 2026-07-20 — Aviation cockpit MAIN interface
 
 ### Added

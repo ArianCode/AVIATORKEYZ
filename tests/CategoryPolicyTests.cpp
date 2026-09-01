@@ -56,9 +56,13 @@ public:
         {
             expect (AviatorKeyz::playbackModeFor ("Leads", AviatorKeyz::SoundType::OneShot)
                         == SamplePlaybackMode::ChromaticResample);
+            expect (AviatorKeyz::playbackModeFor ("Ensembles", AviatorKeyz::SoundType::OneShot)
+                        == SamplePlaybackMode::ChromaticResample);
             expect (AviatorKeyz::playbackModeFor ("Chords", AviatorKeyz::SoundType::OneShot)
                         == SamplePlaybackMode::OneShotOriginal);
             expect (AviatorKeyz::playbackModeFor ("Vocals", AviatorKeyz::SoundType::Phrase)
+                        == SamplePlaybackMode::PhraseOriginal);
+            expect (AviatorKeyz::playbackModeFor ("Ensembles", AviatorKeyz::SoundType::Phrase)
                         == SamplePlaybackMode::PhraseOriginal);
         }
 

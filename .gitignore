@@ -44,3 +44,14 @@ JuceLibraryCode/
 *.tmp
 *.log
 *.bak
+
+# Release packaging output
+dist/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Agent / editor scratch
+.cursor_tmp/
+.claude/worktrees/

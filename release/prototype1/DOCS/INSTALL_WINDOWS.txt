@@ -1,0 +1,53 @@
+AVIATION — Prototype 1 RC1 — Windows install
+============================================
+
+Prerequisites
+-------------
+- Windows 10 x64 or later (1607+). Windows 7/8 are not supported.
+- FL Studio with VST3 support — tested matrix includes FL 11, 20, 21+, and 25 (64-bit).
+- Microsoft Visual C++ Redistributable (x64) if listed in VERSION.txt runtime deps.
+
+All 64-bit FL versions (11.1+, 20, 21, 24, 25, etc.) use the same x64 VST3 at:
+  C:\Program Files\Common Files\VST3\
+
+1. Verify the download
+   Compare the SHA-256 of the ZIP file against SHA256SUMS.txt before extracting.
+
+2. Extract
+   Use "Extract All" on Aviation_Prototype1_RC1_Windows_x64.zip.
+
+3. Install the VST3
+   Copy the entire folder:
+     VST3\Aviation.vst3
+   to:
+     64-bit FL (11.1+, 20, 21+, 25):  C:\Program Files\Common Files\VST3\
+     32-bit FL 11 only:               C:\Program Files (x86)\Common Files\VST3\
+   (Use the 32-bit path only if you received an x86 build for 32-bit FL 11.)
+
+4. Rescan in FL Studio
+   Options → Manage plugins → Find more plugins → Start scan.
+   Confirm "Aviation" appears under Instruments (not Effects).
+
+5. Create a NEW empty project
+   Create and save the project in the same FL version you are testing.
+   Do not open projects saved in a newer FL in an older FL.
+   Do not use .flp files from FL 25 macOS on Windows unless the tester also runs FL 25.
+
+6. Load Aviation
+   Add Aviation to an instrument channel. Enable MIDI input on the channel.
+
+7. Test MIDI
+   Drag TEST\Prototype_Test.mid onto the Piano roll or import into the project.
+   Play — you should hear factory preset audio.
+
+User presets (optional)
+-----------------------
+Saved to:  Documents\AviatorKeyz\Presets\
+
+Uninstall
+---------
+Delete Aviation.vst3 from the VST3 folder above, then rescan plugins in FL Studio.
+
+Support
+-------
+Use DOCS\FEEDBACK_TEMPLATE.txt when reporting issues. Include VERSION.txt contents and exact FL version/build.

@@ -62,11 +62,10 @@ def playback_mode_for(category: str, sound_type: SoundType) -> PlaybackMode:
     if sound_type == SoundType.SLICE:
         return PlaybackMode.SLICE_PHRASE
     if sound_type == SoundType.ONE_SHOT:
-        return (
-            PlaybackMode.CHROMATIC_RESAMPLE
-            if category in CHROMATIC_CATEGORIES
-            else PlaybackMode.ONE_SHOT_ORIGINAL
-        )
+        # Ensembles one-shots are single pitched notes and must track MIDI.
+        if category in CHROMATIC_CATEGORIES or category == "Ensembles":
+            return PlaybackMode.CHROMATIC_RESAMPLE
+        return PlaybackMode.ONE_SHOT_ORIGINAL
     if sound_type == SoundType.LOOP:
         return PlaybackMode.PHRASE_ORIGINAL
     return PlaybackMode.PHRASE_ORIGINAL
@@ -154,7 +153,11 @@ def is_sample_id_compatible(sample_id: str, category: str) -> bool:
 def loop_mode_for(category: str, sound_type: SoundType) -> int:
   if sound_type == SoundType.LOOP:
     return 1
-  if sound_type == SoundType.ONE_SHOT and category not in CHROMATIC_CATEGORIES:
+  if (
+      sound_type == SoundType.ONE_SHOT
+      and category not in CHROMATIC_CATEGORIES
+      and category != "Ensembles"
+  ):
     return 0
   return 2
 
@@ -172,7 +175,7 @@ def playback_params_for(category: str, display_name: str) -> dict[str, float | i
     )
     return {
         "src_playback_mode": int(mode),
-        "src_keytrack": 0,
+        "src_keytrack": 1 if mode == PlaybackMode.CHROMATIC_RESAMPLE else 0,
         "src_loop_mode": loop_mode,
         "src_bpm_sync": bpm_sync,
     }

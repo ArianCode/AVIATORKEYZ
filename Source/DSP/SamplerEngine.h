@@ -2,6 +2,7 @@
 
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_dsp/juce_dsp.h>
+#include <atomic>
 
 #include "../State/CategorySoundPolicy.h"
 #include "../State/SampleLibrary.h"
@@ -76,6 +77,24 @@ public:
 
     /** Unit tests: read increment of first active voice (0 if none). */
     float getActiveVoiceReadIncrementForTest() const noexcept;
+
+    /** RT-safe snapshot of the most recent note-on pitch calculation (for tests / debug). */
+    struct NotePitchDiag
+    {
+        int   midiNote { 0 };
+        int   rootNote { 60 };
+        bool  keytrack { false };
+        int   playbackMode { 0 };
+        float semitoneOffset { 0.f };
+        float pitchRatio { 1.f };
+        float sourceRateRatio { 1.f };
+        float timeRatio { 1.f };
+        float finalIncrement { 1.f };
+        int   voiceIndex { -1 };
+        uint32_t sequence { 0 };
+    };
+
+    NotePitchDiag getLastNotePitchDiag() const noexcept;
 
     void process (juce::AudioBuffer<float>& buffer);
 
@@ -193,6 +212,9 @@ private:
     juce::String currentCategory;
     NoteGatePolicy noteGatePolicy { NoteGatePolicy::Gated };
     RetriggerPolicy retriggerPolicy { RetriggerPolicy::Polyphonic };
+
+    NotePitchDiag lastNotePitchDiag {};
+    std::atomic<uint32_t> notePitchDiagSequence { 0 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SamplerEngine)
 };

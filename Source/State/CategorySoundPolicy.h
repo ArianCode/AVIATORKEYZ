@@ -134,8 +134,16 @@ inline SamplePlaybackMode playbackModeFor (const juce::String& category, SoundTy
         return SamplePlaybackMode::SlicePhrase;
 
     if (soundType == SoundType::OneShot)
-        return isChromaticCategory (category) ? SamplePlaybackMode::ChromaticResample
-                                              : SamplePlaybackMode::OneShotOriginal;
+    {
+        // Ensembles one-shots are single pitched notes (guitars, basses, etc.)
+        // and must track the keyboard. Other non-chromatic categories keep
+        // OneShotOriginal so chord hits / pads stay at the recorded pitch.
+        if (isChromaticCategory (category)
+            || category.equalsIgnoreCase (Category::ENSEMBLES))
+            return SamplePlaybackMode::ChromaticResample;
+
+        return SamplePlaybackMode::OneShotOriginal;
+    }
 
     if (soundType == SoundType::Loop)
         return SamplePlaybackMode::PhraseOriginal;
@@ -148,7 +156,11 @@ inline LoopMode loopModeFor (const juce::String& category, SoundType soundType) 
     if (soundType == SoundType::Loop)
         return LoopMode::Loop;
 
-    if (soundType == SoundType::OneShot && ! isChromaticCategory (category))
+    // Fixed-pitch non-chromatic one-shots (e.g. Chords hits) play through;
+    // Ensembles one-shots are chromatic keyboard instruments → Gate like Brass.
+    if (soundType == SoundType::OneShot
+        && ! isChromaticCategory (category)
+        && ! category.equalsIgnoreCase (Category::ENSEMBLES))
         return LoopMode::OneShot;
 
     return LoopMode::Gate;
@@ -209,7 +221,9 @@ inline void applyPlaybackPolicyToApvts (juce::AudioProcessorValueTreeState& apvt
 
     const auto mode = playbackModeFor (category, soundType);
     setChoice (P::SRC_PLAYBACK_MODE, static_cast<float> (mode));
-    setBool (P::SRC_KEYTRACK, false);
+    // Keytrack is the runtime switch for MIDI pitch tracking. Chromatic
+    // presets load with it on; phrases / fixed one-shots load with it off.
+    setBool (P::SRC_KEYTRACK, mode == SamplePlaybackMode::ChromaticResample);
 
     setChoice (P::SRC_LOOP_MODE, static_cast<float> (loopModeFor (category, soundType)));
     setBool (P::SRC_BPM_SYNC, soundType == SoundType::Loop

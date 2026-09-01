@@ -43,6 +43,7 @@ target_sources(${_AVIATORKEYZ_TEST_TARGET}
         PresetManagerTests.cpp
         CategoryPolicyTests.cpp
         PitchAlignmentTests.cpp
+        PitchTrackingTests.cpp
         PerformanceBenchmarkTests.cpp
         PresetPlaybackTests.cpp
         RawSamplerTests.cpp
@@ -79,6 +80,7 @@ target_include_directories(${_AVIATORKEYZ_TEST_TARGET}
         ${CMAKE_SOURCE_DIR}/Source
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
+aviatorkeyz_apply_build_info_include(${_AVIATORKEYZ_TEST_TARGET})
 
 target_compile_definitions(${_AVIATORKEYZ_TEST_TARGET}
     PRIVATE

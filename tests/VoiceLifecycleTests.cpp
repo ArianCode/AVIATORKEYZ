@@ -93,6 +93,7 @@ void configurePhraseEngine (SamplerEngine& engine, TestSampleSnapshot& snap) noe
     settings.playbackMode = SamplePlaybackMode::PhraseOriginal;
     settings.loopMode = LoopMode::Gate;
     settings.bpmSync = false;
+    settings.keytrack = false;
     settings.start = 0.f;
     settings.end = 1.f;
     engine.setSourceSettings (settings, 120.0);
@@ -223,6 +224,7 @@ public:
                 settings.playbackMode = SamplePlaybackMode::PhraseOriginal;
                 settings.loopMode = LoopMode::Gate;
                 settings.bpmSync = true;
+                settings.keytrack = false;
                 settings.originalBpm = 120.f;
                 settings.start = 0.f;
                 settings.end = 1.f;
@@ -326,6 +328,7 @@ public:
             settings.playbackMode = SamplePlaybackMode::OneShotOriginal;
             settings.loopMode = LoopMode::OneShot;
             settings.bpmSync = false;
+            settings.keytrack = false;
             engine.setSourceSettings (settings, 120.0);
             engine.setPlaybackContext (AviatorKeyz::SoundType::OneShot, AviatorKeyz::Category::CHORDS);
             expect (engine.getNoteGatePolicy() == NoteGatePolicy::TriggerToEnd);

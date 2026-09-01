@@ -1,0 +1,50 @@
+AVIATION — Prototype 1 RC1 — FL test checklist
+===============================================
+
+Use a NEW empty project created in each FL version. Do not use cross-version .flp files.
+(Projects saved in a newer FL cannot open in an older FL.)
+Play TEST\Prototype_Test.mid for bass overlap and note lifecycle tests.
+
+All 64-bit FL versions (11.1+, 20, 21+, 25) use the same x64 Aviation.vst3 build.
+
+For each row mark: PASS / FAIL / N/A
+
+Test                          | FL 11 | FL 20 | FL 21+ | FL 25
+------------------------------|-------|-------|--------|------
+Plugin discovered             |       |       |        |
+Classified as instrument      |       |       |        |
+UI opens                      |       |       |        |
+UI closes/reopens 10x         |       |       |        |
+Factory preset loads          |       |       |        |
+MIDI notes pitch correctly    |       |       |        |
+Key Track                     |       |       |        |
+Note-off terminates voice     |       |       |        |
+Fast overlapping bass notes   |       |       |        |
+Sustain pedal                 |       |       |        |
+Rapid preset changes          |       |       |        |
+Reverse                       |       |       |        |
+Glide                         |       |       |        |
+Tone / macros                 |       |       |        |
+Transport start/stop          |       |       |        |
+Panic / all-notes-off         |       |       |        |
+2 instances                   |       |       |        |
+4 instances                   |       |       |        |
+Save native .flp              |       |       |        |
+Restart FL                    |       |       |        |
+Restore .flp                  |       |       |        |
+Parameter state recalled      |       |       |        |
+Preset recalled               |       |       |        |
+44.1 kHz                      |       |       |        |
+48 kHz                        |       |       |        |
+128-sample buffer             |       |       |        |
+512 / 1024 buffer             |       |       |        |
+125-150% Windows scaling      |       |       |        |
+
+FL 21+ column: write exact version tested (e.g. 21.2, 24.1) next to your results.
+
+Clean-machine gate (required once before ship):
+[ ] Fresh Windows account or VM — no Visual Studio, no source tree
+[ ] Installed using DOCS\INSTALL_WINDOWS.txt only
+[ ] Removed plugin and reinstalled from README alone
+
+Record full results in docs/PROTOTYPE1_FL_MATRIX.md (developer copy).

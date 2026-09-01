@@ -82,6 +82,16 @@ Core plugin code should never contain host-specific hacks — all workarounds ar
 **Issue:** FL Studio does not always call `prepareToPlay` when transport loops back to start — it may continue with the existing audio context.
 **Mitigation:** Ensure voice states reset cleanly on transport stop. Watch for stuck notes on loop restart.
 
+### FLSI-007 — Prototype #1 multi-version FL matrix (Windows)
+**Status:** QA pending — see `docs/PROTOTYPE1_FL_MATRIX.md`
+**Issue:** Prototype #1 must be validated independently on each FL version the client uses. All **64-bit** hosts (FL 11.1+, 20, 21+, 25) share one **x64** `Aviation.vst3` at `C:\Program Files\Common Files\VST3\`.
+**Requirements:**
+1. Create a **native empty project** in each FL version under test — do not reuse `.flp` files across versions.
+2. A project saved in a **newer** FL cannot open in an **older** FL (Image-Line project version rule).
+3. **FL 25 on Windows** is a valid test host; do not substitute FL 25 **macOS** `.flp` files for Windows FL 11/20 testers.
+4. Tag failures in this file as **FL11**, **FL20**, **FL21+**, or **FL25** (with exact build) to separate legacy-wrapper issues from packaging/runtime bugs.
+**Notes:** FL 11 32-bit remains the only case requiring a separate **x86** VST3 build (`scripts\build_windows_x86.bat`).
+
 ---
 
 ## General VST3 Notes
