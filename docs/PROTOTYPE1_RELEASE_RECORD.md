@@ -6,7 +6,7 @@ Immutable release metadata. Update only when cutting a new RC (RC2, etc.).
 |-------------|-------|
 | Prototype label | `0.1.0-rc1` |
 | Git tag | `prototype-1-rc1` |
-| Git SHA | _(filled at tag time)_ |
+| Git SHA | `0f04c959fd53d28e3ebcb58a8acbfbdbb143251f` |
 | JUCE | `8.0.9` (FetchContent pin) |
 | CMake minimum | `3.22` |
 | Visual Studio | `2022` x64 (static CRT — no VC++ Redistributable on client) |
@@ -74,21 +74,22 @@ Both platform artifacts must be built from the **same** tagged commit.
 | Field | Value |
 |-------|-------|
 | PKG filename | `Aviation_Prototype1_RC1_macOS.pkg` |
-| SHA-256 | _(from SHA256SUMS.txt)_ |
-| Built | _(date)_ |
-| Architectures | _(from `lipo -archs`; must include `x86_64` and `arm64`)_ |
-| Install location | `/Library/Audio/Plug-Ins/VST3` (+ `/Components` for AU) |
-| Validated hosts | _(Logic / Live / Reaper / FL 25 macOS)_ |
+| SHA-256 | `360eb10a31c0988139c0ba24560d04672fd55d031937885236dbe0532710f1d8` |
+| Size | 422 MB |
+| Built | 2026-09-01 03:29 UTC, from tag `prototype-1-rc1` (`0f04c959fd`) |
+| Architectures | `x86_64 arm64` (verified with `lipo -archs` on the pkg payload) |
+| Install location | `/Library/Audio/Plug-Ins/VST3` (VST3 only — AU deliberately excluded) |
+| Validated hosts | FL Studio 2025 macOS — RC1 payload instantiated from a real project, stable, no crash reports (2026-08-31) |
 
 #### macOS distribution gates
 
 | Gate | Status | Notes |
 |------|--------|-------|
-| Universal binary (arm64 + x86_64) | _TBD_ | Intel Macs cannot load an arm64-only build |
-| VST3 signed — Developer ID **Application** | _TBD_ | `DEVELOPER_ID_APP` env var |
-| PKG signed — Developer ID **Installer** | _TBD_ | `DEVELOPER_ID_INSTALLER` env var |
-| Notarized (`notarytool`) + stapled | _TBD_ | `altool` is no longer accepted |
-| `spctl` / `pkgutil --check-signature` pass | _TBD_ | |
+| Universal binary (arm64 + x86_64) | **PASS** | verified on pkg payload |
+| VST3 signed — Developer ID **Application** | **PASS** | Arian Gholamipour (G3W6978UH7); hardened runtime + timestamp; signature survives pkg round-trip |
+| PKG signed — Developer ID **Installer** | **OPEN** | no Developer ID Installer certificate in keychain — create one, then re-run packaging as RC2 |
+| Notarized (`notarytool`) + stapled | **OPEN** | no notarytool credentials configured (`NOTARY_PROFILE` or Apple ID set) |
+| `spctl` / `pkgutil --check-signature` pass | **OPEN** | blocked on the two gates above; client workaround documented in INSTALL_MACOS.txt |
 
 An unsigned `.pkg` is fine for local testing but **not** frictionless for an external
 client — they will hit Gatekeeper. Credentials are read from the environment only;
