@@ -47,6 +47,10 @@ Legend: `PASS` / `FAIL` / `NOT TESTED` / `N/A`
 | Preset recalled | NOT TESTED | NOT TESTED | NOT TESTED | NOT TESTED | |
 | Sound recalled, not a sine | NOT TESTED | NOT TESTED | NOT TESTED | NOT TESTED | FLSI-008 regression |
 | Render/export matches live | NOT TESTED | NOT TESTED | NOT TESTED | NOT TESTED | FLSI-008 regression |
+| Consolidate/bounce matches live | NOT TESTED | NOT TESTED | NOT TESTED | NOT TESTED | FLSI-008 regression |
+| 2+ instances keep separate presets | NOT TESTED | NOT TESTED | NOT TESTED | NOT TESTED | different preset per channel |
+| 2+ instances survive one bounce | NOT TESTED | NOT TESTED | NOT TESTED | NOT TESTED | all instances release/prepare together |
+| User preset saved then recalled | NOT TESTED | NOT TESTED | NOT TESTED | NOT TESTED | not just factory presets |
 | 44.1 kHz | NOT TESTED | NOT TESTED | NOT TESTED | NOT TESTED | |
 | 48 kHz | NOT TESTED | NOT TESTED | NOT TESTED | NOT TESTED | |
 | 128-sample buffer | NOT TESTED | NOT TESTED | NOT TESTED | NOT TESTED | |
@@ -80,9 +84,20 @@ When logging issues in [known-host-issues.md](../known-host-issues.md), tag each
 4. Remove VST3 folder → repeat install from README alone
 
 **Priority rows.** If time is short, run these first — they are where the known bug lived:
-*Sound recalled, not a sine* and *Render/export matches live*. FLSI-008 reproduced on macOS
-with nothing more than load preset → play chords → render, so it needs no save/reopen to
-show up. Windows has never been tested for it at all.
+*Sound recalled, not a sine*, *Render/export matches live*, and *Consolidate/bounce matches
+live*. FLSI-008 reproduced on macOS with nothing more than load preset → play chords →
+render, so it needs no save/reopen to show up. Windows has never been tested for it at all.
+
+**The acceptance test, stated once:** choose a factory preset → save the project → close and
+reopen FL → export/render/consolidate → the rendered audio must match what you heard live.
+Repeat with a user preset, and with two instances on different presets.
+
+**Automated cover.** `tests/HostStateRoundtripTests.cpp` already covers instance
+independence across save/restore, independence through a shared release/prepare cycle, and
+restore at a changed sample rate and block size — against the real `AviatorKeyzProcessor`.
+Those run on every build, on every platform. What the host matrix adds that unit tests
+cannot: FL's actual call ordering, its consolidate/bounce implementation, and per-version
+wrapper behaviour. Do not treat a green unit suite as covering these rows.
 
 **Retesting a replaced build:** quit FL completely first — it caches the loaded binary — and
 confirm the commit SHA in the status bar / About overlay before trusting any result.

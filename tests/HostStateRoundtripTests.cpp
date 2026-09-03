@@ -54,15 +54,37 @@ float renderNotePeak (AviatorKeyzProcessor& proc, int midiNote = kTestNote, int 
     return peak;
 }
 
+/** Loads the nth preset of a category that resolves to an embedded sample. */
+bool loadPresetWithSample (AviatorKeyzProcessor& proc,
+                           const juce::String& category,
+                           int skip = 0)
+{
+    auto& pm = proc.getPresetManager();
+    for (const auto& name : pm.getPresetsForCategory (category))
+    {
+        if (pm.loadPreset (category, name) && pm.getCurrentSampleId().isNotEmpty())
+        {
+            if (skip-- <= 0)
+                return true;
+        }
+    }
+    return false;
+}
+
 /** The first Leads preset that actually resolves to an embedded sample. */
 bool loadAnyPreset (AviatorKeyzProcessor& proc)
 {
-    auto& pm = proc.getPresetManager();
-    for (const auto& name : pm.getPresetsForCategory (AviatorKeyz::Category::LEADS))
-        if (pm.loadPreset (AviatorKeyz::Category::LEADS, name)
-            && pm.getCurrentSampleId().isNotEmpty())
-            return true;
-    return false;
+    return loadPresetWithSample (proc, AviatorKeyz::Category::LEADS);
+}
+
+/** Saves host state and restores it into a fresh instance taken through the
+    host's prepare cycle — the shape every one of these tests needs. */
+void saveAndRestore (AviatorKeyzProcessor& from, AviatorKeyzProcessor& into)
+{
+    juce::MemoryBlock saved;
+    from.getStateInformation (saved);
+    into.setStateInformation (saved.getData(), (int) saved.getSize());
+    into.prepareToPlay (kSampleRate, kBlockSize);
 }
 } // namespace
 
@@ -138,6 +160,76 @@ public:
                 expect (renderNotePeak (proc) > kSilenceFloor,
                         "Cycle " + juce::String (cycle) + " rendered silence");
             }
+        }
+
+        beginTest ("Two instances keep independent presets across save/restore");
+        {
+            // A host with several channels saves one state blob per instance. If any
+            // sample or preset state were shared (statics, a singleton library), the
+            // second restore would overwrite the first.
+            AviatorKeyzProcessor a, b;
+            expect (loadPresetWithSample (a, AviatorKeyz::Category::LEADS, 0));
+            expect (loadPresetWithSample (b, AviatorKeyz::Category::LEADS, 1));
+
+            const auto idA = a.getPresetManager().getCurrentSampleId();
+            const auto idB = b.getPresetManager().getCurrentSampleId();
+            expect (idA != idB, "Test needs two presets with different samples");
+
+            AviatorKeyzProcessor restoredA, restoredB;
+            saveAndRestore (a, restoredA);
+            saveAndRestore (b, restoredB);
+
+            expectEquals (restoredA.getPresetManager().getCurrentSampleId(), idA);
+            expectEquals (restoredB.getPresetManager().getCurrentSampleId(), idB);
+            expect (restoredA.hasSamplerSampleForTest(), "Instance A lost its sample");
+            expect (restoredB.hasSamplerSampleForTest(), "Instance B lost its sample");
+
+            // Restoring B must not have disturbed A.
+            expectEquals (restoredA.getPresetManager().getCurrentSampleId(), idA);
+            expect (renderNotePeak (restoredA) > kSilenceFloor, "Instance A rendered silence");
+            expect (renderNotePeak (restoredB) > kSilenceFloor, "Instance B rendered silence");
+        }
+
+        beginTest ("Live instances stay independent through a shared release/prepare cycle");
+        {
+            // Bounce/consolidate takes every instance through release/prepare together.
+            AviatorKeyzProcessor a, b;
+            expect (loadPresetWithSample (a, AviatorKeyz::Category::LEADS, 0));
+            expect (loadPresetWithSample (b, AviatorKeyz::Category::LEADS, 1));
+
+            const auto idA = a.getPresetManager().getCurrentSampleId();
+            const auto idB = b.getPresetManager().getCurrentSampleId();
+
+            a.prepareToPlay (kSampleRate, kBlockSize);
+            b.prepareToPlay (kSampleRate, kBlockSize);
+            a.releaseResources();
+            b.releaseResources();
+            a.prepareToPlay (kSampleRate, kBlockSize);
+            b.prepareToPlay (kSampleRate, kBlockSize);
+
+            expect (a.hasSamplerSampleForTest(), "Instance A lost its sample on bounce");
+            expect (b.hasSamplerSampleForTest(), "Instance B lost its sample on bounce");
+            expectEquals (a.getPresetManager().getCurrentSampleId(), idA);
+            expectEquals (b.getPresetManager().getCurrentSampleId(), idB);
+        }
+
+        beginTest ("Restore survives a host that prepares at a different rate and block size");
+        {
+            // Offline render frequently runs at a different sample rate or block size
+            // than the live session, which is a second prepareToPlay on the same state.
+            AviatorKeyzProcessor source;
+            expect (loadAnyPreset (source));
+            source.prepareToPlay (44100.0, 128);
+
+            AviatorKeyzProcessor restored;
+            saveAndRestore (source, restored);
+            expect (restored.hasSamplerSampleForTest());
+
+            restored.releaseResources();
+            restored.prepareToPlay (96000.0, 1024);
+            expect (restored.hasSamplerSampleForTest(),
+                    "Sample lost when the host re-prepared at a different rate/block size");
+            expect (renderNotePeak (restored) > kSilenceFloor, "Rendered silence at 96k/1024");
         }
 
         beginTest ("Zero amp sustain is a valid patch, not a failed load");
