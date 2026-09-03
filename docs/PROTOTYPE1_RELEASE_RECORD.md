@@ -65,8 +65,11 @@ Both platform artifacts must be built from the **same** tagged commit.
 
 | Field | Value |
 |-------|-------|
-| ZIP filename | `Aviation_Prototype1_<RC>_Windows.zip` |
-| SHA-256 | _(from SHA256SUMS_Windows.txt)_ |
+| ZIP filename | `Aviation_Prototype1_RC1_Windows_x64.zip` |
+| ZIP SHA-256 | _(from SHA256SUMS.txt)_ |
+| Installer filename | `Aviation_Prototype1_RC1_Windows_x64_Setup.exe` |
+| Installer SHA-256 | _(from the .sha256 sidecar)_ |
+| Authenticode signature | **OPEN** — no code-signing certificate; SmartScreen will warn the tester |
 | Built | _(date)_ |
 | Architectures | _(x86_64 + x86, or x86_64 only — from VERSION.txt)_ |
 | Minimum OS | Windows 10 (1607+) / Windows 11 |
@@ -75,8 +78,9 @@ Both platform artifacts must be built from the **same** tagged commit.
 | Runtime deps | _(from dumpbin in VERSION.txt)_ |
 | Windows SDK | _(record on Windows build machine)_ |
 
-**Status: not built.** No Windows artifact has ever been produced. RC1 shipped macOS-only,
-which breaks the same-tag rule below — the next RC must produce both.
+**Status: not built.** No Windows artifact has been produced yet. The macOS `.pkg` was
+cut from tag `prototype-1-rc1`; the Windows artifacts must be built from that **same tag**
+on a Windows machine. Until then the RC is macOS-only.
 
 ### macOS
 
