@@ -25,15 +25,21 @@
 #ifndef OutDir
   #define OutDir "..\dist"
 #endif
+#ifndef RcLabel
+  #define RcLabel "RC1"
+#endif
+#ifndef SetupBase
+  #define SetupBase "Aviation_Prototype1_" + RcLabel + "_Windows_Setup"
+#endif
 
 [Setup]
 AppId={{A7E3C1D2-8B4F-4E6A-9C05-AV1AT10NRC01}
 AppName=Aviation
 AppVersion={#AppVersion}
-AppVerName=Aviation Prototype 1 RC1 ({#AppVersion})
+AppVerName=Aviation Prototype 1 {#RcLabel} ({#AppVersion})
 AppPublisher=Aviation
 VersionInfoVersion=0.1.0
-VersionInfoDescription=Aviation VST3 Instrument — Prototype 1 RC1
+VersionInfoDescription=Aviation VST3 Instrument — Prototype 1 {#RcLabel}
 VersionInfoTextVersion={#AppVersion} ({#GitSha})
 
 ; The VST3 install path is fixed by the VST3 spec — do not let the user choose it.
@@ -48,11 +54,11 @@ ArchitecturesInstallIn64BitMode=x64compatible
 
 MinVersion=10.0
 OutputDir={#OutDir}
-OutputBaseFilename=Aviation_Prototype1_RC1_Windows_x64_Setup
+OutputBaseFilename={#SetupBase}
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
-UninstallDisplayName=Aviation Prototype 1 RC1
+UninstallDisplayName=Aviation Prototype 1 {#RcLabel}
 UninstallFilesDir={commoncf64}\VST3\Aviation-uninstall
 LicenseFile=
 InfoBeforeFile={#DocsSrc}\DOCS\KNOWN_ISSUES.txt
@@ -82,7 +88,7 @@ Source: "{#Vst3Src}\*"; DestDir: "{commoncf32}\VST3\Aviation.vst3"; \
 ; Ship the tester-facing docs next to the plugin so they are findable after install.
 Source: "{#DocsSrc}\DOCS\*.txt";     DestDir: "{commondocs}\Aviation Prototype 1\DOCS"; Flags: ignoreversion
 Source: "{#DocsSrc}\TEST\*";         DestDir: "{commondocs}\Aviation Prototype 1\TEST"; Flags: ignoreversion
-Source: "{#OutDir}\Aviation_Prototype1_RC1_Windows\VERSION.txt"; \
+Source: "{#OutDir}\Aviation_Prototype1_{#RcLabel}_Windows\VERSION.txt"; \
   DestDir: "{commondocs}\Aviation Prototype 1"; Flags: ignoreversion skipifsourcedoesntexist
 
 [UninstallDelete]

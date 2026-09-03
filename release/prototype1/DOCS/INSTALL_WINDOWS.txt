@@ -20,8 +20,8 @@ present in the copy you received.
 
 You received ONE of these two things. Follow the matching section.
 
-  Aviation_Prototype1_RC1_Windows_x64_Setup.exe  ->  OPTION A (installer)
-  Aviation_Prototype1_RC1_Windows_x64.zip        ->  OPTION B (manual copy)
+  Aviation_Prototype1_RC1_Windows_Setup.exe  ->  OPTION A (installer)
+  Aviation_Prototype1_RC1_Windows.zip        ->  OPTION B (manual copy)
 
 Both deliver the identical plugin. Use whichever you were sent.
 
@@ -33,7 +33,7 @@ OPTION A — INSTALLER (.exe)
 A1. Verify the download
     Compare the SHA-256 of the .exe against the accompanying .sha256 file.
     In PowerShell:
-        Get-FileHash .\Aviation_Prototype1_RC1_Windows_x64_Setup.exe -Algorithm SHA256
+        Get-FileHash .\Aviation_Prototype1_RC1_Windows_Setup.exe -Algorithm SHA256
 
 A2. Run the installer
     Right-click the .exe > Run as administrator.

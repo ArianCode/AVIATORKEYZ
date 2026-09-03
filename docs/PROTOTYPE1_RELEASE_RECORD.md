@@ -65,9 +65,9 @@ Both platform artifacts must be built from the **same** tagged commit.
 
 | Field | Value |
 |-------|-------|
-| ZIP filename | `Aviation_Prototype1_RC1_Windows_x64.zip` |
+| ZIP filename | `Aviation_Prototype1_<RC>_Windows.zip` |
 | ZIP SHA-256 | _(from SHA256SUMS.txt)_ |
-| Installer filename | `Aviation_Prototype1_RC1_Windows_x64_Setup.exe` |
+| Installer filename | `Aviation_Prototype1_<RC>_Windows_Setup.exe` |
 | Installer SHA-256 | _(from the .sha256 sidecar)_ |
 | Authenticode signature | **OPEN** — no code-signing certificate; SmartScreen will warn the tester |
 | Built | _(date)_ |
