@@ -12,7 +12,8 @@ REM  Ships the SAME universal bundle the ZIP ships. A 64-bit FL loads
 REM  Contents\x86_64-win; FL 11 32-bit loads Contents\x86-win when present.
 REM
 REM  Usage:
-REM    scripts\build_installer_windows.bat
+REM    scripts\build_installer_windows.bat          (LZMA2/max — ship quality)
+REM    scripts\build_installer_windows.bat fast     (fast compression — smoke tests)
 REM
 REM  Output:
 REM    dist\Aviation_Prototype1_<RC>_Windows_Setup.exe
@@ -43,7 +44,11 @@ set OUT_DIR=%ROOT%\dist
 set SETUP_BASE=Aviation_Prototype1_%RC_LABEL%_Windows_Setup
 set SETUP_EXE=%OUT_DIR%\%SETUP_BASE%.exe
 
-echo === Aviation Prototype 1 RC1 — Windows installer ===
+set COMPRESSION=lzma2/max
+if /I "%1"=="fast" set COMPRESSION=lzma2/fast
+
+echo === Aviation Prototype 1 — Windows installer ===
+echo Compression: %COMPRESSION%
 
 REM --- Refuse to build an installer from an unreproducible tree ---------------
 for /f "delims=" %%i in ('git describe --tags --always --dirty 2^>nul') do set GIT_DESC=%%i
@@ -97,12 +102,13 @@ if not exist "%OUT_DIR%" mkdir "%OUT_DIR%"
 
 REM --- Compile ----------------------------------------------------------------
 echo.
-echo Compiling installer ^(LZMA2 over ~250 MB — this takes several minutes^)...
+echo Compiling installer ^(compressing ~250 MB — this takes several minutes^)...
 !ISCC! ^
     /DAppVersion=%APP_VERSION% ^
     /DRcLabel=%RC_LABEL% ^
     /DSetupBase=%SETUP_BASE% ^
     /DGitSha=%GIT_SHA% ^
+    /DCompression=%COMPRESSION% ^
     /DVst3Src="%VST3_SRC%" ^
     /DDocsSrc="%DOCS_SRC%" ^
     /DOutDir="%OUT_DIR%" ^

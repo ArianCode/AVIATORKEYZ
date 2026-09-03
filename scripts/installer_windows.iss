@@ -25,6 +25,9 @@
 #ifndef OutDir
   #define OutDir "..\dist"
 #endif
+#ifndef Compression
+  #define Compression "lzma2/max"
+#endif
 #ifndef RcLabel
   #define RcLabel "RC1"
 #endif
@@ -55,7 +58,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
 OutputDir={#OutDir}
 OutputBaseFilename={#SetupBase}
-Compression=lzma2/max
+Compression={#Compression}
 SolidCompression=yes
 WizardStyle=modern
 UninstallDisplayName=Aviation Prototype 1 {#RcLabel}

@@ -51,6 +51,12 @@ aviatorkeyz_reject_global_sanitizer_flags()
 option(AVIATORKEYZ_COPY_AFTER_BUILD "Copy VST3 to system plugin folder after build" OFF)
 option(AVIATORKEYZ_PROFILE "Enable audio callback microsecond profiling (non-release diagnostics)" OFF)
 
+# Link-time optimisation. ON preserves the previous behaviour. Turn it OFF if the
+# MSVC link stage runs out of memory or stalls — /LTCG over the embedded factory
+# bank is the most expensive step in the whole Windows build, and disabling it
+# costs a little runtime performance but nothing functional.
+option(AVIATORKEYZ_ENABLE_LTO "Enable JUCE recommended link-time optimisation" ON)
+
 aviatorkeyz_configure_sanitizer_mode()
 
 # ---------------------------------------------------------------------------
@@ -279,7 +285,7 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
             juce::juce_gui_basics
         PUBLIC
             juce::juce_recommended_config_flags
-            juce::juce_recommended_lto_flags
+            $<$<BOOL:${AVIATORKEYZ_ENABLE_LTO}>:juce::juce_recommended_lto_flags>
             juce::juce_recommended_warning_flags
     )
 
