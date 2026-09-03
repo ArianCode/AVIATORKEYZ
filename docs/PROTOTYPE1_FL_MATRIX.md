@@ -6,13 +6,23 @@ Create a **native empty project** in each FL version — do **not** open cross-v
 **Target env:** [PROTOTYPE1_TARGET_ENV.md](PROTOTYPE1_TARGET_ENV.md)  
 **Checklist copy for package:** [release/prototype1/TEST/TEST_CHECKLIST.txt](../release/prototype1/TEST/TEST_CHECKLIST.txt)
 
-All **64-bit** FL hosts (11.1+, 20, 21+, 25) use the same **x64** `Aviation.vst3` build.
+One **universal** `Aviation.vst3` bundle serves every column. 64-bit FL hosts (11.1+, 20,
+21+, 25) load `Contents\x86_64-win`; FL 11 32-bit loads `Contents\x86-win`. Install the same
+bundle to both VST3 paths — see [PROTOTYPE1_TARGET_ENV.md](PROTOTYPE1_TARGET_ENV.md).
+
+**Record FL 11's bitness in the notes column** — it decides which half of the bundle that
+column actually exercised. A `PASS` on FL 11 means nothing if you don't know which DLL loaded.
+
+Intel vs AMD and Windows 10 vs 11 are **not** separate builds and do not need separate
+columns. If you want coverage there, vary the machines you run the existing columns on and
+note the CPU and OS build per run.
 
 Legend: `PASS` / `FAIL` / `NOT TESTED` / `N/A`
 
 | Test | FL 11 | FL 20 | FL 21+ | FL 25 | Notes |
 |------|:-----:|:-----:|:------:|:-----:|-------|
-| Plugin discovered | NOT TESTED | NOT TESTED | NOT TESTED | NOT TESTED | |
+| Plugin discovered | NOT TESTED | NOT TESTED | NOT TESTED | NOT TESTED | record FL bitness |
+| Correct arch half loaded | NOT TESTED | NOT TESTED | NOT TESTED | NOT TESTED | x86-win vs x86_64-win |
 | Classified as instrument | NOT TESTED | NOT TESTED | NOT TESTED | NOT TESTED | |
 | UI opens | NOT TESTED | NOT TESTED | NOT TESTED | NOT TESTED | |
 | UI closes/reopens 10× | NOT TESTED | NOT TESTED | NOT TESTED | NOT TESTED | |
@@ -35,6 +45,8 @@ Legend: `PASS` / `FAIL` / `NOT TESTED` / `N/A`
 | Restore `.flp` | NOT TESTED | NOT TESTED | NOT TESTED | NOT TESTED | |
 | Parameter state recalled | NOT TESTED | NOT TESTED | NOT TESTED | NOT TESTED | |
 | Preset recalled | NOT TESTED | NOT TESTED | NOT TESTED | NOT TESTED | |
+| Sound recalled, not a sine | NOT TESTED | NOT TESTED | NOT TESTED | NOT TESTED | FLSI-008 regression |
+| Render/export matches live | NOT TESTED | NOT TESTED | NOT TESTED | NOT TESTED | FLSI-008 regression |
 | 44.1 kHz | NOT TESTED | NOT TESTED | NOT TESTED | NOT TESTED | |
 | 48 kHz | NOT TESTED | NOT TESTED | NOT TESTED | NOT TESTED | |
 | 128-sample buffer | NOT TESTED | NOT TESTED | NOT TESTED | NOT TESTED | |
@@ -66,3 +78,11 @@ When logging issues in [known-host-issues.md](../known-host-issues.md), tag each
 2. Unzip package → follow `DOCS/INSTALL_WINDOWS.txt` only
 3. Complete matrix above (at minimum: every FL version the client will use)
 4. Remove VST3 folder → repeat install from README alone
+
+**Priority rows.** If time is short, run these first — they are where the known bug lived:
+*Sound recalled, not a sine* and *Render/export matches live*. FLSI-008 reproduced on macOS
+with nothing more than load preset → play chords → render, so it needs no save/reopen to
+show up. Windows has never been tested for it at all.
+
+**Retesting a replaced build:** quit FL completely first — it caches the loaded binary — and
+confirm the commit SHA in the status bar / About overlay before trusting any result.

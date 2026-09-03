@@ -40,18 +40,20 @@ for the same reason: the recorded SHA must rebuild the exact binary the client r
 ./scripts/package_prototype_macos.sh
 ```
 
-**Windows x64 (ship):**
+**Windows universal — x64 + x86 in one bundle (ship):**
 
 ```bat
-scripts\build_windows.bat
+scripts\build_windows_universal.bat
 scripts\package_prototype_windows.bat
 ```
 
-**Windows x86 (only if FL 11 32-bit confirmed):**
+Intel and AMD need no separate build (both are x86-64), and neither do Windows 10 and 11.
+The only split is host bitness, and both halves live in one `Aviation.vst3` bundle.
+`build_windows_universal.bat x64only` drops the 32-bit half — use it only once FL 11
+32-bit is confirmed absent, and record that decision in `PROTOTYPE1_TARGET_ENV.md`.
 
-```bat
-scripts\build_windows_x86.bat
-```
+`build_windows.bat` (x64 only) and `build_windows_x86.bat` (x86 only) remain for
+debugging a single architecture. Neither produces a shippable universal bundle.
 
 ---
 
@@ -63,11 +65,18 @@ Both platform artifacts must be built from the **same** tagged commit.
 
 | Field | Value |
 |-------|-------|
-| ZIP filename | `Aviation_Prototype1_RC1_Windows_x64.zip` |
-| SHA-256 | _(from SHA256SUMS.txt)_ |
+| ZIP filename | `Aviation_Prototype1_<RC>_Windows.zip` |
+| SHA-256 | _(from SHA256SUMS_Windows.txt)_ |
 | Built | _(date)_ |
-| Validated hosts | FL 11 / FL 20 / FL 21+ / FL 25 (64-bit x64 VST3) — see [PROTOTYPE1_FL_MATRIX.md](PROTOTYPE1_FL_MATRIX.md) |
+| Architectures | _(x86_64 + x86, or x86_64 only — from VERSION.txt)_ |
+| Minimum OS | Windows 10 (1607+) / Windows 11 |
+| CPU | any x86-64 — Intel and AMD alike, no separate build |
+| Validated hosts | FL 11 (record bitness) / FL 20 / FL 21+ / FL 25 — see [PROTOTYPE1_FL_MATRIX.md](PROTOTYPE1_FL_MATRIX.md) |
 | Runtime deps | _(from dumpbin in VERSION.txt)_ |
+| Windows SDK | _(record on Windows build machine)_ |
+
+**Status: not built.** No Windows artifact has ever been produced. RC1 shipped macOS-only,
+which breaks the same-tag rule below — the next RC must produce both.
 
 ### macOS
 

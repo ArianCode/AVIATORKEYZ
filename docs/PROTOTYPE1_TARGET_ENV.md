@@ -1,8 +1,29 @@
 # Prototype #1 — target environments (Windows/FL + macOS)
 
-**Status:** Awaiting client confirmation before the Windows Release build.
-**Scope:** RC1 ships **two** artifacts from one tagged commit — a Windows x64 ZIP and a macOS `.pkg`.  
-**Minimum OS (hard floor):** Windows 10 x64 (1607+) — JUCE 8.0.9 does not support Windows 7/8.
+**Status:** Windows-first. Build a **universal** Windows bundle; macOS follows after Windows is signed off.
+**Scope:** One Windows ZIP containing a single universal `Aviation.vst3` (x86_64-win + x86-win), then a macOS `.pkg` — both from the same tagged commit.
+**Minimum OS (hard floor):** Windows 10 (1607+) or Windows 11 — JUCE 8.0.9 does not support Windows 7/8.
+
+## What "universal" means on Windows
+
+Not the same thing as a macOS universal binary. Three axes get confused here:
+
+| Axis | Separate build needed? | Why |
+|------|:----------------------:|-----|
+| **Intel vs AMD CPU** | **No** | Both are x86-64. One x64 binary runs on every desktop Intel and AMD chip. |
+| **Windows 10 vs Windows 11** | **No** | Same ABI. One build, floor is Win10 1607+. |
+| **64-bit vs 32-bit FL host** | **Yes** | Host bitness, not CPU. A 32-bit process cannot load a 64-bit DLL. |
+
+Only the third axis produces a second binary, and a VST3 bundle can carry both
+architecture folders at once, so it still ships as **one** artifact:
+
+```
+Aviation.vst3\Contents\x86_64-win\Aviation.vst3   <- 64-bit FL (11.1+, 20, 21+, 25)
+Aviation.vst3\Contents\x86-win\Aviation.vst3      <- FL 11 32-bit
+```
+
+Build both halves and merge with `scripts\build_windows_universal.bat`.
+Install the same bundle to both VST3 paths; each FL loads the half matching itself.
 
 Record the **exact** tester environment here before building `prototype-1-rc1` for Windows.
 
@@ -39,10 +60,15 @@ Record the **exact** tester environment here before building `prototype-1-rc1` f
 
 **64-bit rule:** All 64-bit FL hosts (11.1+, 20, 21, 24, 25, etc.) use the **same x64 VST3** at the standard 64-bit path. One Release x64 build covers the full 64-bit matrix.
 
+**Universal rule:** ship the merged bundle to both paths. The client then does not
+have to know their FL's bitness, and one ZIP serves every tester.
+
 **Rules:**
 
 - Do **not** use FL VST bridging for acceptance — native host/plugin bitness only.
-- Build **x86** only if FL 11 **32-bit** is confirmed (`scripts\build_windows_x86.bat`).
+- Build **x86** unconditionally for the universal bundle
+  (`scripts\build_windows_universal.bat`). Drop it only via `x64only`, and only once
+  FL 11 32-bit is confirmed absent — that decision must be recorded in the table above.
 - Steinberg bundles may contain both `x86-win` and `x86_64-win` if both are built and tested.
 - If Windows is 7/8 → **stop**; require Windows 10+ upgrade before ship.
 - **FL 25 on Windows** is a valid Prototype #1 test host — use a **native empty project** created in FL 25 Windows, not an `.flp` saved on FL 25 macOS.
