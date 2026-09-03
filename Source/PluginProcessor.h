@@ -1,5 +1,11 @@
 #pragma once
 
+// Set by the unit-test target: links the processor without the GUI layer so the
+// host state/lifecycle path can be tested directly.
+#ifndef AVIATORKEYZ_HEADLESS_TESTS
+ #define AVIATORKEYZ_HEADLESS_TESTS 0
+#endif
+
 #include <array>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
@@ -40,9 +46,13 @@ public:
     void processBlockBypassed (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 
     juce::AudioProcessorEditor* createEditor() override;
+   #if AVIATORKEYZ_HEADLESS_TESTS
+    bool hasEditor() const override { return false; }
+    const juce::String getName() const override         { return "AviatorKeyz"; }
+   #else
     bool hasEditor() const override { return true; }
-
     const juce::String getName() const override         { return JucePlugin_Name; }
+   #endif
     bool   acceptsMidi() const override                 { return true; }
     bool   producesMidi() const override                { return false; }
     bool   isMidiEffect() const override                { return false; }
@@ -68,6 +78,9 @@ public:
     bool loadFactorySample (const juce::String& sampleId, int rootNote = 60);
 
     const std::array<MacroControl, 4>& getMacroControls() const noexcept { return macroControls; }
+
+    /** Unit tests: true when the sampler holds a usable sample snapshot. */
+    bool hasSamplerSampleForTest() const noexcept { return samplerEngine.hasLoadedSample(); }
 
     /** Last tempo reported by the host playhead (UI thread readout). */
     double getLastKnownHostBpm() const noexcept { return lastKnownHostBpm.load (std::memory_order_relaxed); }

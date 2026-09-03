@@ -1,5 +1,7 @@
 #include "PluginProcessor.h"
-#include "PluginEditor.h"
+#if ! AVIATORKEYZ_HEADLESS_TESTS
+ #include "PluginEditor.h"
+#endif
 #include "State/ParameterLayout.h"
 #include "State/ApvtsStateHelpers.h"
 #include "State/CategorySoundPolicy.h"
@@ -77,9 +79,31 @@ void AviatorKeyzProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
     fxChain.prepare (spec);
     performancePipeline.prepare (spec);
 
+    // Hosts (FL Studio in particular) run setStateInformation -> releaseResources ->
+    // prepareToPlay when reopening a project or starting an offline render.
+    // releaseResources() nulls the sampler snapshot; without the re-attach below the
+    // engine comes back with no region and startVoice() falls through to its sine
+    // fallback — the project reopens with the right preset name but the wrong sound.
     const auto sampleId = presetManager->getCurrentSampleId();
-    if (sampleId != loadedSampleId)
-        loadFactorySample (sampleId, presetManager->getCurrentRootNote());
+    if (sampleId.isNotEmpty())
+    {
+        if (! samplerEngine.hasLoadedSample())
+        {
+            if (sampleId == loadedSampleId)
+            {
+                // sampleLibrary still owns the published buffer — re-attach the pointer
+                // without a full decode/reload.
+                samplerEngine.setSampleSnapshot (sampleLibrary.getPublishedSnapshot());
+            }
+
+            if (! samplerEngine.hasLoadedSample())
+                loadFactorySample (sampleId, presetManager->getCurrentRootNote());
+        }
+        else if (sampleId != loadedSampleId)
+        {
+            loadFactorySample (sampleId, presetManager->getCurrentRootNote());
+        }
+    }
 
     inputGainSmoothed.setCurrentAndTargetValue (
         Decibels::decibelsToGain (apvts.getRawParameterValue (ParamID::INPUT_GAIN)->load()));
@@ -102,12 +126,15 @@ bool AviatorKeyzProcessor::loadFactorySample (const juce::String& sampleId, int 
         // Root is resolved from the sample (smpl > argument); identity is sampleId.
         if (sampleId == loadedSampleId)
         {
+            if (! samplerEngine.hasLoadedSample())
+                samplerEngine.setSampleSnapshot (sampleLibrary.getPublishedSnapshot());
+
             const int authoritativeRoot = sampleLibrary.getPrimaryRootNote();
             factoryRootNote = authoritativeRoot;
             presetManager->setCurrentRootNote (authoritativeRoot);
             AviatorKeyz::syncRootNoteToApvts (apvts, authoritativeRoot);
             juce::ignoreUnused (rootNote);
-            return true;
+            return samplerEngine.hasLoadedSample();
         }
     }
 
@@ -461,7 +488,12 @@ void AviatorKeyzProcessor::processBlockBypassed (AudioBuffer<float>& buffer,
 
 AudioProcessorEditor* AviatorKeyzProcessor::createEditor()
 {
+   #if AVIATORKEYZ_HEADLESS_TESTS
+    // The unit-test target links the processor without the GUI layer.
+    return nullptr;
+   #else
     return new AviatorKeyzEditor (*this);
+   #endif
 }
 
 void AviatorKeyzProcessor::getStateInformation (MemoryBlock& destData)
@@ -516,7 +548,9 @@ void AviatorKeyzProcessor::setStateInformation (const void* data, int sizeInByte
         presetManager->onPresetLoaded (category, name, sampleId, presetManager->getCurrentRootNote());
 }
 
+#if ! AVIATORKEYZ_HEADLESS_TESTS
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new AviatorKeyzProcessor();
 }
+#endif

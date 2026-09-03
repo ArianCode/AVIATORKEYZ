@@ -69,6 +69,10 @@ public:
     bool hasActiveVoices() const noexcept { return activeVoiceCount > 0; }
     int  getNumActiveVoices() const noexcept;
 
+    /** Any thread: true when a usable sample snapshot is attached.
+        Independent of envelope settings — use this for load/prepare lifecycle decisions. */
+    bool hasLoadedSample() const noexcept;
+
     /** Message thread: sanity-check snapshot, voices, and envelope after preset load. */
     bool validateCurrentState() const noexcept;
 

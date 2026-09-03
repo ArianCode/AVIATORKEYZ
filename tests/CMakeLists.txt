@@ -46,10 +46,19 @@ target_sources(${_AVIATORKEYZ_TEST_TARGET}
         PitchTrackingTests.cpp
         PerformanceBenchmarkTests.cpp
         PresetPlaybackTests.cpp
+        HostStateRoundtripTests.cpp
         RawSamplerTests.cpp
         VoiceLifecycleTests.cpp
         MidiHandlerTests.cpp
+        ${CMAKE_SOURCE_DIR}/Source/PluginProcessor.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/SamplerEngine.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/OutputLimiter.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/SmearProcessor.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/ReverbTail.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/FxChain.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/Performance/PerformanceTexturePipeline.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/Performance/PerformanceFxEngine.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/Performance/TextureBlendEngine.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/GlideEngine.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/FilterProcessor.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/SynthEngine.cpp
@@ -85,6 +94,7 @@ aviatorkeyz_apply_build_info_include(${_AVIATORKEYZ_TEST_TARGET})
 target_compile_definitions(${_AVIATORKEYZ_TEST_TARGET}
     PRIVATE
         JUCE_STANDALONE_APPLICATION=1
+        AVIATORKEYZ_HEADLESS_TESTS=1
         JUCE_USE_CURL=0
         JUCE_WEB_BROWSER=0
 )

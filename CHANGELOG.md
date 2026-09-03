@@ -5,6 +5,32 @@ Format: [Version] — Date — Summary
 
 ---
 
+## [Unreleased] — 2026-09-02 — Host state lifecycle fix
+
+### Fixed
+- Reopening a saved project (and starting an offline render) played a sine fallback
+  instead of the preset's sample. `prepareToPlay` skipped the reload because
+  `setStateInformation` had already matched `loadedSampleId`, while
+  `releaseResources` had nulled the sampler snapshot. See FLSI-008 in
+  `known-host-issues.md`.
+- `amp sustain == 0` no longer counts as invalid sampler state. It used to make a
+  legitimate percussive patch report a failed load and re-decode the WAV inside
+  `prepareToPlay` on every transport start.
+
+### Changed
+- `SamplerEngine::hasLoadedSample()` split out of `validateCurrentState()`, so
+  load/prepare lifecycle decisions no longer depend on envelope settings
+- Unit-test target links the real `Source/PluginProcessor.cpp` with
+  `AVIATORKEYZ_HEADLESS_TESTS=1` (no GUI layer), so host state tests exercise the
+  shipped code instead of a copy of it
+
+### Tests
+- `tests/HostStateRoundtripTests.cpp` — save/restore, FL reopen ordering, repeated
+  release/prepare cycles, and the zero-sustain case. Verified to fail against the
+  pre-fix processor.
+
+---
+
 ## [Unreleased] — 2026-08-19 — MIDI keytrack (working tree; not committed)
 
 ### Changed

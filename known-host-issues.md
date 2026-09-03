@@ -82,6 +82,39 @@ Core plugin code should never contain host-specific hacks — all workarounds ar
 **Issue:** FL Studio does not always call `prepareToPlay` when transport loops back to start — it may continue with the existing audio context.
 **Mitigation:** Ensure voice states reset cleanly on transport stop. Watch for stuck notes on loop restart.
 
+### FLSI-008 — Reopened project (or offline render) played a sine instead of the preset sample
+**Status:** Fixed in code (2026-09-02); FL Studio runtime validation pending
+**Issue:** On reopening a saved `.flp` — and on starting an offline render — the plugin
+restored its preset name and every parameter correctly, but played a bare sine tone instead
+of the loaded sample.
+
+**Root cause (host lifecycle, not FL-specific):** hosts call
+`setStateInformation` → `releaseResources` → `prepareToPlay` in that order.
+`SamplerEngine::releaseResources()` nulls `sampleSnapshot`. `prepareToPlay` then only
+reloaded when `sampleId != loadedSampleId` — but `setStateInformation` had already set
+`loadedSampleId` to the restored id, so the reload was skipped and the engine came up with
+no snapshot attached. `SamplerEngine::startVoice` falls back to a sine oscillator when no
+region is available (`Source/DSP/SamplerEngine.cpp`), which is why the symptom was a wrong
+sound rather than silence.
+
+**Fix:** `prepareToPlay` now keys off `SamplerEngine::hasLoadedSample()` rather than the id
+comparison. If the snapshot is missing but `SampleLibrary` still owns the published buffer,
+the pointer is re-attached with no decode; only a genuinely lost buffer triggers a full
+`loadFactorySample`. `loadFactorySample`'s same-sample early-return does the same re-attach.
+
+**Related:** `hasLoadedSample()` was split out of `validateCurrentState()`. The old
+combined check treated `amp sustain == 0` as invalid state, so a legitimate percussive
+patch reported a failed load and forced a full WAV re-decode inside `prepareToPlay` on
+every transport start. Zero sustain is now logged, not failed.
+
+**Regression tests:** `tests/HostStateRoundtripTests.cpp` drives the real
+`AviatorKeyzProcessor` (test target builds it with `AVIATORKEYZ_HEADLESS_TESTS=1`) through
+the host lifecycle. Note that a peak/silence check alone does **not** catch this — the sine
+fallback is loud. The load-bearing assertion is `hasSamplerSampleForTest()`.
+
+**Still to validate in the host:** save a project in FL, close, reopen, confirm the loaded
+sound plays; then bounce/render the same project and confirm the rendered audio matches.
+
 ### FLSI-007 — Prototype #1 multi-version FL matrix (Windows)
 **Status:** QA pending — see `docs/PROTOTYPE1_FL_MATRIX.md`
 **Issue:** Prototype #1 must be validated independently on each FL version the client uses. All **64-bit** hosts (FL 11.1+, 20, 21+, 25) share one **x64** `Aviation.vst3` at `C:\Program Files\Common Files\VST3\`.

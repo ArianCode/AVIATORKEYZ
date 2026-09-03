@@ -784,12 +784,7 @@ bool SamplerEngine::validateCurrentState() const noexcept
 {
     bool valid = true;
 
-    const bool hasSample = sampleSnapshot != nullptr
-                           && ! sampleSnapshot->regions.empty()
-                           && sampleSnapshot->regions.front().data != nullptr
-                           && sampleSnapshot->regions.front().numFrames > 1;
-
-    if (! hasSample)
+    if (! hasLoadedSample())
     {
         AK_LOG ("Sampler validation failed: no sound is loaded");
         valid = false;
@@ -814,13 +809,21 @@ bool SamplerEngine::validateCurrentState() const noexcept
         valid = false;
     }
 
+    // A zero sustain is a legitimate percussive setting, not invalid state. Log it
+    // for diagnostics only — failing here made prepareToPlay re-decode the sample on
+    // every transport start for any patch with sustain at 0.
     if (sustainLevel <= 0.f)
-    {
-        AK_LOG ("Sampler validation failed: sustain level is zero");
-        valid = false;
-    }
+        AK_LOG ("Sampler note: amp sustain is zero (percussive envelope)");
 
     return valid;
+}
+
+bool SamplerEngine::hasLoadedSample() const noexcept
+{
+    return sampleSnapshot != nullptr
+           && ! sampleSnapshot->regions.empty()
+           && sampleSnapshot->regions.front().data != nullptr
+           && sampleSnapshot->regions.front().numFrames > 1;
 }
 
 bool SamplerEngine::isOneShotPlayback() const noexcept
