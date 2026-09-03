@@ -28,6 +28,8 @@ Format: [Version] — Date — Summary
 - `tests/HostStateRoundtripTests.cpp` — save/restore, FL reopen ordering, repeated
   release/prepare cycles, and the zero-sustain case. Verified to fail against the
   pre-fix processor.
+- Validated in FL Studio on macOS (2026-09-02): render path confirmed fixed on a
+  universal build stamped `5727cec8b4`
 
 ---
 

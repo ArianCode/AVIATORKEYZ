@@ -83,7 +83,7 @@ Core plugin code should never contain host-specific hacks — all workarounds ar
 **Mitigation:** Ensure voice states reset cleanly on transport stop. Watch for stuck notes on loop restart.
 
 ### FLSI-008 — Reopened project (or offline render) played a sine instead of the preset sample
-**Status:** Fixed in code (2026-09-02); FL Studio runtime validation pending
+**Status:** Fixed and validated in FL Studio (2026-09-02)
 **Issue:** On reopening a saved `.flp` — and on starting an offline render — the plugin
 restored its preset name and every parameter correctly, but played a bare sine tone instead
 of the loaded sample.
@@ -112,8 +112,15 @@ every transport start. Zero sustain is now logged, not failed.
 the host lifecycle. Note that a peak/silence check alone does **not** catch this — the sine
 fallback is loud. The load-bearing assertion is `hasSamplerSampleForTest()`.
 
-**Still to validate in the host:** save a project in FL, close, reopen, confirm the loaded
-sound plays; then bounce/render the same project and confirm the rendered audio matches.
+**Host validation (2026-09-02, macOS, commit `5727cec8b4`):** reproduced on the RC1 binary
+(preset + chord progression + render produced a sine), then confirmed fixed on a universal
+build carrying the fix. Note the reproduction needed no close/reopen — FL runs
+`releaseResources` -> `prepareToPlay` when it switches into render mode, so the render path
+alone triggers it.
+
+**Testing note:** FL caches the loaded binary. Quit FL completely before retesting a
+replaced bundle, and confirm the commit SHA in the status bar / About overlay — otherwise
+you are still measuring the old plugin.
 
 ### FLSI-007 — Prototype #1 multi-version FL matrix (Windows)
 **Status:** QA pending — see `docs/PROTOTYPE1_FL_MATRIX.md`
