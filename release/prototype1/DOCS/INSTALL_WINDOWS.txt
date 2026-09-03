@@ -18,6 +18,51 @@ You install the SAME folder either way — FL picks the half that matches itself
 Check VERSION.txt: the "Architectures" line tells you whether the 32-bit half is
 present in the copy you received.
 
+You received ONE of these two things. Follow the matching section.
+
+  Aviation_Prototype1_RC1_Windows_x64_Setup.exe  ->  OPTION A (installer)
+  Aviation_Prototype1_RC1_Windows_x64.zip        ->  OPTION B (manual copy)
+
+Both deliver the identical plugin. Use whichever you were sent.
+
+
+================================================================
+OPTION A — INSTALLER (.exe)
+================================================================
+
+A1. Verify the download
+    Compare the SHA-256 of the .exe against the accompanying .sha256 file.
+    In PowerShell:
+        Get-FileHash .\Aviation_Prototype1_RC1_Windows_x64_Setup.exe -Algorithm SHA256
+
+A2. Run the installer
+    Right-click the .exe > Run as administrator.
+
+    THIS PROTOTYPE IS UNSIGNED. Windows SmartScreen will show a blue
+    "Windows protected your PC" screen. This is expected for a prototype.
+    Click "More info", then "Run anyway".
+
+    If you are not comfortable doing that, use OPTION B instead — the ZIP
+    contains exactly the same plugin and triggers no warning.
+
+A3. Choose 32-bit option only if needed
+    If you are testing 32-bit FL Studio 11, tick
+    "Also install for 32-bit FL Studio 11" on the tasks page.
+    Leave it unticked for 64-bit FL (11.1+, 20, 21+, 25).
+
+A4. Finish
+    The installer writes:
+        C:\Program Files\Common Files\VST3\Aviation.vst3
+    and copies the docs and MIDI test file to:
+        C:\Users\Public\Documents\Aviation Prototype 1\
+
+    Then continue at step 4 (Rescan in FL Studio) below.
+
+
+================================================================
+OPTION B — ZIP (manual copy)
+================================================================
+
 1. Verify the download
    Compare the SHA-256 of the ZIP against SHA256SUMS.txt before extracting.
 
@@ -35,6 +80,10 @@ present in the copy you received.
 
    Copy the folder itself, not its contents — Aviation.vst3 is a folder, and FL
    will not recognise it if you unpack it.
+
+================================================================
+BOTH OPTIONS CONTINUE HERE
+================================================================
 
 4. Rescan in FL Studio
    Options → Manage plugins → Find more plugins → Start scan.
@@ -72,7 +121,9 @@ Saved to:  Documents\AviatorKeyz\Presets\
 
 Uninstall
 ---------
-Delete Aviation.vst3 from the VST3 folder(s) above, then rescan plugins in FL Studio.
+Installed with OPTION A: Settings > Apps > "Aviation Prototype 1 RC1" > Uninstall.
+Installed with OPTION B: delete Aviation.vst3 from the VST3 folder(s) above.
+Either way, rescan plugins in FL Studio afterwards.
 
 Support
 -------

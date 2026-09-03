@@ -6,7 +6,11 @@ Read DOCS/INSTALL_WINDOWS.txt before installing.
 This is a confidential evaluation build — not for redistribution.
 Factory audio is synthetic placeholder content, not final commercial material.
 
-Contents:
+You may have received either an installer (.exe) or a ZIP. Both contain the
+identical plugin — DOCS/INSTALL_WINDOWS.txt covers both paths.
+The installer is unsigned, so SmartScreen will warn; the ZIP will not.
+
+Contents (ZIP):
   VST3/Aviation.vst3     — VST3 instrument bundle
   TEST/                  — MIDI test pattern and checklist
   DOCS/                  — Install, known issues, feedback template
