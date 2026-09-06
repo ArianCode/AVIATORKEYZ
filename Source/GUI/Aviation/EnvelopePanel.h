@@ -27,6 +27,8 @@ private:
     void parameterChanged (const juce::String&, float) override { triggerAsyncUpdate(); }
     void handleAsyncUpdate() override { repaint(); }
 
+    static constexpr int kKnobRowH = 56;
+
     juce::AudioProcessorValueTreeState& apvtsRef;
     std::vector<std::unique_ptr<MiniRotary>> adsrKnobs;
 

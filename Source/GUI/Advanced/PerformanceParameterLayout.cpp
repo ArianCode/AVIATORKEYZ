@@ -1,5 +1,6 @@
 #include "PerformanceParameterLayout.h"
 #include "../../State/StateSchema.h"
+#include "../../DSP/Mfx/MfxDescriptors.h"
 
 using namespace juce;
 using namespace AviatorKeyz;
@@ -99,4 +100,70 @@ void PerformanceParameterLayout::appendParameters (std::vector<std::unique_ptr<R
     params.push_back (std::make_unique<APB> (ParameterID { ParamID::PERF_FX_SCATTER, 1 }, "FX Scatter", false));
     params.push_back (std::make_unique<APB> (ParameterID { ParamID::PERF_FX_PITCH_DROP, 1 }, "FX Pitch Drop", false));
     params.push_back (std::make_unique<APB> (ParameterID { ParamID::PERF_FX_FILTER_SWEEP, 1 }, "FX Filter Sweep", false));
+
+    // --- Flight Deck: arpeggiator + flip lever -----------------------------
+    const auto percentText = [] (float v, int) { return String (roundToInt (v * 100.f)) + "%"; };
+
+    params.push_back (std::make_unique<APB> (ParameterID { ParamID::ARP_ON, 1 }, "Arp On", false));
+    params.push_back (std::make_unique<APFC> (ParameterID { ParamID::ARP_MODE, 1 }, "Arp Mode",
+        StringArray { "Up", "Down", "Up-Down", "Random", "As Played" }, 0));
+    params.push_back (std::make_unique<APFC> (ParameterID { ParamID::ARP_RATE, 1 }, "Arp Rate",
+        StringArray { "1/4", "1/8", "1/16", "1/32" }, 2));
+    params.push_back (std::make_unique<APFC> (ParameterID { ParamID::ARP_FEEL, 1 }, "Arp Feel",
+        StringArray { "Straight", "Triplet", "Dotted" }, 0));
+    params.push_back (std::make_unique<APFI> (ParameterID { ParamID::ARP_OCTAVES, 1 }, "Arp Octaves", 1, 4, 1));
+    params.push_back (std::make_unique<APF> (ParameterID { ParamID::ARP_GATE, 1 }, "Arp Gate",
+        NR (0.05f, 1.f, 0.001f), 0.7f, AudioParameterFloatAttributes().withStringFromValueFunction (percentText)));
+    params.push_back (std::make_unique<APF> (ParameterID { ParamID::ARP_SWING, 1 }, "Arp Swing",
+        NR (0.f, 1.f, 0.001f), 0.f, AudioParameterFloatAttributes().withStringFromValueFunction (percentText)));
+    params.push_back (std::make_unique<APF> (ParameterID { ParamID::ARP_HUMANIZE, 1 }, "Arp Humanize",
+        NR (0.f, 1.f, 0.001f), 0.f, AudioParameterFloatAttributes().withStringFromValueFunction (percentText)));
+    params.push_back (std::make_unique<APF> (ParameterID { ParamID::ARP_OCT_SPREAD, 1 }, "Arp Octave Spread",
+        NR (0.f, 1.f, 0.001f), 0.f, AudioParameterFloatAttributes().withStringFromValueFunction (percentText)));
+    params.push_back (std::make_unique<APB> (ParameterID { ParamID::ARP_HOLD, 1 }, "Arp Hold", false));
+    params.push_back (std::make_unique<APFC> (ParameterID { ParamID::ARP_TARGET, 1 }, "Arp Target",
+        StringArray { "Slices", "Notes" }, 1));
+
+    params.push_back (std::make_unique<APFC> (ParameterID { ParamID::FLIP_WINDOW, 1 }, "Flip Window",
+        StringArray { "Phrase", "Slice", "Beat" }, 0));
+    params.push_back (std::make_unique<APFC> (ParameterID { ParamID::FLIP_SNAP, 1 }, "Flip Snap",
+        StringArray { "Off", "1/4", "1/8", "1/16" }, 2));
+
+    // --- MFX rack: slot A / slot B ------------------------------------------
+    const auto effectNames = Mfx::effectNames();
+    const auto modSources = Mfx::modSourceNames();
+    for (int slot = 0; slot < Mfx::kNumSlots; ++slot)
+    {
+        const String tag = slot == 0 ? "MFX A " : "MFX B ";
+        // Slot B starts as the Grain Cloud (what the ATMOSPHERE zone used to be).
+        const int defaultEffect = slot == 1 ? (int) Mfx::Effect::grainCloud : (int) Mfx::Effect::sweepFilter;
+
+        params.push_back (std::make_unique<APB> (ParameterID { Mfx::onId (slot), 1 }, tag + "On", false));
+        params.push_back (std::make_unique<APFC> (ParameterID { Mfx::effectId (slot), 1 }, tag + "Effect",
+                                                  effectNames, defaultEffect));
+        params.push_back (std::make_unique<APF> (ParameterID { Mfx::sendId (slot), 1 }, tag + "Rev Send",
+                                                 NR (0.f, 1.f, 0.001f), 0.f,
+                                                 AudioParameterFloatAttributes().withStringFromValueFunction (percentText)));
+        params.push_back (std::make_unique<APF> (ParameterID { Mfx::levelId (slot), 1 }, tag + "Level",
+                                                 NR (-24.f, 6.f, 0.1f), 0.f,
+                                                 AudioParameterFloatAttributes().withLabel ("dB")));
+
+        const auto defaults = Mfx::defaultsNormalised (static_cast<Mfx::Effect> (defaultEffect));
+        for (int p = 0; p < Mfx::kParamsPerSlot; ++p)
+        {
+            params.push_back (std::make_unique<APF> (ParameterID { Mfx::paramId (slot, p), 1 },
+                                                     tag + "Param " + String (p + 1),
+                                                     NR (0.f, 1.f, 0.0001f), defaults[(size_t) p],
+                                                     AudioParameterFloatAttributes().withStringFromValueFunction (percentText)));
+        }
+        for (int a = 0; a < Mfx::kNumAssigns; ++a)
+        {
+            params.push_back (std::make_unique<APFC> (ParameterID { Mfx::assignSourceId (slot, a), 1 },
+                                                      tag + "Assign " + String (a + 1) + " Source", modSources, 0));
+            params.push_back (std::make_unique<APF> (ParameterID { Mfx::assignAmountId (slot, a), 1 },
+                                                     tag + "Assign " + String (a + 1) + " Amount",
+                                                     NR (-1.f, 1.f, 0.001f), 0.f,
+                                                     AudioParameterFloatAttributes().withStringFromValueFunction (percentText)));
+        }
+    }
 }

@@ -1,5 +1,6 @@
 #include "PluginEditor.h"
 #include "GUI/Aviation/AviationTheme.h"
+#include "GUI/FlightDeck/DeckWidgets.h"
 #include "DSP/Performance/PerformanceTypes.h"
 
 namespace
@@ -28,9 +29,9 @@ AviatorKeyzEditor::AviatorKeyzEditor (AviatorKeyzProcessor& p)
     mainView->onModeChanged = [this] (bool performance) { setPerformanceView (performance); };
     addAndMakeVisible (*mainView);
 
-    advancedPanel = std::make_unique<AdvancedPanel> (p);
-    advancedPanel->setVisible (false);
-    addAndMakeVisible (*advancedPanel);
+    flightDeck = std::make_unique<FlightDeckView> (p);
+    flightDeck->setVisible (false);
+    addAndMakeVisible (*flightDeck);
 
     auto& presetManager = p.getPresetManager();
     previousPresetLoadedHandler = presetManager.onPresetLoaded;
@@ -41,20 +42,21 @@ AviatorKeyzEditor::AviatorKeyzEditor (AviatorKeyzProcessor& p)
         if (previousPresetLoaded)
             previousPresetLoaded (category, name, sampleId, rootNote);
 
-        if (advancedPanel != nullptr)
-            advancedPanel->refreshPresetUI();
+        if (flightDeck != nullptr)
+            flightDeck->refreshPresetUI();
     };
 
-    previousMacroMapsLoadedHandler = presetManager.onMacroMapsLoaded;
-    presetManager.onMacroMapsLoaded = [this, previousMacroMapsLoaded = previousMacroMapsLoadedHandler] (const std::array<MacroControl, 4>& macros) {
-        if (previousMacroMapsLoaded)
-            previousMacroMapsLoaded (macros);
-
-        if (advancedPanel != nullptr)
-            advancedPanel->refreshPresetUI();
+    previousUserSampleHandler = p.onUserSampleChanged;
+    p.onUserSampleChanged = [this, previous = previousUserSampleHandler]
+    {
+        if (previous)
+            previous();
+        if (flightDeck != nullptr)
+            flightDeck->refreshPresetUI();
+        if (mainView != nullptr)
+            mainView->requestPresetUiRefresh();
     };
 
-    advancedPanel->refreshPresetUI();
     setPerformanceView (false);
 
     layoutContent();
@@ -63,17 +65,24 @@ AviatorKeyzEditor::AviatorKeyzEditor (AviatorKeyzProcessor& p)
 #if JUCE_DEBUG
     // UI validation harness: AVIATORKEYZ_SNAPSHOT_PATH=<file.png> renders the
     // main view at the canonical 1647x955 design size and quits (debug only).
+    // AVIATORKEYZ_SNAPSHOT_VIEW=performance renders the Flight Deck (1366x860).
     const auto snapshotPath = juce::SystemStats::getEnvironmentVariable ("AVIATORKEYZ_SNAPSHOT_PATH", {});
     if (snapshotPath.isNotEmpty())
     {
+        const bool performance = juce::SystemStats::getEnvironmentVariable ("AVIATORKEYZ_SNAPSHOT_VIEW", {})
+                                     .equalsIgnoreCase ("performance");
+        if (performance)
+            setPerformanceView (true);
+
         juce::Timer::callAfterDelay (1000,
-            [safe = juce::Component::SafePointer<AviatorKeyzEditor> (this), snapshotPath]
+            [safe = juce::Component::SafePointer<AviatorKeyzEditor> (this), snapshotPath, performance]
             {
                 if (safe == nullptr || safe->mainView == nullptr)
                     return;
 
-                auto image = safe->mainView->createComponentSnapshot (
-                    safe->mainView->getLocalBounds(), false, 1.0f);
+                juce::Component* target = performance ? (juce::Component*) safe->flightDeck.get()
+                                                      : (juce::Component*) safe->mainView.get();
+                auto image = target->createComponentSnapshot (target->getLocalBounds(), false, 1.0f);
 
                 juce::File file (snapshotPath);
                 file.deleteFile();
@@ -95,15 +104,15 @@ AviatorKeyzEditor::~AviatorKeyzEditor()
 {
     auto& presetManager = processorRef.getPresetManager();
     presetManager.onPresetLoaded = previousPresetLoadedHandler;
-    presetManager.onMacroMapsLoaded = previousMacroMapsLoadedHandler;
+    processorRef.onUserSampleChanged = previousUserSampleHandler;
 }
 
 void AviatorKeyzEditor::setPerformanceView (bool performance)
 {
     performanceView = performance;
     mainView->getTopHeader().setPerformanceSelected (performance);
-    if (advancedPanel != nullptr)
-        advancedPanel->setVisible (performance);
+    if (flightDeck != nullptr)
+        flightDeck->setVisible (performance);
     layoutContent();
 }
 
@@ -117,12 +126,19 @@ void AviatorKeyzEditor::layoutContent()
     mainView->setTransform (juce::AffineTransform::scale (scale));
     mainView->setBounds (0, 0, Aviation::kDesignW, Aviation::kDesignH);
 
-    // PERFORMANCE panel replaces everything below the top header.
-    if (advancedPanel != nullptr && advancedPanel->isVisible())
+    // The Flight Deck replaces everything below the top header, scaled to fit
+    // that area while keeping its own 1366:860 composition, centred.
+    if (flightDeck != nullptr && flightDeck->isVisible())
     {
         const int headerBottom = juce::roundToInt ((float) (Aviation::topHeaderBounds().getBottom() + 2) * scale);
-        advancedPanel->setBounds (0, headerBottom, getWidth(), getHeight() - headerBottom);
-        advancedPanel->toFront (false);
+        const float availW = (float) getWidth();
+        const float availH = (float) juce::jmax (1, getHeight() - headerBottom);
+        const float deckScale = juce::jmin (availW / (float) Deck::kDesignW, availH / (float) Deck::kDesignH);
+        const float x = (availW - Deck::kDesignW * deckScale) * 0.5f;
+        const float y = (float) headerBottom + (availH - Deck::kDesignH * deckScale) * 0.5f;
+        flightDeck->setTransform (juce::AffineTransform::scale (deckScale).translated (x, y));
+        flightDeck->setBounds (0, 0, Deck::kDesignW, Deck::kDesignH);
+        flightDeck->toFront (false);
     }
 }
 

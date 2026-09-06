@@ -7,7 +7,10 @@ namespace AviatorKeyz
 {
 namespace
 {
-constexpr int kExpectedApvtsParamCount = 249;
+// Full APVTS parameter count. A state tree with fewer PARAM children is a
+// partial factory preset (or a project saved by an older build) and is merged
+// onto defaults instead of replacing the whole tree.
+constexpr int kExpectedApvtsParamCount = 318; // 262 + MFX rack (2 slots x 28)
 
 void setParamNormalised (juce::RangedAudioParameter* param, float normalised)
 {
@@ -81,6 +84,12 @@ void applyKnownGoodAdvancedDefaults (juce::AudioProcessorValueTreeState& apvts)
     setBool (ParamID::FILTER_ENABLED, false);
     setFloat (ParamID::FILTER_DRIVE, 0.f);
     setFloat (ParamID::ENV_FLT_AMOUNT, 0.f);
+
+    // LAYER MIX layers start silent; the sampler is the only sounding layer.
+    setFloat (ParamID::OSC1_LEVEL, 0.f);
+    setFloat (ParamID::OSC2_LEVEL, 0.f);
+    setBool (ParamID::ARP_ON, false);
+    setBool (ParamID::ARP_HOLD, false);
 
     setFloat (ParamID::TONE, 0.f);
     setFloat (ParamID::SMEAR, 0.f);

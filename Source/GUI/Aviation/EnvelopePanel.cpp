@@ -23,9 +23,22 @@ EnvelopePanel::EnvelopePanel (juce::AudioProcessorValueTreeState& apvts)
         { P::ENV_AMP_SUSTAIN, "S" },
         { P::ENV_RELEASE,     "R" },
     };
+    auto msText = [] (float ms)
+    {
+        return ms >= 1000.f ? juce::String (ms / 1000.f, 1) + "s"
+                            : juce::String (juce::roundToInt (ms)) + "ms";
+    };
+
     for (const auto& [id, label] : specs)
     {
-        auto knob = std::make_unique<MiniRotary> (apvtsRef, id, label, false);
+        // Compact readouts: A/R in ms/s, D (stored in seconds) in ms/s, S in %.
+        auto knob = std::make_unique<MiniRotary> (apvtsRef, id, label, true);
+        if (id == P::ENV_AMP_SUSTAIN)
+            knob->valueFormatter = [] (float v) { return juce::String (juce::roundToInt (v * 100.f)) + "%"; };
+        else if (id == P::ENV_AMP_DECAY)
+            knob->valueFormatter = [msText] (float seconds) { return msText (seconds * 1000.f); };
+        else
+            knob->valueFormatter = msText;
         addAndMakeVisible (*knob);
         adsrKnobs.push_back (std::move (knob));
         apvtsRef.addParameterListener (id, this);
@@ -40,10 +53,10 @@ EnvelopePanel::~EnvelopePanel()
 
 void EnvelopePanel::resized()
 {
-    auto knobRow = getLocalBounds().reduced (8, 0).removeFromBottom (44);
+    auto knobRow = getLocalBounds().reduced (6, 0).removeFromBottom (kKnobRowH);
     const int w = knobRow.getWidth() / (int) adsrKnobs.size();
     for (auto& knob : adsrKnobs)
-        knob->setBounds (knobRow.removeFromLeft (w).reduced (3, 2));
+        knob->setBounds (knobRow.removeFromLeft (w).reduced (1, 2));
 }
 
 void EnvelopePanel::paint (juce::Graphics& g)
@@ -55,7 +68,7 @@ void EnvelopePanel::paint (juce::Graphics& g)
     g.setColour (Aviation::gold().withAlpha (0.92f));
     g.drawText ("ENVELOPE", r.toNearestInt().removeFromTop (18), juce::Justification::centred);
 
-    auto graph = r.reduced (10.0f).withTrimmedTop (16.0f).withTrimmedBottom (46.0f);
+    auto graph = r.reduced (10.0f).withTrimmedTop (16.0f).withTrimmedBottom ((float) kKnobRowH + 2.0f);
 
     g.setColour (Aviation::cyan().withAlpha (0.12f));
     g.drawLine (graph.getX(), graph.getCentreY(), graph.getRight(), graph.getCentreY(), 0.5f);

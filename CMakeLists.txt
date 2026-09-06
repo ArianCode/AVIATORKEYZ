@@ -173,6 +173,20 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
             Source/DSP/ModMatrix.cpp
             Source/DSP/ReversePlayer.cpp
             Source/DSP/PitchProbe.cpp
+            Source/DSP/Arpeggiator.cpp
+            Source/State/SampleAnalysis.cpp
+            Source/DSP/Mfx/MfxDescriptors.cpp
+            Source/DSP/Mfx/MfxEffects.cpp
+            Source/DSP/Mfx/MfxRack.cpp
+
+            # GUI — FLIGHT DECK performance view
+            Source/GUI/FlightDeck/DeckWidgets.cpp
+            Source/GUI/FlightDeck/MfxSlotPanel.cpp
+            Source/GUI/FlightDeck/ArpZone.cpp
+            Source/GUI/FlightDeck/ManeuverZone.cpp
+            Source/GUI/FlightDeck/AtmosphereZone.cpp
+            Source/GUI/FlightDeck/CargoHoldZone.cpp
+            Source/GUI/FlightDeck/FlightDeckView.cpp
 
             # GUI — photo-anchored cockpit
             # Aviation MAIN interface

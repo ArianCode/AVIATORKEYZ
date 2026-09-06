@@ -156,11 +156,78 @@ void SamplerEngine::setChopPlaybackState (const ChopPlaybackState& state) noexce
     }
 }
 
+void SamplerEngine::setNextNoteSliceWindow (int startFrame, int endFrame) noexcept
+{
+    pendingSliceActive = true;
+    pendingSliceStart = juce::jmax (0, startFrame);
+    pendingSliceEnd = juce::jmax (pendingSliceStart + 1, endFrame);
+}
+
+void SamplerEngine::setLiveReverse (bool reversed, int windowFrames) noexcept
+{
+    liveReverse = reversed;
+    liveFlipWindowFrames = juce::jmax (0, windowFrames);
+
+    for (int i = 0; i < maxVoices; ++i)
+    {
+        auto& v = voices[i];
+        if (! v.active || v.sampleData == nullptr || v.sampleNumFrames <= 1)
+            continue;
+        if (v.reversed == reversed)
+            continue;
+
+        v.reversed = reversed;
+
+        // The direction change is a waveform discontinuity: ramp the voice back
+        // in over ~3 ms so a slammed lever lands as a flip, not a click.
+        v.declickGain = 0.f;
+        v.declickStep = 1.f / juce::jmax (1.f, static_cast<float> (0.003 * sampleRate));
+
+        if (reversed && liveFlipWindowFrames > 0)
+        {
+            // Grid-aligned window (slice / beat) that contains the playhead.
+            const int phraseStart = phraseEnabled ? v.phraseStartFrame : 0;
+            const int phraseEnd = phraseEnabled ? v.phraseEndFrame : v.sampleNumFrames - 1;
+            const int win = liveFlipWindowFrames;
+            const int rel = juce::jmax (0, (int) v.readPos - phraseStart);
+            const int ws = phraseStart + (rel / win) * win;
+            const int we = juce::jmin (phraseEnd, ws + win);
+            if (we > ws + 1)
+            {
+                v.flipActive = true;
+                v.flipStart = ws;
+                v.flipEnd = we;
+                v.readPos = juce::jlimit ((float) ws + 1.f, (float) we, v.readPos);
+            }
+        }
+        else
+        {
+            // Back to forward: release the window, keep the playhead where it is.
+            v.flipActive = false;
+        }
+    }
+}
+
 int SamplerEngine::getPrimarySampleNumFrames() const noexcept
 {
     if (sampleSnapshot == nullptr || sampleSnapshot->regions.empty())
         return 0;
     return sampleSnapshot->regions.front().numFrames;
+}
+
+int SamplerEngine::getPrimarySampleRootNote() const noexcept
+{
+    if (sampleSnapshot == nullptr || sampleSnapshot->regions.empty())
+        return 60;
+    return sampleSnapshot->regions.front().rootNote;
+}
+
+double SamplerEngine::getPrimarySampleRate() const noexcept
+{
+    if (sampleSnapshot == nullptr || sampleSnapshot->regions.empty()
+        || sampleSnapshot->regions.front().fileSampleRate <= 0.0)
+        return sampleRate;
+    return sampleSnapshot->regions.front().fileSampleRate;
 }
 
 float SamplerEngine::midiNoteToHz (float note) noexcept
@@ -288,6 +355,9 @@ void SamplerEngine::resetVoiceState (Voice& v, bool wasActive) noexcept
     v.phraseEndFrame = 0;
     v.chopPitchOffsetSemis = 0;
     v.voiceInstanceId = 0;
+    v.flipActive = false;
+    v.flipStart = 0;
+    v.flipEnd = 0;
     v.glideEngine.snapToPitch (60.f);
 }
 
@@ -382,6 +452,45 @@ void SamplerEngine::startVoice (Voice& v,
             v.phraseEndFrame = v.sampleNumFrames - 1;
             v.readPos = reverse ? static_cast<float> (v.sampleNumFrames - 1) : 0.f;
         }
+
+        // A slice window for this note (arp SLICES target) or the chopper's
+        // current slice overrides the phrase window from the very first sample
+        // instead of waiting for the next block's setChopPlaybackState().
+        const bool sliceForThisNote = pendingSliceActive;
+        if (sliceForThisNote || chopState.active)
+        {
+            const int s = sliceForThisNote ? pendingSliceStart : chopState.sliceStartFrame;
+            const int e = sliceForThisNote ? pendingSliceEnd : chopState.sliceEndFrame;
+            v.phraseStartFrame = juce::jlimit (0, v.sampleNumFrames - 2, s);
+            v.phraseEndFrame = juce::jlimit (v.phraseStartFrame + 1, v.sampleNumFrames - 1, e);
+            v.readPos = reverse ? static_cast<float> (v.phraseEndFrame) : static_cast<float> (v.phraseStartFrame);
+            if (! sliceForThisNote)
+            {
+                v.chopPitchOffsetSemis = chopState.pitchOffsetSemis;
+                if (chopState.stepReverse)
+                {
+                    v.reversed = true;
+                    v.readPos = static_cast<float> (v.phraseEndFrame);
+                }
+            }
+        }
+        pendingSliceActive = false;
+
+        // Lever already thrown to REV with a slice/beat window: start inside
+        // the first window and loop it, like a voice that was flipped live.
+        v.flipActive = false;
+        if (reverse && liveReverse && liveFlipWindowFrames > 0)
+        {
+            const int ws = v.phraseStartFrame;
+            const int we = juce::jmin (v.phraseEndFrame, ws + liveFlipWindowFrames);
+            if (we > ws + 1)
+            {
+                v.flipActive = true;
+                v.flipStart = ws;
+                v.flipEnd = we;
+                v.readPos = static_cast<float> (we);
+            }
+        }
     }
     else
     {
@@ -396,8 +505,11 @@ void SamplerEngine::startVoice (Voice& v,
         v.phraseStartFrame = 0;
         v.phraseEndFrame = 0;
         v.playbackRates = {};
+        v.flipActive = false;
+        pendingSliceActive = false;
     }
 
+    lastStartedVoice = static_cast<int> (&v - voices);
     updateVoicePlaybackRates (v);
 
     // Publish a POD diagnostic outside any heap/lock path for off-thread inspection.
@@ -454,6 +566,9 @@ void SamplerEngine::finishAttack (Voice& v) noexcept
 
     if (decayMs <= 0.f || std::abs (sustainLevel - 1.f) < 1.0e-6f)
     {
+        // No decay stage: land directly on the sustain level. (Previously the
+        // level stayed at 1.0 here, so SUSTAIN was ignored whenever DECAY was 0.)
+        v.envLevel = sustainLevel;
         v.envStage = EnvStage::sustain;
         v.envLinearStep = 0.f;
         v.envSegSamplesLeft = 0;
@@ -614,8 +729,14 @@ float SamplerEngine::renderVoiceSample (Voice& v) noexcept
     {
         const float inc = ReversePlayer::getReadIncrement (voiceReadIncrement (v), v.reversed);
 
-        const int phraseStart = phraseEnabled ? v.phraseStartFrame : 0;
-        const int phraseEnd = phraseEnabled ? v.phraseEndFrame : v.sampleNumFrames - 1;
+        // Effective read window: a live flip window (lever in slice/beat mode)
+        // beats the phrase / chop window, which beats the whole sample.
+        // A voice inside a flip window always loops while the lever is thrown.
+        const bool sliceWindow = phraseEnabled || chopState.active;
+        const int phraseStart = v.flipActive ? v.flipStart : (sliceWindow ? v.phraseStartFrame : 0);
+        const int phraseEnd = v.flipActive ? v.flipEnd : (sliceWindow ? v.phraseEndFrame : v.sampleNumFrames - 1);
+        const bool loops = v.flipActive
+                           || (phraseLoop && (phraseEnabled || sourceSettings.loopMode == LoopMode::Loop));
 
         int i0 = static_cast<int> (std::floor (v.readPos));
         const float frac = v.readPos - static_cast<float> (i0);
@@ -632,7 +753,7 @@ float SamplerEngine::renderVoiceSample (Voice& v) noexcept
             v.readPos += inc;
             if (v.readPos >= static_cast<float> (phraseEnd))
             {
-                if (phraseLoop && (phraseEnabled || sourceSettings.loopMode == LoopMode::Loop))
+                if (loops)
                     v.readPos = static_cast<float> (phraseStart);
                 else
                     enterRelease (v);
@@ -650,7 +771,7 @@ float SamplerEngine::renderVoiceSample (Voice& v) noexcept
             v.readPos += inc;
             if (v.readPos <= static_cast<float> (phraseStart))
             {
-                if (phraseLoop && (phraseEnabled || sourceSettings.loopMode == LoopMode::Loop))
+                if (loops)
                     v.readPos = static_cast<float> (phraseEnd);
                 else
                     enterRelease (v);
@@ -879,5 +1000,25 @@ void SamplerEngine::process (juce::AudioBuffer<float>& buffer)
         }
         L[s] += sum;
         R[s] += sum;
+    }
+
+    // UI playhead: the most recently started voice, else any sounding voice.
+    int idx = lastStartedVoice;
+    if (idx < 0 || idx >= kMaxVoices || ! voices[idx].active || voices[idx].sampleNumFrames <= 1)
+    {
+        idx = -1;
+        for (int i = 0; i < maxVoices; ++i)
+            if (voices[i].active && voices[i].sampleNumFrames > 1) { idx = i; break; }
+    }
+    if (idx >= 0)
+    {
+        playheadNorm.store (juce::jlimit (0.f, 1.f, voices[idx].readPos
+                                / static_cast<float> (voices[idx].sampleNumFrames - 1)),
+                            std::memory_order_relaxed);
+        lastEnvLevel = voices[idx].envLevel;
+    }
+    else
+    {
+        lastEnvLevel = 0.f;
     }
 }

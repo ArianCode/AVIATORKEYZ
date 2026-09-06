@@ -50,7 +50,15 @@ target_sources(${_AVIATORKEYZ_TEST_TARGET}
         RawSamplerTests.cpp
         VoiceLifecycleTests.cpp
         MidiHandlerTests.cpp
+        ArpeggiatorTests.cpp
+        FlightDeckWiringTests.cpp
+        MfxTests.cpp
         ${CMAKE_SOURCE_DIR}/Source/PluginProcessor.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/Arpeggiator.cpp
+        ${CMAKE_SOURCE_DIR}/Source/State/SampleAnalysis.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/Mfx/MfxDescriptors.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/Mfx/MfxEffects.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/Mfx/MfxRack.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/SamplerEngine.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/OutputLimiter.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/SmearProcessor.cpp

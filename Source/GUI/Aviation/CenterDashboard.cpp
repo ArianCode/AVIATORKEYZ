@@ -2,6 +2,7 @@
 #include "AviationIcons.h"
 #include "AviationTheme.h"
 #include "../../State/StateSchema.h"
+#include "../../DSP/Mfx/MfxDescriptors.h"
 
 namespace
 {
@@ -90,6 +91,58 @@ private:
 };
 
 // =============================================================================
+//  ReverseCell — glass cell that mirrors the Flight Deck flip lever on the
+//  MAIN page: FWD / REV readout with a direction arrow. Click toggles `reverse`.
+// =============================================================================
+class CenterDashboard::ReverseCell : public juce::Component
+{
+public:
+    explicit ReverseCell (juce::AudioProcessorValueTreeState& apvts)
+        : apvtsRef (apvts)
+    {
+        button.setWantsKeyboardFocus (false);
+        button.setAlpha (0.0f);
+        addAndMakeVisible (button);
+        attachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
+            apvtsRef, AviatorKeyz::ParamID::REVERSE, button);
+        button.onStateChange = [this] { repaint(); };
+        button.onClick = [this] { repaint(); };
+        setMouseCursor (juce::MouseCursor::PointingHandCursor);
+    }
+
+    void resized() override { button.setBounds (getLocalBounds()); }
+
+    void paint (juce::Graphics& g) override
+    {
+        auto r = getLocalBounds().toFloat();
+        const bool rev = button.getToggleState();
+        const bool hover = button.isOver() || button.isDown();
+
+        Aviation::fillGlassScreen (g, r, 5.0f, hover ? 0.5f : 0.28f);
+
+        // state bar along the bottom edge: cyan forward, warm red reversed
+        const auto barColour = rev ? juce::Colour (0xffff6a4d) : Aviation::cyan();
+        g.setColour (barColour.withAlpha (0.65f));
+        g.fillRect (juce::Rectangle<float> (r.getX() + 4.0f, r.getBottom() - 4.0f, r.getWidth() - 8.0f, 2.0f));
+
+        g.setFont (Aviation::label (9.5f, 0.12f));
+        g.setColour (Aviation::gold().withAlpha (0.92f));
+        g.drawText ("REVERSE", 0, 7, getWidth(), 12, juce::Justification::centred);
+
+        g.setFont (Aviation::value (13.0f));
+        g.setColour (rev ? juce::Colour (0xffffb3a2) : Aviation::cyanBright());
+        g.drawText (rev ? juce::String::fromUTF8 ("\xe2\x97\x80\xe2\x97\x80 REV")
+                        : juce::String::fromUTF8 ("FWD \xe2\x96\xb6\xe2\x96\xb6"),
+                    0, 21, getWidth(), getHeight() - 26, juce::Justification::centred);
+    }
+
+private:
+    juce::AudioProcessorValueTreeState& apvtsRef;
+    juce::ToggleButton button;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> attachment;
+};
+
+// =============================================================================
 CenterDashboard::CenterDashboard (juce::AudioProcessorValueTreeState& apvts)
     : apvtsRef (apvts)
 {
@@ -101,12 +154,14 @@ CenterDashboard::CenterDashboard (juce::AudioProcessorValueTreeState& apvts)
     limiterCell = std::make_unique<LimiterCell> (apvtsRef);
     addAndMakeVisible (*limiterCell);
 
-    lofiCell     = std::make_unique<MiniParam> (apvtsRef, P::FX_LOFI_AMOUNT, "LOFI");
+    reverseCell = std::make_unique<ReverseCell> (apvtsRef);
+    addAndMakeVisible (*reverseCell);
+
     stereoCell   = std::make_unique<MiniParam> (apvtsRef, P::TEX_WIDTH, "STEREO");
     dynamicsCell = std::make_unique<MiniParam> (apvtsRef, P::VELOCITY_SENSITIVITY, "DYNAMICS", true);
-    widthCell    = std::make_unique<MiniParam> (apvtsRef, P::PTEX_WIDTH, "WIDTH");
+    widthCell    = std::make_unique<MiniParam> (apvtsRef, Mfx::sendId (0), "REV SEND");
     humanizeCell = std::make_unique<MiniParam> (apvtsRef, P::TEX_DRIFT, "HUMANIZE");
-    for (auto* cell : { lofiCell.get(), stereoCell.get(), dynamicsCell.get(), widthCell.get(), humanizeCell.get() })
+    for (auto* cell : { stereoCell.get(), dynamicsCell.get(), widthCell.get(), humanizeCell.get() })
         addAndMakeVisible (*cell);
 
     tuneSlider.setAlpha (0.0f);
@@ -184,7 +239,7 @@ void CenterDashboard::resized()
     // lower parameter strip
     const int stripY = rowY + kDisplayRowH + kStripGap;
     const int w = getWidth();
-    lofiCell->setBounds     (0,            stripY, 100, kStripH);
+    reverseCell->setBounds  (0,            stripY, 100, kStripH);
     stereoCell->setBounds   (106,          stripY, 100, kStripH);
     dynamicsCell->setBounds (212,          stripY, w - 424, kStripH);
     widthCell->setBounds    (w - 206,      stripY, 100, kStripH);

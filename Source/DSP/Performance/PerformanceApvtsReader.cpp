@@ -1,6 +1,7 @@
 #include "PerformanceApvtsReader.h"
 #include "../../State/StateSchema.h"
 #include "../../State/CategorySoundPolicy.h"
+#include "../Mfx/MfxDescriptors.h"
 
 namespace
 {
@@ -233,6 +234,60 @@ void migrateLegacyAdvancedParams (juce::ValueTree& state)
         setParamIfMissing (P::PTEX_WIDTH, getParamValue (P::TEX_WIDTH));
 
     setParamIfMissing (P::SOURCE_BLEND, 0.f);
+
+    // Projects saved before the LAYER MIX synth layer was audible carry the old
+    // 0.7 osc-level defaults. The synth never sounded in those builds, so keep
+    // them silent instead of suddenly layering oscillators onto every note.
+    // (arp_on was introduced in the same build as the audible synth layer.)
+    if (! hasParam (P::ARP_ON))
+    {
+        auto setParamValue = [&] (const char* id, float value)
+        {
+            for (int i = 0; i < state.getNumChildren(); ++i)
+            {
+                auto child = state.getChild (i);
+                if (child.hasType ("PARAM") && child.getProperty ("id").toString() == id)
+                {
+                    child.setProperty ("value", value, nullptr);
+                    return;
+                }
+            }
+            setParamIfMissing (id, value);
+        };
+        setParamValue (P::OSC1_LEVEL, 0.f);
+        setParamValue (P::OSC2_LEVEL, 0.f);
+    }
+
+    // ATMOSPHERE (ptex_*) folded into MFX slot B as the Grain Cloud effect.
+    // A state that used the old texture layer but predates the rack keeps its
+    // sound: slot B = Grain Cloud, on, with the old values mapped across.
+    if (! hasParam (Mfx::effectId (1).toRawUTF8()) && hasParam (P::PTEX_ON) && getParamValue (P::PTEX_ON) > 0.5f
+        && (! hasParam (P::PTEX_MIX) || getParamValue (P::PTEX_MIX) > 0.001f))
+    {
+        auto setNamed = [&] (const juce::String& id, float value)
+        {
+            juce::ValueTree p ("PARAM");
+            p.setProperty ("id", id, nullptr);
+            p.setProperty ("value", value, nullptr);
+            state.appendChild (p, nullptr);
+        };
+        auto old = [&] (const char* id, float def) { return hasParam (id) ? getParamValue (id) : def; };
+        const auto& desc = Mfx::descriptor (Mfx::Effect::grainCloud);
+        auto real = [&] (int idx, float norm) { return desc.params[(size_t) idx].denormalise (norm); };
+
+        setNamed (Mfx::onId (1), 1.f);
+        setNamed (Mfx::effectId (1), (float) Mfx::Effect::grainCloud);
+        // stored normalised: map each old 0..1 value straight onto its slot
+        setNamed (Mfx::paramId (1, 0), old (P::PTEX_GRAIN_SIZE, 0.5f));
+        setNamed (Mfx::paramId (1, 1), old (P::PTEX_DENSITY, 0.5f));
+        setNamed (Mfx::paramId (1, 2), old (P::PTEX_POSITION, 0.f));
+        setNamed (Mfx::paramId (1, 3), old (P::PTEX_PITCH_SPREAD, 0.f));
+        setNamed (Mfx::paramId (1, 7), old (P::PTEX_WIDTH, 0.5f));
+        setNamed (Mfx::paramId (1, 8), old (P::PTEX_SMEAR, 0.f));
+        setNamed (Mfx::paramId (1, 9), old (P::PTEX_FREEZE, 0.f) > 0.5f ? 1.f : 0.f);
+        setNamed (Mfx::paramId (1, 10), old (P::PTEX_MIX, 0.f));
+        juce::ignoreUnused (real);
+    }
 
     if (! hasParam (P::SRC_PLAYBACK_MODE))
         setParamIfMissing (P::SRC_PLAYBACK_MODE, static_cast<float> (SamplePlaybackMode::PhraseOriginal));

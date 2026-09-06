@@ -53,7 +53,32 @@ public:
 
     void setChopPlaybackState (const ChopPlaybackState& state) noexcept;
 
+    /** Phrase window (frames) applied to the NEXT noteOn only — arp SLICES target.
+        Consumed by startVoice; other voices are untouched. */
+    void setNextNoteSliceWindow (int startFrame, int endFrame) noexcept;
+
+    /**
+        MANEUVER lever: flip the read direction of every sounding voice in place.
+        windowFrames == 0 flips across the whole phrase window; > 0 confines the
+        reversed voice to the grid-aligned window (slice / beat) that contains
+        its current read position, looping it until the lever returns. New notes
+        started while reversed honour the same window.
+    */
+    void setLiveReverse (bool reversed, int windowFrames) noexcept;
+
+    /** Any thread: normalised read position (0..1) of the most recent voice. */
+    float getPlayheadNorm() const noexcept { return playheadNorm.load (std::memory_order_relaxed); }
+
+    /** Audio thread: amp-envelope level of the most recent voice (0 when idle). */
+    float getLastVoiceEnvLevel() const noexcept { return lastEnvLevel; }
+
     int getPrimarySampleNumFrames() const noexcept;
+
+    /** Root note of the loaded sample region (60 when nothing is loaded). */
+    int getPrimarySampleRootNote() const noexcept;
+
+    /** File sample rate of the loaded region (engine rate when nothing is loaded). */
+    double getPrimarySampleRate() const noexcept;
 
     void noteOn (int midiNote, float velocity, bool reverse, float glideTimeMs) noexcept;
     void noteOff (int midiNote) noexcept;
@@ -142,6 +167,10 @@ private:
         int          phraseEndFrame = 0;
         int          chopPitchOffsetSemis = 0;
         uint32_t     voiceInstanceId = 0;
+        // live flip window (MANEUVER lever, slice/beat modes)
+        bool         flipActive = false;
+        int          flipStart = 0;
+        int          flipEnd = 0;
     };
 
     void resetVoiceState (Voice& v, bool wasActive) noexcept;
@@ -211,6 +240,19 @@ private:
     SourceSettings sourceSettings {};
     double sourceHostBpm { 120.0 };
     ChopPlaybackState chopState {};
+
+    // one-shot slice window for the next noteOn (arp SLICES target)
+    bool pendingSliceActive { false };
+    int  pendingSliceStart { 0 };
+    int  pendingSliceEnd { 0 };
+
+    // MANEUVER lever state
+    bool liveReverse { false };
+    int  liveFlipWindowFrames { 0 };
+
+    int lastStartedVoice { -1 };
+    float lastEnvLevel { 0.f };
+    std::atomic<float> playheadNorm { 0.f };
 
     AviatorKeyz::SoundType currentSoundType { AviatorKeyz::SoundType::Phrase };
     juce::String currentCategory;

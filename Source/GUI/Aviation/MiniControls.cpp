@@ -95,10 +95,14 @@ void MiniRotary::paint (juce::Graphics& g)
 
     if (showValue)
     {
-        g.setFont (Aviation::value (10.0f));
+        juce::String text = AviationMini::parameterText (apvtsRef, paramId);
+        if (valueFormatter)
+            if (auto* param = apvtsRef.getParameter (paramId))
+                text = valueFormatter (param->convertFrom0to1 (param->getValue()));
+
+        g.setFont (Aviation::value (valueFormatter ? 8.5f : 10.0f));
         g.setColour (Aviation::textPrimary());
-        g.drawText (AviationMini::parameterText (apvtsRef, paramId),
-                    0, (int) knob.getBottom() + 12, getWidth(), 12, juce::Justification::centred);
+        g.drawText (text, 0, (int) knob.getBottom() + 12, getWidth(), 12, juce::Justification::centred);
     }
 }
 

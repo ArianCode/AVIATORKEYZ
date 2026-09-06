@@ -2,6 +2,7 @@
 
 #include <juce_core/juce_core.h>
 #include "State/StateSchema.h"
+#include "DSP/Mfx/MfxDescriptors.h"
 
 /** Canonical list of every APVTS ParamID string — shared by schema and wiring tests. */
 inline juce::StringArray allSchemaParamIDs()
@@ -88,6 +89,11 @@ inline juce::StringArray allSchemaParamIDs()
         ParamID::PERF_FX_STUTTER, ParamID::PERF_FX_REVERSE, ParamID::PERF_FX_HALF_TIME,
         ParamID::PERF_FX_FREEZE, ParamID::PERF_FX_TAPE_STOP, ParamID::PERF_FX_SCATTER,
         ParamID::PERF_FX_PITCH_DROP, ParamID::PERF_FX_FILTER_SWEEP,
+
+        ParamID::ARP_ON, ParamID::ARP_MODE, ParamID::ARP_RATE, ParamID::ARP_FEEL,
+        ParamID::ARP_OCTAVES, ParamID::ARP_GATE, ParamID::ARP_SWING, ParamID::ARP_HUMANIZE,
+        ParamID::ARP_OCT_SPREAD, ParamID::ARP_HOLD, ParamID::ARP_TARGET,
+        ParamID::FLIP_WINDOW, ParamID::FLIP_SNAP,
     };
 }
 
@@ -103,7 +109,22 @@ inline juce::StringArray allPerformanceParamIDs()
         ids.add (ParamID::chopStepParamId (step, "rev"));
         ids.add (ParamID::chopStepParamId (step, "pitch"));
     }
+    for (int slot = 0; slot < Mfx::kNumSlots; ++slot)
+    {
+        ids.add (Mfx::onId (slot));
+        ids.add (Mfx::effectId (slot));
+        ids.add (Mfx::sendId (slot));
+        ids.add (Mfx::levelId (slot));
+        for (int p = 0; p < Mfx::kParamsPerSlot; ++p)
+            ids.add (Mfx::paramId (slot, p));
+        for (int a = 0; a < Mfx::kNumAssigns; ++a)
+        {
+            ids.add (Mfx::assignSourceId (slot, a));
+            ids.add (Mfx::assignAmountId (slot, a));
+        }
+    }
     return ids;
 }
 
-inline constexpr int kExpectedSchemaParamCount = 249;
+// 262 core/perf + 2 MFX slots x 28
+inline constexpr int kExpectedSchemaParamCount = 262 + Mfx::kNumSlots * Mfx::kIdsPerSlot;

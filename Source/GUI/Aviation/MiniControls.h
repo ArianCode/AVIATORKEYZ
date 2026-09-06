@@ -2,6 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_basics/juce_gui_basics.h>
+#include <functional>
 #include <memory>
 
 // =============================================================================
@@ -59,6 +60,10 @@ public:
 
     void paint (juce::Graphics& g) override;
     void resized() override;
+
+    /** Optional compact value formatter (denormalised value -> text). When set,
+        the readout uses a slightly smaller font so it fits narrow cells. */
+    std::function<juce::String (float)> valueFormatter;
 
 private:
     juce::AudioProcessorValueTreeState& apvtsRef;
