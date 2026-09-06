@@ -153,6 +153,21 @@ public:
         g.setColour (Aviation::goldBright().withAlpha (0.9f));
         g.drawLine (px, area.getY(), px, area.getBottom(), 1.5f);
 
+        // SLICE mode: 16 pads across the trimmed window (C1 = pad 1)
+        if ((int) apvts.getRawParameterValue (P::SRC_PLAYBACK_MODE)->load() == 4)
+        {
+            const float x0 = xForNorm (s), x1 = xForNorm (e);
+            g.setFont (Deck::mono (7.0f));
+            for (int i = 0; i < 16; ++i)
+            {
+                const float xa = x0 + (x1 - x0) * (float) i / 16.0f;
+                g.setColour (Aviation::gold().withAlpha (i == 0 ? 0.0f : 0.35f));
+                g.drawLine (xa, area.getY(), xa, area.getBottom(), 0.8f);
+                g.setColour (Aviation::gold().withAlpha (0.55f));
+                g.drawText (juce::String (i + 1), (int) xa + 2, (int) area.getBottom() - 10, 18, 9, juce::Justification::centredLeft);
+            }
+        }
+
         // trim handles
         auto drawHandle = [&] (float norm, bool left)
         {
@@ -307,9 +322,24 @@ CargoHoldZone::CargoHoldZone (AviatorKeyzProcessor& p)
             rp->setValueNotifyingHost (rp->convertTo0to1 ((float) juce::jlimit (0, 127, cur + ticks)));
         }
     };
+    speedChip = std::make_unique<DeckChip> ("SPEED", juce::String::fromUTF8 ("\xc3\x97" "1.00"));
+    speedChip->onDragTicks = [this] (int ticks)
+    {
+        if (auto* sp = apvts.getParameter (P::SRC_SPEED))
+        {
+            const float cur = sp->convertFrom0to1 (sp->getValue());
+            const float next = juce::jlimit (0.25f, 4.f, cur * std::pow (1.05f, (float) ticks));
+            sp->setValueNotifyingHost (sp->convertTo0to1 (next));
+        }
+    };
+    speedChip->onClick = [this]
+    {
+        if (auto* sp = apvts.getParameter (P::SRC_SPEED))
+            sp->setValueNotifyingHost (sp->convertTo0to1 (1.f)); // click = back to 1x
+    };
     trimChip = std::make_unique<DeckChip> ("TRIM", juce::String::fromUTF8 ("0.00s \xe2\x80\x93 0.00s"));
     feedChip = std::make_unique<DeckChip> ("FEEDS ARP + FLIP + ATMOSPHERE", juce::String::fromUTF8 ("\xe2\x96\xb2"), Aviation::textSecondary());
-    for (auto* c : { loopChip.get(), syncChip.get(), rootChip.get(), trimChip.get(), feedChip.get() })
+    for (auto* c : { loopChip.get(), syncChip.get(), rootChip.get(), speedChip.get(), trimChip.get(), feedChip.get() })
         addAndMakeVisible (*c);
 
     startTimerHz (20);
@@ -343,6 +373,12 @@ void CargoHoldZone::refreshFromProcessor()
 
     rootChip->setValue (Deck::noteName ((int) apvts.getRawParameterValue (P::SRC_ROOT_NOTE)->load()), Deck::green());
 
+    const int mode = (int) apvts.getRawParameterValue (P::SRC_PLAYBACK_MODE)->load();
+    const float speed = apvts.getRawParameterValue (P::SRC_SPEED)->load();
+    speedChip->setLabel (mode == 3 ? "STRETCH" : "SPEED");
+    speedChip->setValue (juce::String::fromUTF8 ("\xc3\x97") + juce::String (speed, 2),
+                         std::abs (speed - 1.f) < 0.005f ? Aviation::textSecondary() : Deck::green());
+
     const double total = waveBox->totalSeconds();
     trimChip->setValue (juce::String (waveBox->startNorm() * total, 2) + juce::String::fromUTF8 ("s \xe2\x80\x93 ")
                         + juce::String (waveBox->endNorm() * total, 2) + "s", Deck::green());
@@ -368,6 +404,8 @@ void CargoHoldZone::resized()
     placeChip (*loopChip);
     placeChip (*syncChip);
     placeChip (*rootChip);
+    speedChip->setBounds (ctrl.removeFromLeft (108).withHeight (DeckChip::kH).withY (ctrl.getY() + 1));
+    ctrl.removeFromLeft (8);
     trimChip->setBounds (ctrl.removeFromLeft (150).withHeight (DeckChip::kH).withY (ctrl.getY() + 1));
     feedChip->setBounds (ctrl.removeFromRight (feedChip->preferredWidth() + 8).withHeight (DeckChip::kH).withY (ctrl.getY() + 1));
 }

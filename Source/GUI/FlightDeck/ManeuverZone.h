@@ -1,6 +1,7 @@
 #pragma once
 
 #include "DeckWidgets.h"
+#include "../Aviation/MenuLookAndFeel.h"
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <memory>
@@ -36,9 +37,13 @@ private:
 
     std::unique_ptr<FlipLever> lever;
     std::unique_ptr<MirrorStrip> mirror;
-    std::unique_ptr<DeckSegment> windowSeg, snapSeg;
+    std::unique_ptr<DeckSegment> windowSeg, snapSeg, modeSeg;
+    std::unique_ptr<DeckChip> triggerChip, presetChip;
     std::unique_ptr<juce::ParameterAttachment> reverseAttachment;
     bool reversed { false };
+    void refreshChips();
+    void openPresets();
+    MenuLookAndFeel menuLookAndFeel;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ManeuverZone)
 };

@@ -10,7 +10,7 @@ namespace
 // Full APVTS parameter count. A state tree with fewer PARAM children is a
 // partial factory preset (or a project saved by an older build) and is merged
 // onto defaults instead of replacing the whole tree.
-constexpr int kExpectedApvtsParamCount = 318; // 262 + MFX rack (2 slots x 28)
+constexpr int kExpectedApvtsParamCount = 322; // 266 + MFX rack (2 slots x 28)
 
 void setParamNormalised (juce::RangedAudioParameter* param, float normalised)
 {
@@ -90,6 +90,7 @@ void applyKnownGoodAdvancedDefaults (juce::AudioProcessorValueTreeState& apvts)
     setFloat (ParamID::OSC2_LEVEL, 0.f);
     setBool (ParamID::ARP_ON, false);
     setBool (ParamID::ARP_HOLD, false);
+    setBool (ParamID::ENV_ENABLED, true);
 
     setFloat (ParamID::TONE, 0.f);
     setFloat (ParamID::SMEAR, 0.f);

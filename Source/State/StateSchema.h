@@ -331,6 +331,11 @@ namespace ParamID {
     // Sample flip (MANEUVER lever). `reverse` is the lever itself.
     static constexpr const char* FLIP_WINDOW    = "flip_window";     // choice: Phrase/Slice/Beat
     static constexpr const char* FLIP_SNAP      = "flip_snap";       // choice: Off/1/4/1/8/1/16
+    static constexpr const char* FLIP_MODE      = "flip_mode";       // choice: Latch/Momentary (lever + trigger note)
+    static constexpr const char* FLIP_TRIGGER_ON   = "flip_trigger_on";   // bool: a MIDI note throws the lever
+    static constexpr const char* FLIP_TRIGGER_NOTE = "flip_trigger_note"; // int 0..127 (consumed, not played)
+    // Amp envelope master switch: off = flat (instant attack, full sustain, short release).
+    static constexpr const char* ENV_ENABLED    = "env_enabled";
     static constexpr int ARP_NUM_SLICES = 16;
 
     // --- MFX rack (v5) — two generic effect slots, 28 IDs each -----------------

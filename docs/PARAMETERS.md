@@ -126,3 +126,17 @@ Two effect slots in series (A → B) with a shared reverb send. Each slot owns *
 Randomiser locks and the reroll undo stack are plugin state (`mfxLocks1/2` properties), not parameters.
 
 **Migration:** projects/presets with the old ATMOSPHERE layer (`ptex_on` = 1) that predate the rack load with slot B = Grain Cloud carrying the old values. The `ptex_*` IDs stay registered but are no longer processed; the Texture macro destinations now offset whichever slot hosts Grain Cloud. On the MAIN page the LAYER MIX "GRN" fader/toggle became "FX B" (slot B level/power) and the centre-strip WIDTH cell became REV SEND (slot A).
+
+
+---
+
+## Flip controls, envelope switch (v5, 2026-09-05 evening)
+
+| ID | Type | Range / Choices | Default | Notes |
+|---|---|---|---|---|
+| `flip_mode` | Choice | Latch, Momentary | Latch | Applies to the lever click and the MIDI trigger |
+| `flip_trigger_on` | Bool | off / on | off | When on, `flip_trigger_note` is consumed and throws the lever |
+| `flip_trigger_note` | Int | 0–127 | 24 (C0) | |
+| `env_enabled` | Bool | off / on | on | Off = flat envelope (instant attack, full sustain, 10 ms release) |
+
+`src_playback_mode` = **Time Stretch** (index 3) now routes the sampler part of each note to the Signalsmith stretch voice (`src_speed` = time ratio 0.25–4, pitch preserved; `src_keytrack` = transpose). Index 4 (**Slice**) turns every key into one of 16 slice pads across `src_start…src_end`. Total registered parameters: **322**.

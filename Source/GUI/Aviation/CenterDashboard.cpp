@@ -170,10 +170,61 @@ CenterDashboard::CenterDashboard (juce::AudioProcessorValueTreeState& apvts)
     AviationMini::configureAttachment (apvtsRef, P::SRC_TUNE, tuneSlider, tuneAttachment);
     tuneSlider.onValueChange = [this] { repaint (miniDisplayArea()); };
 
-    startTimerHz (15);
+    if (auto* pan = apvtsRef.getParameter (P::PAN))
+    {
+        panAttachment = std::make_unique<juce::ParameterAttachment> (*pan, [this] (float v)
+        {
+            panValue = juce::jlimit (-1.f, 1.f, v);
+            repaint (blueprintArea());
+        });
+        panAttachment->sendInitialUpdate();
+    }
+
+    startTimerHz (30);
 }
 
 CenterDashboard::~CenterDashboard() = default;
+
+// -----------------------------------------------------------------------------
+//  Blueprint = pan control. The outline aircraft flies left -> right on a loop;
+//  the filled aircraft sits where the stereo pan is and can be dragged.
+// -----------------------------------------------------------------------------
+void CenterDashboard::applyPanDrag (int x)
+{
+    if (panAttachment == nullptr)
+        return;
+    const auto inner = blueprintArea().toFloat().reduced (6.0f);
+    const float lane = inner.getWidth() - inner.getHeight() * 1.15f;
+    const float norm = juce::jlimit (0.f, 1.f, ((float) x - inner.getX() - inner.getHeight() * 0.575f) / juce::jmax (1.f, lane));
+    panAttachment->setValueAsPartOfGesture (norm * 2.f - 1.f);
+}
+
+void CenterDashboard::mouseDown (const juce::MouseEvent& e)
+{
+    if (! blueprintArea().contains (e.getPosition()) || panAttachment == nullptr)
+        return;
+    if (e.getNumberOfClicks() >= 2)
+    {
+        panAttachment->setValueAsCompleteGesture (0.f);
+        return;
+    }
+    panDragging = true;
+    panAttachment->beginGesture();
+    applyPanDrag (e.x);
+}
+
+void CenterDashboard::mouseDrag (const juce::MouseEvent& e)
+{
+    if (panDragging)
+        applyPanDrag (e.x);
+}
+
+void CenterDashboard::mouseUp (const juce::MouseEvent&)
+{
+    if (panDragging && panAttachment != nullptr)
+        panAttachment->endGesture();
+    panDragging = false;
+}
 
 void CenterDashboard::timerCallback()
 {
@@ -183,8 +234,13 @@ void CenterDashboard::timerCallback()
     if (sweepPhase > 1.0f)
         sweepPhase -= 1.0f;
 
+    flyPhase += 1.0f / (30.0f * 6.0f); // one crossing every 6 s
+    if (flyPhase > 1.15f)
+        flyPhase = -0.15f;
+
     repaint (radarLeftArea());
     repaint (radarRightArea());
+    repaint (blueprintArea());
 }
 
 void CenterDashboard::setKeyText (const juce::String& text)
@@ -321,11 +377,51 @@ void CenterDashboard::paintBlueprint (juce::Graphics& g, juce::Rectangle<float> 
     for (float y = inner.getY(); y <= inner.getBottom(); y += 14.0f)
         g.drawLine (inner.getX(), y, inner.getRight(), y, 0.5f);
 
-    // gold aircraft illustration
-    auto planeArea = inner.withSizeKeepingCentre (inner.getHeight() * 1.15f, inner.getHeight() * 0.92f);
+    // Pan lane: outline aircraft cruises left -> right on a loop (heading is
+    // rotated 90°: nose to the right); the filled aircraft marks the pan position.
+    const float planeW = inner.getHeight() * 1.15f;
+    const float planeH = inner.getHeight() * 0.92f;
+    const float lane = inner.getWidth() - planeW;
     const auto plane = AviationIcons::aircraftTop();
-    AviationIcons::fill (g, plane, planeArea, Aviation::goldBright().withAlpha (0.9f));
-    AviationIcons::stroke (g, plane, planeArea.expanded (4.0f), Aviation::gold().withAlpha (0.35f), 0.8f);
+    auto planeAt = [&] (float norm)
+    {
+        return juce::Rectangle<float> (inner.getX() + lane * norm, inner.getCentreY() - planeH * 0.5f, planeW, planeH);
+    };
+    auto drawPlane = [&] (juce::Rectangle<float> area, bool filled, float alpha)
+    {
+        juce::Path p (plane);
+        // AviationIcons::aircraftTop points up; rotate to fly right
+        const auto b = p.getBounds();
+        p.applyTransform (juce::AffineTransform::rotation (juce::MathConstants<float>::halfPi, b.getCentreX(), b.getCentreY()));
+        const auto rb = p.getBounds();
+        p.applyTransform (juce::AffineTransform::translation (-rb.getX(), -rb.getY())
+                              .scaled (area.getWidth() / juce::jmax (1.0f, rb.getWidth()), area.getHeight() / juce::jmax (1.0f, rb.getHeight()))
+                              .translated (area.getX(), area.getY()));
+        if (filled)
+        {
+            g.setColour (Aviation::goldBright().withAlpha (0.9f * alpha));
+            g.fillPath (p);
+        }
+        g.setColour (Aviation::gold().withAlpha ((filled ? 0.35f : 0.75f) * alpha));
+        g.strokePath (p, juce::PathStrokeType (filled ? 0.8f : 1.0f));
+    };
+
+    // centre / L / R ticks
+    g.setColour (Aviation::cyan().withAlpha (0.35f));
+    const float midX = inner.getX() + lane * 0.5f + planeW * 0.5f;
+    g.drawLine (midX, inner.getBottom() - 6.0f, midX, inner.getBottom(), 1.0f);
+    g.setFont (Aviation::label (7.0f, 0.12f));
+    g.drawText ("L", inner.toNearestInt().removeFromLeft (14).removeFromBottom (10), juce::Justification::centred);
+    g.drawText ("R", inner.toNearestInt().removeFromRight (14).removeFromBottom (10), juce::Justification::centred);
+
+    drawPlane (planeAt (juce::jlimit (-0.2f, 1.2f, flyPhase)), false, 0.7f);
+    drawPlane (planeAt ((panValue + 1.f) * 0.5f), true, 1.0f);
+
+    g.setFont (Aviation::value (8.5f));
+    g.setColour (Aviation::cyanBright().withAlpha (0.85f));
+    const juce::String panText = std::abs (panValue) < 0.01f ? juce::String ("PAN C")
+                                 : (panValue < 0 ? "PAN L" : "PAN R") + juce::String (juce::roundToInt (std::abs (panValue) * 100.f));
+    g.drawText (panText, inner.toNearestInt().removeFromTop (12).withTrimmedLeft (8), juce::Justification::centredLeft);
 
     // corner ticks
     g.setColour (Aviation::cyan().withAlpha (0.5f));

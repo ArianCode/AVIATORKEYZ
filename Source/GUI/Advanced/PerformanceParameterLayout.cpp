@@ -128,6 +128,11 @@ void PerformanceParameterLayout::appendParameters (std::vector<std::unique_ptr<R
         StringArray { "Phrase", "Slice", "Beat" }, 0));
     params.push_back (std::make_unique<APFC> (ParameterID { ParamID::FLIP_SNAP, 1 }, "Flip Snap",
         StringArray { "Off", "1/4", "1/8", "1/16" }, 2));
+    params.push_back (std::make_unique<APFC> (ParameterID { ParamID::FLIP_MODE, 1 }, "Flip Mode",
+        StringArray { "Latch", "Momentary" }, 0));
+    params.push_back (std::make_unique<APB> (ParameterID { ParamID::FLIP_TRIGGER_ON, 1 }, "Flip Trigger On", false));
+    params.push_back (std::make_unique<APFI> (ParameterID { ParamID::FLIP_TRIGGER_NOTE, 1 }, "Flip Trigger Note", 0, 127, 24));
+    params.push_back (std::make_unique<APB> (ParameterID { ParamID::ENV_ENABLED, 1 }, "Envelope On", true));
 
     // --- MFX rack: slot A / slot B ------------------------------------------
     const auto effectNames = Mfx::effectNames();

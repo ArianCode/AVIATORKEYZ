@@ -94,6 +94,7 @@ inline juce::StringArray allSchemaParamIDs()
         ParamID::ARP_OCTAVES, ParamID::ARP_GATE, ParamID::ARP_SWING, ParamID::ARP_HUMANIZE,
         ParamID::ARP_OCT_SPREAD, ParamID::ARP_HOLD, ParamID::ARP_TARGET,
         ParamID::FLIP_WINDOW, ParamID::FLIP_SNAP,
+        ParamID::FLIP_MODE, ParamID::FLIP_TRIGGER_ON, ParamID::FLIP_TRIGGER_NOTE, ParamID::ENV_ENABLED,
     };
 }
 
@@ -126,5 +127,5 @@ inline juce::StringArray allPerformanceParamIDs()
     return ids;
 }
 
-// 262 core/perf + 2 MFX slots x 28
-inline constexpr int kExpectedSchemaParamCount = 262 + Mfx::kNumSlots * Mfx::kIdsPerSlot;
+// 266 core/perf + 2 MFX slots x 28
+inline constexpr int kExpectedSchemaParamCount = 266 + Mfx::kNumSlots * Mfx::kIdsPerSlot;

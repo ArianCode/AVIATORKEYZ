@@ -20,6 +20,7 @@
 #include "DSP/OutputLimiter.h"
 #include "DSP/Arpeggiator.h"
 #include "DSP/Mfx/MfxRack.h"
+#include "DSP/StretchPlayer.h"
 #include "DSP/Performance/PerformanceTypes.h"
 #include "DSP/Performance/PerformanceTexturePipeline.h"
 #include "DSP/Performance/PerformanceApvtsReader.h"
@@ -130,7 +131,8 @@ public:
 
     // --- FLIGHT DECK readouts (any thread, atomics) ---------------------------
     const Arpeggiator::UiState& getArpUiState() const noexcept { return arpeggiator.getUiState(); }
-    float getPlayheadNorm() const noexcept { return samplerEngine.getPlayheadNorm(); }
+    float getPlayheadNorm() const noexcept { return stretchActiveForUi.load (std::memory_order_relaxed) ? stretchPlayer.getPlayheadNorm() : samplerEngine.getPlayheadNorm(); }
+    bool  isStretchMode() const noexcept { return stretchActiveForUi.load (std::memory_order_relaxed); }
     float getTextureLevel() const noexcept { return textureLevel.load (std::memory_order_relaxed); }
     int   getActiveVoiceCount() const noexcept { return activeVoices.load (std::memory_order_relaxed); }
     double getTransportBeat() const noexcept { return transportBeatForUi.load (std::memory_order_relaxed); }
@@ -190,6 +192,8 @@ private:
     PerformanceTexturePipeline performancePipeline;
     Arpeggiator     arpeggiator;
     MfxRack         mfxRack;
+    StretchPlayer   stretchPlayer;      // STRETCH playback mode voice
+    juce::MidiBuffer filteredMidi;      // host MIDI minus consumed trigger notes
     float           lfo1Phase { 0.f };
 
     std::array<uint32_t, Mfx::kNumSlots> mfxLocks {};
@@ -208,6 +212,7 @@ private:
     bool   flipPendingValue { false };
     bool   liveReverseApplied { false };
     int    lastFlipWindowFrames { 0 };
+    bool   stretchModeThisBlock { false };
 
     std::array<MacroControl, 4> macroControls {};
 
@@ -216,6 +221,7 @@ private:
     std::atomic<int>    activeVoices { 0 };
     std::atomic<double> transportBeatForUi { 0.0 };
     std::atomic<bool>   flipPendingForUi { false };
+    std::atomic<bool>   stretchActiveForUi { false };
 
     PerformanceApvtsReader::ParamCache perfParamCache;
 

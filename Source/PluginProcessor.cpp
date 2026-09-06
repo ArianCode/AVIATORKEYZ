@@ -112,6 +112,8 @@ void AviatorKeyzProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
     performancePipeline.prepare (spec);
     arpeggiator.prepare (sampleRate);
     mfxRack.prepare (spec);
+    stretchPlayer.prepare (sampleRate, samplesPerBlock);
+    filteredMidi.ensureSize (4096);
 
     // Timeline buffer capacity: host MIDI + arp events for one block. Reserved
     // here so addEvent() never allocates in processBlock.
@@ -170,6 +172,11 @@ bool AviatorKeyzProcessor::installSampleFromLibrary (const juce::String& sampleI
     // Caller holds sampleLoadLock and has suspended processing; pendingMap is loaded.
     sampleLibrary.publish();
     samplerEngine.setSampleSnapshot (sampleLibrary.getPublishedSnapshot());
+    stretchPlayer.allSoundOff();
+    {
+        const auto* snap = sampleLibrary.getPublishedSnapshot();
+        stretchPlayer.setRegion (snap != nullptr && ! snap->regions.empty() ? &snap->regions.front() : nullptr);
+    }
 
     factoryRootNote = sampleLibrary.getPrimaryRootNote();
     loadedSampleId = sampleId;
@@ -201,6 +208,10 @@ bool AviatorKeyzProcessor::loadFactorySample (const juce::String& sampleId, int 
         {
             if (! samplerEngine.hasLoadedSample())
                 samplerEngine.setSampleSnapshot (sampleLibrary.getPublishedSnapshot());
+            {
+                const auto* snap = sampleLibrary.getPublishedSnapshot();
+                stretchPlayer.setRegion (snap != nullptr && ! snap->regions.empty() ? &snap->regions.front() : nullptr);
+            }
 
             const int authoritativeRoot = sampleLibrary.getPrimaryRootNote();
             factoryRootNote = authoritativeRoot;
@@ -469,6 +480,7 @@ void AviatorKeyzProcessor::releaseResources()
     fxChain.reset();
     arpeggiator.reset();
     mfxRack.reset();
+    stretchPlayer.reset();
 }
 
 bool AviatorKeyzProcessor::isBusesLayoutSupported (const AudioProcessor::BusesLayout& layouts) const
@@ -530,6 +542,8 @@ void AviatorKeyzProcessor::renderVoiceSegment (juce::AudioBuffer<float>& buffer,
     juce::AudioBuffer<float> view (chans, 2, numSamples);
 
     samplerEngine.process (view);
+    if (stretchPlayer.isActive())
+        stretchPlayer.render (view);
     if (synthLayerOn || synthEngine.hasActiveVoices())
         synthEngine.process (view);
 }
@@ -578,6 +592,36 @@ void AviatorKeyzProcessor::dispatchTimelineMessage (const juce::MidiMessage& msg
             }
             return;
         }
+    }
+
+    // Host note events: STRETCH mode routes the sampler part to the stretch voice;
+    // SLICE mode turns every key into a slice pad (C1 = slice 0 of 16).
+    if (msg.isNoteOnOrOff() && msg.getChannel() != kTimelineChannel)
+    {
+        if (stretchModeThisBlock)
+        {
+            if (msg.isNoteOn() && msg.getVelocity() > 0)
+                stretchPlayer.noteOn (msg.getNoteNumber(), msg.getFloatVelocity());
+            else
+                stretchPlayer.noteOff (msg.getNoteNumber());
+            // synth layer still follows the keyboard; sampler is skipped (blend 1.0)
+            midiHandler.handleMessage (msg, samplerEngine, synthEngine, reverse, glideMs, 1.0f, synthLayerOn);
+            return;
+        }
+        if (src.playbackMode == SamplePlaybackMode::SlicePhrase && msg.isNoteOn() && msg.getVelocity() > 0 && sampleFrames > 1)
+        {
+            const int slice = Arp::sliceIndexForNote (msg.getNoteNumber());
+            const int windowStart = (int) (src.start * (float) (sampleFrames - 1));
+            const int windowEnd = juce::jmax (windowStart + 2, (int) (src.end * (float) (sampleFrames - 1)));
+            const int sliceLen = juce::jmax (2, (windowEnd - windowStart) / ParamID::ARP_NUM_SLICES);
+            const int s = windowStart + slice * sliceLen;
+            const int e = juce::jmin (windowEnd, s + sliceLen);
+            samplerEngine.setNextNoteSliceWindow (s, e);
+        }
+    }
+    else if (msg.isAllNotesOff() || msg.isAllSoundOff())
+    {
+        if (msg.isAllSoundOff()) stretchPlayer.allSoundOff(); else stretchPlayer.allNotesOff();
     }
 
     midiHandler.handleMessage (msg, samplerEngine, synthEngine, reverse, glideMs, sourceBlend, synthLayerOn);
@@ -638,11 +682,13 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
     const bool reverseParam = apvts.getRawParameterValue (P::REVERSE)->load() > 0.5f;
     const bool reverse = engineState.source.reverse || reverseParam;
     const float glideMs = apvts.getRawParameterValue (P::GLIDE_TIME)->load();
-    const float attackMs = apvts.getRawParameterValue (P::ENV_ATTACK)->load();
+    // Envelope OFF = flat: instant attack, full sustain, short release.
+    const bool envOn = apvts.getRawParameterValue (P::ENV_ENABLED)->load() > 0.5f;
+    const float attackMs = envOn ? apvts.getRawParameterValue (P::ENV_ATTACK)->load() : 0.f;
     // env_amp_decay is stored in seconds (0–10 s); the engines take milliseconds.
-    const float decayMs = apvts.getRawParameterValue (P::ENV_AMP_DECAY)->load() * 1000.f;
-    const float sustain01 = apvts.getRawParameterValue (P::ENV_AMP_SUSTAIN)->load();
-    const float releaseMs = apvts.getRawParameterValue (P::ENV_RELEASE)->load();
+    const float decayMs = envOn ? apvts.getRawParameterValue (P::ENV_AMP_DECAY)->load() * 1000.f : 0.f;
+    const float sustain01 = envOn ? apvts.getRawParameterValue (P::ENV_AMP_SUSTAIN)->load() : 1.f;
+    const float releaseMs = envOn ? apvts.getRawParameterValue (P::ENV_RELEASE)->load() : 10.f;
 
     const int polyphony = static_cast<int> (apvts.getRawParameterValue (P::VOICE_POLYPHONY)->load());
     const int playMode = static_cast<int> (apvts.getRawParameterValue (P::VOICE_PLAY_MODE)->load());
@@ -690,6 +736,51 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
     const auto chopPlayback = performancePipeline.advanceChopPlayback (engineState, sampleFrames, hostBpm);
     samplerEngine.setChopPlaybackState (chopPlayback);
 
+    // STRETCH mode: the phrase voice runs through the pitch-preserving stretcher.
+    const bool stretchMode = engineState.source.playbackMode == SamplePlaybackMode::PhraseTimeStretch;
+    {
+        StretchPlayer::Params sp;
+        sp.speed = engineState.source.speed;
+        sp.bpmSync = engineState.source.bpmSync;
+        sp.originalBpm = engineState.source.originalBpm;
+        sp.hostBpm = hostBpm;
+        sp.tuneSemis = engineState.source.tune;
+        sp.keytrack = engineState.source.keytrack;
+        sp.start = engineState.source.start;
+        sp.end = engineState.source.end;
+        sp.loopMode = engineState.source.loopMode;
+        sp.reverse = reverse;
+        sp.attackMs = attackMs; sp.decayMs = decayMs; sp.sustain = sustain01; sp.releaseMs = releaseMs;
+        sp.velocitySensitivity = apvts.getRawParameterValue (P::VELOCITY_SENSITIVITY)->load();
+        stretchPlayer.setParams (sp);
+        if (! stretchMode && stretchPlayer.isActive())
+            stretchPlayer.allNotesOff();
+        stretchActiveForUi.store (stretchMode, std::memory_order_relaxed);
+    }
+
+    // MIDI flip trigger: a dedicated note throws the lever and is consumed.
+    filteredMidi.clear();
+    {
+        const bool trigOn = apvts.getRawParameterValue (P::FLIP_TRIGGER_ON)->load() > 0.5f;
+        const int trigNote = (int) apvts.getRawParameterValue (P::FLIP_TRIGGER_NOTE)->load();
+        const bool momentary = apvts.getRawParameterValue (P::FLIP_MODE)->load() > 0.5f;
+        auto* reverseParam = apvts.getParameter (P::REVERSE);
+        for (const auto meta : midiMessages)
+        {
+            const auto msg = meta.getMessage();
+            if (trigOn && reverseParam != nullptr && msg.isNoteOnOrOff() && msg.getNoteNumber() == trigNote)
+            {
+                const bool on = msg.isNoteOn() && msg.getVelocity() > 0;
+                if (momentary)
+                    reverseParam->setValueNotifyingHost (on ? 1.f : 0.f);
+                else if (on)
+                    reverseParam->setValueNotifyingHost (reverseParam->getValue() > 0.5f ? 0.f : 1.f);
+                continue;
+            }
+            filteredMidi.addEvent (msg, meta.samplePosition);
+        }
+    }
+
     // --- MIDI timeline: host events, arpeggiator, flip lever ---------------------
     timelineMidi.clear();
 
@@ -720,7 +811,7 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
     if (arpSettings.on)
     {
         // Sustain acts as latch for the arp; note events feed the chord.
-        for (const auto meta : midiMessages)
+        for (const auto meta : filteredMidi)
         {
             const auto msg = meta.getMessage();
             if (msg.isSustainPedalOn())       arpeggiator.setSustain (true);
@@ -729,7 +820,7 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
                 timelineMidi.addEvent (msg, meta.samplePosition);
         }
 
-        const int count = arpeggiator.process (midiMessages, n, hostBpm, hostPpq, hostPlaying, arpEvents);
+        const int count = arpeggiator.process (filteredMidi, n, hostBpm, hostPpq, hostPlaying, arpEvents);
         addArpEvents (count, arpSettings.target);
     }
     else
@@ -741,7 +832,7 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
             addArpEvents (count, Arp::Target::notes);
             addArpEvents (count, Arp::Target::slices);
         }
-        for (const auto meta : midiMessages)
+        for (const auto meta : filteredMidi)
             timelineMidi.addEvent (meta.getMessage(), meta.samplePosition);
     }
     arpWasOn = arpSettings.on;
@@ -783,6 +874,7 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
     flipPendingForUi.store (flipPending, std::memory_order_relaxed);
 
     // --- dispatch events + render voices in sample-accurate segments -----------
+    stretchModeThisBlock = stretchMode;
     int cursor = 0;
     for (const auto meta : timelineMidi)
     {

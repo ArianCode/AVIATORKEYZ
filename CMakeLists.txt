@@ -178,6 +178,7 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
             Source/DSP/Mfx/MfxDescriptors.cpp
             Source/DSP/Mfx/MfxEffects.cpp
             Source/DSP/Mfx/MfxRack.cpp
+            Source/DSP/StretchPlayer.cpp
 
             # GUI — FLIGHT DECK performance view
             Source/GUI/FlightDeck/DeckWidgets.cpp
@@ -263,6 +264,7 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
     target_include_directories(Aviation
         PRIVATE
             Source
+            Source/ThirdParty
     )
     aviatorkeyz_apply_build_info_include(Aviation)
 

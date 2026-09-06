@@ -59,6 +59,8 @@ target_sources(${_AVIATORKEYZ_TEST_TARGET}
         ${CMAKE_SOURCE_DIR}/Source/DSP/Mfx/MfxDescriptors.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/Mfx/MfxEffects.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/Mfx/MfxRack.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/StretchPlayer.cpp
+        StretchAndSliceTests.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/SamplerEngine.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/OutputLimiter.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/SmearProcessor.cpp
@@ -95,6 +97,7 @@ target_sources(${_AVIATORKEYZ_TEST_TARGET}
 target_include_directories(${_AVIATORKEYZ_TEST_TARGET}
     PRIVATE
         ${CMAKE_SOURCE_DIR}/Source
+        ${CMAKE_SOURCE_DIR}/Source/ThirdParty
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 aviatorkeyz_apply_build_info_include(${_AVIATORKEYZ_TEST_TARGET})

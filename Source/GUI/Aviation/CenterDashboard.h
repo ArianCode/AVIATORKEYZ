@@ -30,10 +30,19 @@ public:
 
     void paint (juce::Graphics& g) override;
     void resized() override;
+    void mouseDown (const juce::MouseEvent& e) override;
+    void mouseDrag (const juce::MouseEvent& e) override;
+    void mouseUp (const juce::MouseEvent& e) override;
 
 private:
     class LimiterCell;
     class ReverseCell;
+
+    void applyPanDrag (int x);
+    std::unique_ptr<juce::ParameterAttachment> panAttachment;
+    float panValue { 0.f };
+    bool panDragging { false };
+    float flyPhase { 0.f };
 
     void timerCallback() override;
     void paintRadar (juce::Graphics& g, juce::Rectangle<float> area, float sweepPhase, bool clockwise);

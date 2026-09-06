@@ -126,6 +126,15 @@ void SamplerEngine::updatePlaybackPolicies() noexcept
     retriggerPolicy = AviatorKeyz::retriggerPolicyFor (currentCategory,
                                                        currentSoundType,
                                                        sourceSettings.playbackMode);
+
+    // SLICE keyboard mode ("mini sampler"): every key is its own slice pad, so
+    // slices must layer (polyphonic) and stop on release (gated) regardless of
+    // the phrase policy the preset category would otherwise impose.
+    if (sourceSettings.playbackMode == SamplePlaybackMode::SlicePhrase)
+    {
+        noteGatePolicy = NoteGatePolicy::Gated;
+        retriggerPolicy = RetriggerPolicy::Polyphonic;
+    }
 }
 
 bool SamplerEngine::usesPhraseWindow() const noexcept
@@ -637,7 +646,8 @@ void SamplerEngine::updateVoicePlaybackRates (Voice& v) noexcept
     // Keytrack is the sole runtime MIDI-pitch switch. Category policy turns it
     // on for ChromaticResample presets; users can disable it to lock pitch, or
     // enable it on PhraseOriginal / OneShotOriginal sounds.
-    const bool tracksMidiPitch = sourceSettings.keytrack;
+    // Slice pads play at the recorded pitch: the key picks the slice, not the note.
+    const bool tracksMidiPitch = sourceSettings.keytrack && mode != SamplePlaybackMode::SlicePhrase;
 
     if (tracksMidiPitch)
     {

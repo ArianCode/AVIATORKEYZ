@@ -37,7 +37,8 @@ public:
     {
         if (attachment == nullptr)
             return;
-        if (e.mods.isShiftDown())
+        const bool momentaryMode = apvts.getRawParameterValue (P::FLIP_MODE)->load() > 0.5f;
+        if (e.mods.isShiftDown() || momentaryMode)
         {
             momentary = true;
             attachment->setValueAsCompleteGesture (1.0f);
@@ -245,8 +246,30 @@ ManeuverZone::ManeuverZone (AviatorKeyzProcessor& p)
         std::vector<DeckSegment::Option> { { "PHRASE", 0 }, { "SLICE", 1 }, { "BEAT", 2 } }, "FLIP WINDOW");
     snapSeg = std::make_unique<DeckSegment> (apvts, P::FLIP_SNAP,
         std::vector<DeckSegment::Option> { { "OFF", 0 }, { "1/4", 1 }, { "1/8", 2 }, { "1/16", 3 } }, "SNAP");
+    modeSeg = std::make_unique<DeckSegment> (apvts, P::FLIP_MODE,
+        std::vector<DeckSegment::Option> { { "LATCH", 0 }, { "MOMENT", 1 } }, "MODE");
     addAndMakeVisible (*windowSeg);
     addAndMakeVisible (*snapSeg);
+    addAndMakeVisible (*modeSeg);
+
+    triggerChip = std::make_unique<DeckChip> ("TRIG", "OFF");
+    triggerChip->onClick = [this]
+    {
+        if (auto* on = apvts.getParameter (P::FLIP_TRIGGER_ON))
+            on->setValueNotifyingHost (on->getValue() > 0.5f ? 0.0f : 1.0f);
+    };
+    triggerChip->onDragTicks = [this] (int ticks)
+    {
+        if (auto* np = apvts.getParameter (P::FLIP_TRIGGER_NOTE))
+        {
+            const int cur = juce::roundToInt (np->convertFrom0to1 (np->getValue()));
+            np->setValueNotifyingHost (np->convertTo0to1 ((float) juce::jlimit (0, 127, cur + ticks)));
+        }
+    };
+    presetChip = std::make_unique<DeckChip> ("PRESETS", juce::String::fromUTF8 ("\xe2\x96\xbc"), Aviation::goldBright());
+    presetChip->onClick = [this] { openPresets(); };
+    addAndMakeVisible (*triggerChip);
+    addAndMakeVisible (*presetChip);
 
     if (auto* rp = apvts.getParameter (P::REVERSE))
     {
@@ -270,6 +293,47 @@ ManeuverZone::~ManeuverZone()
 void ManeuverZone::timerCallback()
 {
     mirror->repaint();
+    refreshChips();
+}
+
+void ManeuverZone::refreshChips()
+{
+    const bool on = apvts.getRawParameterValue (P::FLIP_TRIGGER_ON)->load() > 0.5f;
+    const int note = (int) apvts.getRawParameterValue (P::FLIP_TRIGGER_NOTE)->load();
+    triggerChip->setValue (on ? "MIDI " + Deck::noteName (note) : "OFF " + Deck::noteName (note),
+                           on ? Deck::green() : Aviation::textSecondary());
+}
+
+void ManeuverZone::openPresets()
+{
+    // window / snap / mode combos that land musically
+    struct FlipPreset { const char* name; int window, snap, mode; };
+    static const FlipPreset presets[] = {
+        { "Phrase Slam   (phrase, 1/8, latch)",     0, 2, 0 },
+        { "Beat Roll     (beat, 1/4, latch)",       2, 1, 0 },
+        { "Slice Stutter (slice, 1/16, momentary)", 1, 3, 1 },
+        { "Free Scrub    (phrase, off, momentary)", 0, 0, 1 },
+        { "Half-Bar Flip (beat, 1/8, momentary)",   2, 2, 1 },
+    };
+    juce::PopupMenu m;
+    m.setLookAndFeel (&menuLookAndFeel);
+    m.addSectionHeader ("FLIP PRESETS");
+    for (int i = 0; i < (int) std::size (presets); ++i)
+        m.addItem (i + 1, presets[i].name);
+    m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (presetChip.get()),
+                     [safe = juce::Component::SafePointer<ManeuverZone> (this)] (int result)
+                     {
+                         if (safe == nullptr || result <= 0) return;
+                         const auto& pr = presets[(size_t) (result - 1)];
+                         auto set = [&] (const char* id, float v)
+                         {
+                             if (auto* p = safe->apvts.getParameter (id))
+                                 p->setValueNotifyingHost (p->convertTo0to1 (v));
+                         };
+                         set (P::FLIP_WINDOW, (float) pr.window);
+                         set (P::FLIP_SNAP, (float) pr.snap);
+                         set (P::FLIP_MODE, (float) pr.mode);
+                     });
 }
 
 void ManeuverZone::resized()
@@ -279,12 +343,15 @@ void ManeuverZone::resized()
     lever->setBounds (body.removeFromLeft (318).withHeight (82).withY (body.getY() + 4));
     body.removeFromLeft (16);
 
-    auto opts = body.removeFromRight (190);
-    body.removeFromRight (16);
+    auto opts = body.removeFromRight (250);
+    body.removeFromRight (12);
 
     const int segH = DeckSegment::kSegH + DeckSegment::kCaptionH + 2;
-    windowSeg->setBounds (opts.getX(), opts.getY() + 2, windowSeg->preferredWidth (9), segH);
-    snapSeg->setBounds (opts.getX(), windowSeg->getBottom() + 6, snapSeg->preferredWidth (8), segH);
+    windowSeg->setBounds (opts.getX(), opts.getY() + 2, windowSeg->preferredWidth (8), segH);
+    snapSeg->setBounds (opts.getX(), windowSeg->getBottom() + 4, snapSeg->preferredWidth (7), segH);
+    modeSeg->setBounds (windowSeg->getRight() + 8, opts.getY() + 2, modeSeg->preferredWidth (7), segH);
+    triggerChip->setBounds (snapSeg->getRight() + 8, snapSeg->getY() + 1, 92, DeckChip::kH);
+    presetChip->setBounds (snapSeg->getRight() + 8, triggerChip->getBottom() + 4, 92, DeckChip::kH);
 
     // state block: title + sub drawn in paint; mirror strip below
     mirror->setBounds (body.getX(), body.getY() + 44, body.getWidth(), 44);
@@ -293,11 +360,11 @@ void ManeuverZone::resized()
 void ManeuverZone::paint (juce::Graphics& g)
 {
     Deck::paintZone (g, getLocalBounds(), juce::String::fromUTF8 ("MANEUVER \xc2\xb7 SAMPLE FLIP"),
-                     juce::String::fromUTF8 ("SLAM THE LEVER \xc2\xb7 CLICK = LATCH \xc2\xb7 \xe2\x87\xa7 = MOMENTARY"));
+                     juce::String::fromUTF8 ("SLAM THE LEVER \xc2\xb7 \xe2\x87\xa7 = MOMENTARY \xc2\xb7 TRIG = MIDI NOTE"));
 
     auto body = getLocalBounds().withTrimmedTop (Deck::kZoneHeaderH).reduced (14, 10);
     body.removeFromLeft (318 + 16);
-    body.removeFromRight (190 + 16);
+    body.removeFromRight (250 + 12);
 
     g.setFont (Aviation::label (19.0f, 0.30f));
     g.setColour (reversed ? Deck::warn() : Deck::green());

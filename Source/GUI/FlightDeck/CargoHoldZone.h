@@ -49,7 +49,7 @@ private:
     std::unique_ptr<DropZone> dropZone;
     std::unique_ptr<WaveBox> waveBox;
     std::unique_ptr<DeckSegment> modeSeg;
-    std::unique_ptr<DeckChip> loopChip, syncChip, rootChip, trimChip, feedChip;
+    std::unique_ptr<DeckChip> loopChip, syncChip, rootChip, speedChip, trimChip, feedChip;
     std::unique_ptr<juce::FileChooser> chooser;
 
     juce::String errorText;

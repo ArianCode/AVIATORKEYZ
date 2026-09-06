@@ -5,6 +5,30 @@ Format: [Version] — Date — Summary
 
 ---
 
+## [Unreleased] — 2026-09-05 (evening) — Time stretch, slice pads, flipper controls, front-page pan + envelope switch
+
+### Added
+- **STRETCH playback mode** (`Source/DSP/StretchPlayer.*`, Signalsmith Stretch
+  MIT, vendored under `Source/ThirdParty/`): pitch-preserving 0.25x–4x via
+  `src_speed`, host-BPM sync on top, KEY TRACK becomes a transpose so a phrase
+  plays chromatically at constant length. Selected with the Cargo Hold STRETCH
+  segment; the flip lever reverses the stretched stream in place.
+- **SLICE keyboard mode** ("mini sampler"): in SLICE playback mode every key is
+  a pad — C1 = slice 1 of 16 across the trimmed window, polyphonic, gated, at
+  the recorded pitch. The Cargo Hold waveform shows the 16 pad boundaries.
+- Flip lever: `flip_mode` (LATCH / MOMENTARY), `flip_trigger_on` +
+  `flip_trigger_note` (a MIDI note throws the lever and is consumed, default
+  C0), and five FLIP PRESETS (window / snap / mode combos).
+- MAIN page: the blueprint aircraft is now the PAN control — an outline plane
+  cruises left → right, the filled plane sits at the pan position and can be
+  dragged (double-click = centre).
+- MAIN page ENVELOPE: `env_enabled` master switch (title click, LED) and a ↺
+  reset glyph that returns A/D/S/R to defaults. OFF = instant attack, full
+  sustain, short release.
+- Cargo Hold SPEED chip (drag; click = 1.00x), labelled STRETCH in stretch mode.
+- Schema: +4 IDs (`flip_mode`, `flip_trigger_on`, `flip_trigger_note`,
+  `env_enabled`) → 322 total. Tests: 187 (+StretchAndSliceTests).
+
 ## [Unreleased] — 2026-09-05 (later) — MFX rack replaces Arpeggiator + Atmosphere
 
 ### Added
