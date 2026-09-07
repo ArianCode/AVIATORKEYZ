@@ -43,12 +43,32 @@ target_sources(${_AVIATORKEYZ_TEST_TARGET}
         PresetManagerTests.cpp
         CategoryPolicyTests.cpp
         PitchAlignmentTests.cpp
+        PitchTrackingTests.cpp
         PerformanceBenchmarkTests.cpp
         PresetPlaybackTests.cpp
+        HostStateRoundtripTests.cpp
         RawSamplerTests.cpp
         VoiceLifecycleTests.cpp
         MidiHandlerTests.cpp
+        ArpeggiatorTests.cpp
+        FlightDeckWiringTests.cpp
+        MfxTests.cpp
+        ${CMAKE_SOURCE_DIR}/Source/PluginProcessor.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/Arpeggiator.cpp
+        ${CMAKE_SOURCE_DIR}/Source/State/SampleAnalysis.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/Mfx/MfxDescriptors.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/Mfx/MfxEffects.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/Mfx/MfxRack.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/StretchPlayer.cpp
+        StretchAndSliceTests.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/SamplerEngine.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/OutputLimiter.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/SmearProcessor.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/ReverbTail.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/FxChain.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/Performance/PerformanceTexturePipeline.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/Performance/PerformanceFxEngine.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/Performance/TextureBlendEngine.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/GlideEngine.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/FilterProcessor.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/SynthEngine.cpp
@@ -77,12 +97,15 @@ target_sources(${_AVIATORKEYZ_TEST_TARGET}
 target_include_directories(${_AVIATORKEYZ_TEST_TARGET}
     PRIVATE
         ${CMAKE_SOURCE_DIR}/Source
+        ${CMAKE_SOURCE_DIR}/Source/ThirdParty
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
+aviatorkeyz_apply_build_info_include(${_AVIATORKEYZ_TEST_TARGET})
 
 target_compile_definitions(${_AVIATORKEYZ_TEST_TARGET}
     PRIVATE
         JUCE_STANDALONE_APPLICATION=1
+        AVIATORKEYZ_HEADLESS_TESTS=1
         JUCE_USE_CURL=0
         JUCE_WEB_BROWSER=0
 )

@@ -52,10 +52,36 @@ Runtime lookup: `FactoryResources` scans `BinaryData::originalFilenames` — no 
 
 `SampleLibrary::loadSample()` loads disk WAV/AIFF into a sample map for user content; factory content stays embedded.
 
-## Loudness targets (recommended)
+## Source sample spec (enforced)
+
+Every WAV that enters `ContentImport/<Category>/` — Analog Lab bounces
+included — must match this spec. `scripts/import_factory_bank.py` refuses
+off-spec sources (rate / depth / channels are auto-conformed first).
+
+| Setting | Required |
+|---------|----------|
+| Format | WAV (PCM). **Never MP3 / AAC / OGG / M4A** for source samples |
+| Sample rate | 48 kHz |
+| Bit depth | 24-bit |
+| Channels | Stereo (most Analog Lab sounds) |
+| Normalization | Off — leave the bounce level alone |
+| Peak level | roughly −6 to −3 dBFS (reported, never altered) |
+| Dithering | Off (only relevant when converting *down* to 16-bit) |
+
+```
+python3 scripts/check_sample_spec.py                    # scan ContentImport + Resources/Factory
+python3 scripts/check_sample_spec.py --conform ContentImport/Bells   # 48 kHz / 24-bit / stereo via afconvert
+python3 -m unittest tests.test_sample_spec
+```
+
+At load time the plugin peak-normalizes the decoded sample to −1 dBFS
+(`SampleLibrary::normalizeSampleBuffer`), so the −6…−3 dBFS source window keeps
+headroom in the bounce without changing in-plugin level consistency.
+
+## Loudness targets (legacy, superseded by the spec above)
 
 | Metric | Target |
 |--------|--------|
-| Peak | ≤ -1.0 dBFS |
+| Peak | −6 to −3 dBFS in the source file (plugin normalizes to −1 dBFS on load) |
 | Integrated loudness | -18 to -14 LUFS (category-dependent) |
 | Silence | ≥ 5 ms at start/end |

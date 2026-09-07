@@ -1,0 +1,39 @@
+AVIATION — Prototype 1 RC1 — Known issues
+=========================================
+
+Factory content
+---------------
+- All factory WAV files are synthetic placeholders generated for development.
+- They are NOT cleared for commercial use. Sound quality is not representative of v1.0.
+
+Scope limits
+------------
+- VST3 instrument only. No AU/AAX in this prototype.
+- Advanced panel may expose parameters that are not fully wired to DSP (~150 params).
+- User sample drag-import UI is not included in Prototype 1.
+
+Host compatibility
+------------------
+- Validated hosts will be listed in VERSION.txt after QA completes.
+- Supported test matrix: FL Studio 11 (32/64-bit), 20, 21+, and 25 on Windows.
+- All 64-bit FL hosts (11.1+, 20, 21, 24, 25, etc.) use the same x64 VST3 build.
+- FL 11 uses a legacy VST3 wrapper — some UI letterboxing at non-100% scaling is expected.
+- FL 21+ and FL 25 on Windows are valid Prototype #1 hosts (64-bit, standard VST3 path).
+- Do not use FL's VST bitness bridging for acceptance testing.
+
+Project files
+-------------
+- Always create a native empty project in the FL version you are testing.
+- Projects saved in a newer FL cannot open in an older FL (e.g. FL 25 project will not open in FL 11 or FL 20).
+- Do not send FL 25 macOS .flp files to Windows testers on older FL — create fresh projects on Windows instead.
+- FL 25 Windows testing is valid; use a project created and saved in FL 25 on Windows.
+
+Runtime
+-------
+- If the plugin fails to load, install the Microsoft Visual C++ Redistributable (x64)
+  listed in VERSION.txt.
+
+Identity (for support)
+----------------------
+- Plugin filename: Aviation.vst3
+- Manufacturer / code: Avkz / Avk1 — must not change between RC builds for project recall.

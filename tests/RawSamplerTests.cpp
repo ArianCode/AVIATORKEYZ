@@ -277,6 +277,7 @@ public:
             settings.playbackMode = SamplePlaybackMode::OneShotOriginal;
             settings.loopMode = LoopMode::OneShot;
             settings.bpmSync = false;
+            settings.keytrack = false;
             engine.setSourceSettings (settings, 120.0);
             engine.setPlaybackContext (AviatorKeyz::SoundType::OneShot, AviatorKeyz::Category::CHORDS);
             expect (engine.getNoteGatePolicy() == NoteGatePolicy::TriggerToEnd);

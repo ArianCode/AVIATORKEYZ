@@ -6,6 +6,34 @@ cmake_minimum_required(VERSION 3.22)
 #  Targets: VST3 + Standalone  |  Primary platform: macOS (Windows secondary)
 # =============================================================================
 
+# ---------------------------------------------------------------------------
+# Release toolchain settings (must precede project() so compiler checks match)
+#
+#   AVIATORKEYZ_MAC_UNIVERSAL=ON   -> arm64 + x86_64 fat binary (release packaging).
+#                                     OFF (default) keeps local dev builds single-arch
+#                                     and fast; scripts/package_prototype_macos.sh
+#                                     forces it ON for client artifacts.
+#   CMAKE_OSX_DEPLOYMENT_TARGET    -> pinned floor so the binary is not silently
+#                                     stamped with the build machine's macOS version.
+#   CMAKE_MSVC_RUNTIME_LIBRARY     -> static CRT: no VC++ Redistributable required
+#                                     on the client's Windows machine.
+# ---------------------------------------------------------------------------
+option(AVIATORKEYZ_MAC_UNIVERSAL "Build a universal arm64+x86_64 macOS binary" OFF)
+
+if(APPLE)
+    if(NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
+        set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum macOS version" FORCE)
+    endif()
+    if(AVIATORKEYZ_MAC_UNIVERSAL AND NOT DEFINED CMAKE_OSX_ARCHITECTURES)
+        set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "macOS architectures" FORCE)
+    endif()
+endif()
+
+if(MSVC OR CMAKE_GENERATOR MATCHES "Visual Studio")
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+        CACHE STRING "Static MSVC runtime (no redist dependency for the client)")
+endif()
+
 project(AviatorKeyz VERSION 0.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -14,6 +42,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(cmake/AviatorKeyzSanitizers.cmake)
 include(cmake/AviatorKeyzBundles.cmake)
+include(cmake/AviatorKeyzBuildInfo.cmake)
 aviatorkeyz_reject_global_sanitizer_flags()
 
 # ---------------------------------------------------------------------------
@@ -21,6 +50,12 @@ aviatorkeyz_reject_global_sanitizer_flags()
 # ---------------------------------------------------------------------------
 option(AVIATORKEYZ_COPY_AFTER_BUILD "Copy VST3 to system plugin folder after build" OFF)
 option(AVIATORKEYZ_PROFILE "Enable audio callback microsecond profiling (non-release diagnostics)" OFF)
+
+# Link-time optimisation. ON preserves the previous behaviour. Turn it OFF if the
+# MSVC link stage runs out of memory or stalls — /LTCG over the embedded factory
+# bank is the most expensive step in the whole Windows build, and disabling it
+# costs a little runtime performance but nothing functional.
+option(AVIATORKEYZ_ENABLE_LTO "Enable JUCE recommended link-time optimisation" ON)
 
 aviatorkeyz_configure_sanitizer_mode()
 
@@ -138,6 +173,21 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
             Source/DSP/ModMatrix.cpp
             Source/DSP/ReversePlayer.cpp
             Source/DSP/PitchProbe.cpp
+            Source/DSP/Arpeggiator.cpp
+            Source/State/SampleAnalysis.cpp
+            Source/DSP/Mfx/MfxDescriptors.cpp
+            Source/DSP/Mfx/MfxEffects.cpp
+            Source/DSP/Mfx/MfxRack.cpp
+            Source/DSP/StretchPlayer.cpp
+
+            # GUI — FLIGHT DECK performance view
+            Source/GUI/FlightDeck/DeckWidgets.cpp
+            Source/GUI/FlightDeck/MfxSlotPanel.cpp
+            Source/GUI/FlightDeck/ArpZone.cpp
+            Source/GUI/FlightDeck/ManeuverZone.cpp
+            Source/GUI/FlightDeck/AtmosphereZone.cpp
+            Source/GUI/FlightDeck/CargoHoldZone.cpp
+            Source/GUI/FlightDeck/FlightDeckView.cpp
 
             # GUI — photo-anchored cockpit
             # Aviation MAIN interface
@@ -148,7 +198,6 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
             Source/GUI/Aviation/PresetHeader.cpp
             Source/GUI/Aviation/CategoryTabs.cpp
             Source/GUI/Aviation/CockpitBackground.cpp
-            Source/GUI/Aviation/SourceDropdown.cpp
             Source/GUI/Aviation/CenterDashboard.cpp
             Source/GUI/Aviation/VelocityPanel.cpp
             Source/GUI/Aviation/LayerMixPanel.cpp
@@ -157,6 +206,7 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
             Source/GUI/Aviation/MacroDeck.cpp
             Source/GUI/Aviation/StatusBar.cpp
             Source/GUI/Aviation/AviationMainView.cpp
+            Source/GUI/Aviation/PresetSelectorOverlay.cpp
 
             Source/GUI/LuxuryLookAndFeel.cpp
             Source/GUI/MainPanel.cpp
@@ -214,7 +264,9 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
     target_include_directories(Aviation
         PRIVATE
             Source
+            Source/ThirdParty
     )
+    aviatorkeyz_apply_build_info_include(Aviation)
 
     # ---------------------------------------------------------------------------
     # Compile definitions
@@ -249,7 +301,7 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
             juce::juce_gui_basics
         PUBLIC
             juce::juce_recommended_config_flags
-            juce::juce_recommended_lto_flags
+            $<$<BOOL:${AVIATORKEYZ_ENABLE_LTO}>:juce::juce_recommended_lto_flags>
             juce::juce_recommended_warning_flags
     )
 
@@ -257,7 +309,8 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
     # MSVC-specific flags
     # ---------------------------------------------------------------------------
     if(MSVC)
-        target_compile_options(Aviation PRIVATE /W4 /WX-)
+        # /bigobj: the embedded factory bank produces very large translation units.
+        target_compile_options(Aviation PRIVATE /W4 /WX- /bigobj)
     endif()
 
     aviatorkeyz_verify_production_targets_clean()

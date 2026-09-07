@@ -1,5 +1,6 @@
 #include "AboutOverlay.h"
 
+#include "BuildInfo.h"
 #include <juce_audio_processors/juce_audio_processors.h>
 
 namespace
@@ -59,10 +60,14 @@ void AboutOverlay::paint (juce::Graphics& g)
     g.setFont (AviatorTokens::hud (11.f));
     g.setColour (AviatorTokens::textPrimary());
     auto textArea = getPanelBounds().reduced (16).withTrimmedTop (32).withTrimmedBottom (36);
-    g.drawFittedText ("Photo-anchored cockpit UI.\n" + juce::String (JucePlugin_Name) + " v" + juce::String (JucePlugin_VersionString),
+    const auto aboutText = juce::String (JucePlugin_Name) + " "
+                           + AviatorKeyzBuildInfo::kPrototypeVersion + "\n"
+                           + "commit " + AviatorKeyzBuildInfo::kGitSha + "\n"
+                           + "JUCE " + AviatorKeyzBuildInfo::kJuceVersion + " — Prototype 1 RC1";
+    g.drawFittedText (aboutText,
                       textArea,
                       juce::Justification::centred,
-                      3);
+                      4);
 }
 
 void AboutOverlay::resized()

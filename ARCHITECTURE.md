@@ -91,11 +91,45 @@ AviatorKeyzEditor
 │   ├── MacroDeck               (8 MacroKnobs mirrored around brand block)
 │   ├── StatusBar               (ACTIVE, rate/bits/BPM, A/B, version)
 │   └── MenuLookAndFeel         (overhead-luggage popup styling)
-└── AdvancedPanel               (PERFORMANCE view, shown below the header)
+└── FlightDeckView              (PERFORMANCE view, 1366x860 canvas scaled to fit
+    │                            below the header — Source/GUI/FlightDeck/)
+    ├── MfxSlotPanel (A)        (power, effect menu, PRESET, REV SEND, LEVEL,
+    │                            REROLL/SURPRISE/AMOUNT/UNDO, 16-slot bank, 4 assigns)
+    ├── ManeuverZone            (FlipLever -> `reverse`, mirrored playhead strip,
+    │                            FLIP WINDOW, SNAP)
+    ├── MfxSlotPanel (B)        (same, narrow 2x8 bank layout; hosts Grain Cloud
+    │                            by default = the former ATMOSPHERE engine)
+    └── CargoHoldZone           (FileDragAndDropTarget: user WAV/AIFF <= 60 s,
+                                 waveform + trim handles, mode/loop/sync/root)
 ```
 
-Legacy `MainPanel`/`CockpitCrossworldPanel` components remain compiled but
-are no longer in the visible hierarchy.
+Legacy `MainPanel`/`CockpitCrossworldPanel`/`AdvancedPanel` components remain
+compiled but are no longer in the visible hierarchy.
+
+### Voice path (per block)
+
+```
+host MIDI ─▶ [Arpeggiator when arp_on] ─▶ timeline MidiBuffer (sorted)
+          ─▶ segments between events: MidiHandler ─▶ SamplerEngine (+ SynthEngine layer)
+          ─▶ FilterProcessor (filter_enabled) ─▶ input gain ─▶ TextureEngine (TEX layer)
+          ─▶ PerformanceTexturePipeline (chop / motion; legacy grain blend bypassed)
+          ─▶ MfxRack (slot A ─▶ slot B, + shared reverb send) ─▶ perf FX
+          ─▶ tone / brightness / macro HP / reverb / FX chain ─▶ pan ─▶ limiter ─▶ output gain
+```
+
+### MFX rack
+
+`MfxRack` holds every effect instance for both slots (all prepared up front, so
+switching effects never allocates) and reads the slot parameters through cached
+atomics. `Mfx::Descriptor` (`Source/DSP/Mfx/MfxDescriptors.cpp`) is the single
+source of truth for an effect: label, musical range, randomise range, default,
+unit, cautious flag per generic slot, plus assign targets and presets. The UI,
+the randomiser and the DSP all read the same table.
+
+The timeline buffer carries two private messages on MIDI channel 16: note
+on/off `36 + slice` for arp SLICES steps (routed to a per-note phrase window
+via `SamplerEngine::setNextNoteSliceWindow`) and CC 119 for a beat-snapped
+flip-lever throw (`SamplerEngine::setLiveReverse`).
 
 ---
 

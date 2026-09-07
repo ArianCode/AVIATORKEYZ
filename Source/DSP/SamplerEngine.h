@@ -2,6 +2,7 @@
 
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_dsp/juce_dsp.h>
+#include <atomic>
 
 #include "../State/CategorySoundPolicy.h"
 #include "../State/SampleLibrary.h"
@@ -52,7 +53,32 @@ public:
 
     void setChopPlaybackState (const ChopPlaybackState& state) noexcept;
 
+    /** Phrase window (frames) applied to the NEXT noteOn only — arp SLICES target.
+        Consumed by startVoice; other voices are untouched. */
+    void setNextNoteSliceWindow (int startFrame, int endFrame) noexcept;
+
+    /**
+        MANEUVER lever: flip the read direction of every sounding voice in place.
+        windowFrames == 0 flips across the whole phrase window; > 0 confines the
+        reversed voice to the grid-aligned window (slice / beat) that contains
+        its current read position, looping it until the lever returns. New notes
+        started while reversed honour the same window.
+    */
+    void setLiveReverse (bool reversed, int windowFrames) noexcept;
+
+    /** Any thread: normalised read position (0..1) of the most recent voice. */
+    float getPlayheadNorm() const noexcept { return playheadNorm.load (std::memory_order_relaxed); }
+
+    /** Audio thread: amp-envelope level of the most recent voice (0 when idle). */
+    float getLastVoiceEnvLevel() const noexcept { return lastEnvLevel; }
+
     int getPrimarySampleNumFrames() const noexcept;
+
+    /** Root note of the loaded sample region (60 when nothing is loaded). */
+    int getPrimarySampleRootNote() const noexcept;
+
+    /** File sample rate of the loaded region (engine rate when nothing is loaded). */
+    double getPrimarySampleRate() const noexcept;
 
     void noteOn (int midiNote, float velocity, bool reverse, float glideTimeMs) noexcept;
     void noteOff (int midiNote) noexcept;
@@ -68,6 +94,10 @@ public:
     bool hasActiveVoices() const noexcept { return activeVoiceCount > 0; }
     int  getNumActiveVoices() const noexcept;
 
+    /** Any thread: true when a usable sample snapshot is attached.
+        Independent of envelope settings — use this for load/prepare lifecycle decisions. */
+    bool hasLoadedSample() const noexcept;
+
     /** Message thread: sanity-check snapshot, voices, and envelope after preset load. */
     bool validateCurrentState() const noexcept;
 
@@ -76,6 +106,24 @@ public:
 
     /** Unit tests: read increment of first active voice (0 if none). */
     float getActiveVoiceReadIncrementForTest() const noexcept;
+
+    /** RT-safe snapshot of the most recent note-on pitch calculation (for tests / debug). */
+    struct NotePitchDiag
+    {
+        int   midiNote { 0 };
+        int   rootNote { 60 };
+        bool  keytrack { false };
+        int   playbackMode { 0 };
+        float semitoneOffset { 0.f };
+        float pitchRatio { 1.f };
+        float sourceRateRatio { 1.f };
+        float timeRatio { 1.f };
+        float finalIncrement { 1.f };
+        int   voiceIndex { -1 };
+        uint32_t sequence { 0 };
+    };
+
+    NotePitchDiag getLastNotePitchDiag() const noexcept;
 
     void process (juce::AudioBuffer<float>& buffer);
 
@@ -119,6 +167,10 @@ private:
         int          phraseEndFrame = 0;
         int          chopPitchOffsetSemis = 0;
         uint32_t     voiceInstanceId = 0;
+        // live flip window (MANEUVER lever, slice/beat modes)
+        bool         flipActive = false;
+        int          flipStart = 0;
+        int          flipEnd = 0;
     };
 
     void resetVoiceState (Voice& v, bool wasActive) noexcept;
@@ -189,10 +241,26 @@ private:
     double sourceHostBpm { 120.0 };
     ChopPlaybackState chopState {};
 
+    // one-shot slice window for the next noteOn (arp SLICES target)
+    bool pendingSliceActive { false };
+    int  pendingSliceStart { 0 };
+    int  pendingSliceEnd { 0 };
+
+    // MANEUVER lever state
+    bool liveReverse { false };
+    int  liveFlipWindowFrames { 0 };
+
+    int lastStartedVoice { -1 };
+    float lastEnvLevel { 0.f };
+    std::atomic<float> playheadNorm { 0.f };
+
     AviatorKeyz::SoundType currentSoundType { AviatorKeyz::SoundType::Phrase };
     juce::String currentCategory;
     NoteGatePolicy noteGatePolicy { NoteGatePolicy::Gated };
     RetriggerPolicy retriggerPolicy { RetriggerPolicy::Polyphonic };
+
+    NotePitchDiag lastNotePitchDiag {};
+    std::atomic<uint32_t> notePitchDiagSequence { 0 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SamplerEngine)
 };

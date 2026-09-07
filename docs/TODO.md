@@ -1,6 +1,6 @@
 # AviatorKeyz — Master TODO
 
-**Canonical tracker:** [../TODO.md](../TODO.md) (updated 2026-06-05)  
+**Canonical tracker:** [../TODO.md](../TODO.md) (updated 2026-08-19)  
 **Progress bars:** [PROGRESS.md](PROGRESS.md)  
 **M5 checklist:** [M5_CERTIFICATION.md](M5_CERTIFICATION.md)
 

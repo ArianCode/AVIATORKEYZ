@@ -1,0 +1,45 @@
+AVIATION — Prototype 1 RC1 — macOS install
+==========================================
+
+1. VERIFY THE DOWNLOAD (optional but recommended)
+
+   In Terminal, in the folder containing the .pkg:
+
+       shasum -a 256 Aviation_Prototype1_RC1_macOS.pkg
+
+   Compare the output with SHA256SUMS.txt. They must match exactly.
+
+2. INSTALL
+
+   Double-click Aviation_Prototype1_RC1_macOS.pkg and follow the installer.
+   It installs for all users and requires an administrator password.
+
+   Installed to:
+       /Library/Audio/Plug-Ins/VST3/Aviation.vst3
+
+3. IF macOS BLOCKS THE INSTALLER
+
+   This prototype may be distributed unsigned. If macOS reports that the package
+   "cannot be opened because it is from an unidentified developer":
+
+       Right-click (or Control-click) the .pkg  ->  Open  ->  Open
+
+   Or, in System Settings > Privacy & Security, click "Open Anyway" after the
+   first blocked attempt.
+
+   Do not disable Gatekeeper system-wide.
+
+4. LOAD IN YOUR HOST
+
+   Rescan plug-ins, then load Aviation as an instrument.
+   Verify the version string in the plugin status bar matches VERSION.txt —
+   this confirms you are testing the intended build.
+
+5. UNINSTALL
+
+   Delete /Library/Audio/Plug-Ins/VST3/Aviation.vst3 and rescan.
+
+NOTES
+
+- Prototype 1 ships VST3 only. No AU or AAX build is included.
+- Do not send project files between machines running different host versions.

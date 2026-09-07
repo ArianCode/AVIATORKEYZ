@@ -126,14 +126,21 @@ def read_wav_mono(path: Path) -> tuple[np.ndarray, int]:
 
 
 def write_wav_mono(path: Path, mono: np.ndarray, sr: int) -> None:
+    """Write 24-bit PCM (spec bit depth). Mono processing output is written
+    dual-mono so the file stays stereo per the source-sample spec; no dither
+    is applied (24-bit target) and the level is untouched."""
     mono = np.clip(mono, -1.0, 1.0)
-    pcm = (mono * 32767.0).astype(np.int16)
+    pcm = np.round(mono * 8388607.0).astype(np.int32)
+    # int32 little-endian -> keep the low three bytes (24-bit LE), interleave L/R
+    le = pcm.astype("<i4").tobytes()
+    frames = np.frombuffer(le, dtype=np.uint8).reshape(-1, 4)[:, :3]
+    stereo = np.repeat(frames, 2, axis=0)  # L R L R ...
     path.parent.mkdir(parents=True, exist_ok=True)
     with wave.open(str(path), "w") as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(2)
+        wf.setnchannels(2)
+        wf.setsampwidth(3)
         wf.setframerate(sr)
-        wf.writeframes(pcm.tobytes())
+        wf.writeframes(stereo.tobytes())
 
 
 def _onset_window(mono: np.ndarray, sr: int, max_ms: float = 800.0) -> np.ndarray:

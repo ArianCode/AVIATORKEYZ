@@ -1,0 +1,131 @@
+AVIATION — Prototype 1 — Windows install
+========================================
+
+Prerequisites
+-------------
+- Windows 10 (1607+) or Windows 11. Windows 7/8 are not supported.
+- Any x86-64 CPU — Intel and AMD alike. There is no separate build per CPU brand.
+- FL Studio with VST3 support — tested matrix: FL 11, 20, 21+, 25.
+
+One bundle covers every FL version
+----------------------------------
+Aviation.vst3 is a universal bundle. Inside it:
+
+  Contents\x86_64-win\Aviation.vst3   loaded by 64-bit FL (11.1+, 20, 21+, 25)
+  Contents\x86-win\Aviation.vst3      loaded by FL 11 32-bit
+
+You install the SAME folder either way — FL picks the half that matches itself.
+Check VERSION.txt: the "Architectures" line tells you whether the 32-bit half is
+present in the copy you received.
+
+You received ONE of these two things. Follow the matching section.
+
+  Aviation_Prototype1_RC1_Windows_Setup.exe  ->  OPTION A (installer)
+  Aviation_Prototype1_RC1_Windows.zip        ->  OPTION B (manual copy)
+
+Both deliver the identical plugin. Use whichever you were sent.
+
+
+================================================================
+OPTION A — INSTALLER (.exe)
+================================================================
+
+A1. Verify the download
+    Compare the SHA-256 of the .exe against the accompanying .sha256 file.
+    In PowerShell:
+        Get-FileHash .\Aviation_Prototype1_RC1_Windows_Setup.exe -Algorithm SHA256
+
+A2. Run the installer
+    Right-click the .exe > Run as administrator.
+
+    THIS PROTOTYPE IS UNSIGNED. Windows SmartScreen will show a blue
+    "Windows protected your PC" screen. This is expected for a prototype.
+    Click "More info", then "Run anyway".
+
+    If you are not comfortable doing that, use OPTION B instead — the ZIP
+    contains exactly the same plugin and triggers no warning.
+
+A3. Choose 32-bit option only if needed
+    If you are testing 32-bit FL Studio 11, tick
+    "Also install for 32-bit FL Studio 11" on the tasks page.
+    Leave it unticked for 64-bit FL (11.1+, 20, 21+, 25).
+
+A4. Finish
+    The installer writes:
+        C:\Program Files\Common Files\VST3\Aviation.vst3
+    and copies the docs and MIDI test file to:
+        C:\Users\Public\Documents\Aviation Prototype 1\
+
+    Then continue at step 4 (Rescan in FL Studio) below.
+
+
+================================================================
+OPTION B — ZIP (manual copy)
+================================================================
+
+1. Verify the download
+   Compare the SHA-256 of the ZIP against SHA256SUMS.txt before extracting.
+
+2. Extract
+   Use "Extract All" on the ZIP. Do not run the plugin from inside the ZIP.
+
+3. Install the VST3
+   Copy the whole folder  VST3\Aviation.vst3  to the path matching your FL:
+
+     64-bit FL (11.1+, 20, 21+, 25):  C:\Program Files\Common Files\VST3\
+     FL 11 32-bit:                    C:\Program Files (x86)\Common Files\VST3\
+
+   Running both a 64-bit FL and 32-bit FL 11 on the same machine? Copy the same
+   folder to BOTH paths. Each FL scans only the path matching its own bitness.
+
+   Copy the folder itself, not its contents — Aviation.vst3 is a folder, and FL
+   will not recognise it if you unpack it.
+
+================================================================
+BOTH OPTIONS CONTINUE HERE
+================================================================
+
+4. Rescan in FL Studio
+   Options → Manage plugins → Find more plugins → Start scan.
+   Confirm "Aviation" appears under Instruments (not Effects).
+
+5. Create a NEW empty project
+   Create and save the project in the same FL version you are testing.
+   A project saved in a newer FL cannot be opened in an older FL.
+   Do not use .flp files from FL 25 macOS on Windows unless the tester also runs FL 25.
+
+6. Load Aviation
+   Add Aviation to an instrument channel. Enable MIDI input on the channel.
+
+7. Test MIDI
+   Drag TEST\Prototype_Test.mid onto the Piano roll or import it into the project.
+   Play — you should hear factory preset audio.
+
+8. Test save and render
+   Save the project, close FL completely, reopen it, and play again — the preset
+   and its sound must both come back. Then render/export the same project and
+   confirm the rendered audio matches what you heard.
+
+Troubleshooting
+---------------
+- Plugin does not appear after a scan: confirm you copied to the path matching
+  your FL's bitness, and that VERSION.txt lists the architecture you need.
+- FL 11 32-bit sees nothing: your copy may be 64-bit only. Check the
+  "Architectures" line in VERSION.txt.
+- Do not use FL's plugin bridging to work around a missing architecture — bridged
+  results are not valid for this prototype's acceptance testing.
+
+User presets (optional)
+-----------------------
+Saved to:  Documents\AviatorKeyz\Presets\
+
+Uninstall
+---------
+Installed with OPTION A: Settings > Apps > "Aviation Prototype 1 RC1" > Uninstall.
+Installed with OPTION B: delete Aviation.vst3 from the VST3 folder(s) above.
+Either way, rescan plugins in FL Studio afterwards.
+
+Support
+-------
+Use DOCS\FEEDBACK_TEMPLATE.txt when reporting issues. Include the contents of
+VERSION.txt and your exact FL version, build number, and bitness.

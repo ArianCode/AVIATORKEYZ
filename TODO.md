@@ -2,7 +2,7 @@
 
 Priority labels: [P0] = blocking, [P1] = current milestone, [P2] = next milestone, [P3] = backlog
 
-**Last updated:** 2026-06-05
+**Last updated:** 2026-08-19
 
 ---
 
@@ -12,6 +12,7 @@ Priority labels: [P0] = blocking, [P1] = current milestone, [P2] = next mileston
 - [x] SamplerEngine voice pool + steal-quietest
 - [x] MidiHandler note/CC/sustain/all-notes-off
 - [x] Glide, reverse, ADSR wired
+- [ ] [P1] Land MIDI keytrack (`keytrack` drives pitch) + `PitchTrackingTests`
 - [ ] [P1] Host exit tests T-M1-01–08 (Standalone + DAW)
 
 ---
@@ -27,18 +28,19 @@ Priority labels: [P0] = blocking, [P1] = current milestone, [P2] = next mileston
 
 ## M3 — Preset System [~80%]
 
-- [x] ~110 per-preset factory WAVs + XML embedded via BinaryData
-- [x] PresetManager load/save + PresetBrowser UI
+- [x] Per-preset factory bank embedded via BinaryData (114 XML / 111 WAV)
+- [x] PresetManager load/save + MAIN preset dropdown
 - [x] Host state restore (sampleId + preset identity in project state)
 - [ ] [P2] Schema migration when STATE_SCHEMA_VERSION bumps
+- [ ] [P0] Factory content freeze + sample clearance (checklist still 11-WAV model)
 
 ---
 
-## M4 — Premium UI [~60%]
+## M4 — Premium UI [~80%]
 
-- [x] CockpitCrossworldPanel + aviation gauge bar
-- [x] Photo-anchored knobs/toggles (CockpitZones → PhotoAnchoredKnob)
-- [x] Advanced view (synth/mod/FX)
+- [x] Aviation MAIN cockpit (`Source/GUI/Aviation/`, Jul 20)
+- [x] Preset dropdown, macro deck, glass panels, status bar
+- [x] Advanced / PERFORMANCE view (synth/mod/FX, KEY TRACK)
 - [ ] [P1] Full LuxuryLookAndFeel (ComboBox, ListBox)
 - [ ] [P2] Waveform display on cockpit photo
 - [ ] [P3] Animated windshield / legacy UI polish
@@ -54,6 +56,7 @@ Priority labels: [P0] = blocking, [P1] = current milestone, [P2] = next mileston
 - [ ] [P1] CPU profiling T-M5-04
 - [ ] [P2] 48h soak T-M5-05
 - [ ] [P1] Release codesign + notarize (requires Apple Developer ID)
+- [ ] [P1] Golden DAW host smoke (Logic / Ableton / Reaper)
 
 ---
 

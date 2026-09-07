@@ -1,0 +1,41 @@
+AVIATION — Prototype 1 feedback template
+=========================================
+
+Send completed form to: [your contact email]
+
+--- Environment ---
+Windows version:
+FL Studio version(s) tested:
+FL bitness (32/64):
+Display scaling:
+Audio driver:
+
+--- Build identity (from VERSION.txt or plugin status bar) ---
+Prototype version:
+Git commit:
+SHA-256 of ZIP received:
+
+--- Issue ---
+Date:
+FL version when issue occurred:
+Steps to reproduce:
+1.
+2.
+3.
+
+Expected:
+Actual:
+
+Severity: [ ] Blocker  [ ] Major  [ ] Minor
+
+Can you attach a native .flp saved in the same FL version?  Y / N
+
+--- Classification (for developer) ---
+[ ] Aviation (plugin bug)
+[ ] FL11 wrapper
+[ ] FL20 host
+[ ] FL21+ host (record exact version)
+[ ] FL25 host (record exact build)
+[ ] Packaging / install
+[ ] Missing VC++ runtime
+[ ] Factory content / silence

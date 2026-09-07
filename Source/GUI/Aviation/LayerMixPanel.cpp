@@ -1,17 +1,20 @@
 #include "LayerMixPanel.h"
 #include "AviationTheme.h"
 #include "../../State/StateSchema.h"
+#include "../../DSP/Mfx/MfxDescriptors.h"
 
 LayerMixPanel::LayerMixPanel (juce::AudioProcessorValueTreeState& apvts)
     : apvtsRef (apvts)
 {
     namespace P = AviatorKeyz::ParamID;
 
-    const std::pair<const char*, const char*> specs[] = {
+    // GRN used to be the ATMOSPHERE grain mix; that engine now lives in MFX
+    // slot B, so the fourth fader is slot B's level.
+    const std::pair<juce::String, const char*> specs[] = {
         { P::OSC1_LEVEL, "OSC1" },
         { P::OSC2_LEVEL, "OSC2" },
         { P::TEX_AMOUNT, "TEX" },
-        { P::PTEX_MIX,   "GRN" },
+        { Mfx::levelId (1), "FX B" },
     };
     for (const auto& [id, label] : specs)
     {
@@ -22,7 +25,7 @@ LayerMixPanel::LayerMixPanel (juce::AudioProcessorValueTreeState& apvts)
 
     texToggle = std::make_unique<MiniToggle> (apvtsRef, P::TEX_ENABLED, "TEX");
     addAndMakeVisible (*texToggle);
-    grainToggle = std::make_unique<MiniToggle> (apvtsRef, P::PTEX_ON, "GRN");
+    grainToggle = std::make_unique<MiniToggle> (apvtsRef, Mfx::onId (1), "FX B");
     addAndMakeVisible (*grainToggle);
 }
 

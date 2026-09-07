@@ -22,7 +22,9 @@ void addOsc (std::vector<std::unique_ptr<RangedAudioParameter>>& params,
     params.push_back (std::make_unique<APFI> (ParameterID { String (prefix) + "_tune", 1 }, "Osc Tune", -24, 24, 0));
     params.push_back (std::make_unique<APF> (ParameterID { String (prefix) + "_fine", 1 }, "Osc Fine", NR (-100.f, 100.f, 0.1f), 0.f));
     params.push_back (std::make_unique<APF> (ParameterID { String (prefix) + "_shape", 1 }, "Osc Shape", NR (0.f, 1.f, 0.001f), 0.3f));
-    params.push_back (std::make_unique<APF> (ParameterID { String (prefix) + "_level", 1 }, "Osc Level", NR (0.f, 1.f, 0.001f), 0.7f));
+    // Osc levels default to 0: the synth is an additive LAYER MIX layer on top of
+    // the sampler, so a fresh preset is sampler-only until a fader is raised.
+    params.push_back (std::make_unique<APF> (ParameterID { String (prefix) + "_level", 1 }, "Osc Level", NR (0.f, 1.f, 0.001f), 0.0f));
     params.push_back (std::make_unique<APF> (ParameterID { String (prefix) + "_pan", 1 }, "Osc Pan", NR (-1.f, 1.f, 0.001f), 0.f));
 }
 
@@ -64,10 +66,18 @@ void AdvancedParameterLayout::appendParameters (std::vector<std::unique_ptr<Rang
     params.push_back (std::make_unique<APB> (ParameterID { ParamID::FILTER_ENABLED, 1 }, "Filter On", false));
     params.push_back (std::make_unique<APF> (ParameterID { ParamID::FILTER_CUTOFF, 1 }, "Filter Cutoff", NR (20.f, 20000.f, 0.1f, 0.3f), 8000.f));
     params.push_back (std::make_unique<APF> (ParameterID { ParamID::FILTER_RESONANCE, 1 }, "Filter Reso", NR (0.f, 1.f, 0.001f), 0.25f));
-    params.push_back (std::make_unique<APFC> (ParameterID { ParamID::FILTER_TYPE, 1 }, "Filter Type", StringArray { "LP", "HP", "BP", "Notch" }, 0));
+    // Highpass is the primary main-page filter (LP is the alternate mode).
+    params.push_back (std::make_unique<APFC> (ParameterID { ParamID::FILTER_TYPE, 1 }, "Filter Type", StringArray { "LP", "HP", "BP", "Notch" }, 1));
     params.push_back (std::make_unique<APF> (ParameterID { ParamID::FILTER_DRIVE, 1 }, "Filter Drive", NR (0.f, 1.f, 0.001f), 0.f));
 
-    params.push_back (std::make_unique<APF> (ParameterID { ParamID::ENV_AMP_DECAY, 1 }, "Amp Decay", NR (0.f, 10.f, 0.001f, 0.4f), 0.f));
+    // Amp decay is stored in SECONDS (0–10 s). The processor converts to ms.
+    params.push_back (std::make_unique<APF> (ParameterID { ParamID::ENV_AMP_DECAY, 1 }, "Amp Decay", NR (0.f, 10.f, 0.001f, 0.4f), 0.f,
+        AudioParameterFloatAttributes().withStringFromValueFunction ([] (float v, int)
+        {
+            if (v < 1.f)
+                return String (roundToInt (v * 1000.f)) + " ms";
+            return String (v, 2) + " s";
+        })));
     params.push_back (std::make_unique<APF> (ParameterID { ParamID::ENV_AMP_SUSTAIN, 1 }, "Amp Sustain", NR (0.f, 1.f, 0.001f), 1.f));
     params.push_back (std::make_unique<APF> (ParameterID { ParamID::ENV_FLT_ATTACK, 1 }, "Flt Attack", NR (0.001f, 10.f, 0.001f, 0.4f), 0.01f));
     params.push_back (std::make_unique<APF> (ParameterID { ParamID::ENV_FLT_DECAY, 1 }, "Flt Decay", NR (0.001f, 10.f, 0.001f, 0.4f), 0.3f));

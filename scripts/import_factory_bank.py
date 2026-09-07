@@ -22,6 +22,7 @@ from category_sound_policy import (
     SOUND_TYPE_NAMES,
     infer_sound_type,
 )
+import check_sample_spec
 
 DEFAULT_ROOT_NOTE = 60  # C4 — all factory samples play at native pitch on MIDI C4
 DEFAULT_SOURCE_BPM = 120.0
@@ -201,11 +202,37 @@ def run_import(
     dry_run: bool = False,
     do_clean: bool = False,
     copy_only: bool = False,
+    skip_spec: bool = False,
 ) -> int:
     entries = collect_import_entries(source)
     if not entries:
         print(f"No WAV files found under {source}/<Category>/")
         print("Expected folders:", ", ".join(CANONICAL_CATEGORIES))
+        return 1
+
+    # Mix-spec gate: every source must be WAV PCM 48 kHz / 24-bit / stereo with
+    # peaks around -6..-3 dBFS (no normalization, no dither, never MP3/AAC).
+    # Off-spec rate/depth/channels are converted in place first (afconvert);
+    # anything that still fails blocks the import so the bank stays uniform.
+    spec_failures = 0
+    for _category, src, _name, _sid in entries:
+        rep = check_sample_spec.check_file(src)
+        if rep.needs_conversion and not dry_run and not skip_spec:
+            try:
+                check_sample_spec.conform_with_afconvert(src)
+                print(f"  spec: converted {src.name} -> 48 kHz / 24-bit / stereo")
+                rep = check_sample_spec.check_file(src)
+            except Exception as exc:  # noqa: BLE001
+                rep.errors.append(f"conform failed: {exc}")
+        for w in rep.warnings:
+            print(f"  spec: {src.name}: {w}")
+        if not rep.conforms:
+            spec_failures += 1
+            for e in rep.errors:
+                print(f"  spec: {src.name}: {e}", file=sys.stderr)
+    if spec_failures and not skip_spec:
+        print(f"ERROR: {spec_failures} source file(s) violate the sample spec "
+              f"(see docs/CONTENT_PIPELINE.md). Re-export or pass --skip-spec-check.", file=sys.stderr)
         return 1
 
     categories_touched = {e[0] for e in entries}
@@ -292,6 +319,11 @@ def main() -> int:
         action="store_true",
         help="Copy WAV bytes as-is (no pitch detection or shifting)",
     )
+    parser.add_argument(
+        "--skip-spec-check",
+        action="store_true",
+        help="Do not enforce the 48 kHz / 24-bit / stereo source spec (not recommended)",
+    )
     args = parser.parse_args()
 
     source = args.source.resolve()
@@ -300,13 +332,15 @@ def main() -> int:
         entries = collect_import_entries(source)
         if entries:
             clean_generated({e[0] for e in entries})
-        return run_import(source, dry_run=True, do_clean=False, copy_only=args.copy_only)
+        return run_import(source, dry_run=True, do_clean=False, copy_only=args.copy_only,
+                          skip_spec=args.skip_spec_check)
 
     return run_import(
         source,
         dry_run=args.dry_run,
         do_clean=args.clean,
         copy_only=args.copy_only,
+        skip_spec=args.skip_spec_check,
     )
 
 

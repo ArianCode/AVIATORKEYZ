@@ -12,7 +12,7 @@
 //    - centered gold preset title
 //    - display row: GLOBALS (output_gain) | radar | aircraft blueprint |
 //                   radar | LIMITER (output_limiter)
-//    - lower strip: LOFI / STEREO / DYNAMICS / WIDTH / HUMANIZE cells
+//    - lower strip: REVERSE / STEREO / DYNAMICS / WIDTH / HUMANIZE cells
 // =============================================================================
 
 class CenterDashboard : public juce::Component,
@@ -30,9 +30,19 @@ public:
 
     void paint (juce::Graphics& g) override;
     void resized() override;
+    void mouseDown (const juce::MouseEvent& e) override;
+    void mouseDrag (const juce::MouseEvent& e) override;
+    void mouseUp (const juce::MouseEvent& e) override;
 
 private:
     class LimiterCell;
+    class ReverseCell;
+
+    void applyPanDrag (int x);
+    std::unique_ptr<juce::ParameterAttachment> panAttachment;
+    float panValue { 0.f };
+    bool panDragging { false };
+    float flyPhase { 0.f };
 
     void timerCallback() override;
     void paintRadar (juce::Graphics& g, juce::Rectangle<float> area, float sweepPhase, bool clockwise);
@@ -50,7 +60,8 @@ private:
 
     std::unique_ptr<MiniRotary> globalsKnob;
     std::unique_ptr<LimiterCell> limiterCell;
-    std::unique_ptr<MiniParam> lofiCell, stereoCell, dynamicsCell, widthCell, humanizeCell;
+    std::unique_ptr<ReverseCell> reverseCell;
+    std::unique_ptr<MiniParam> stereoCell, dynamicsCell, widthCell, humanizeCell;
 
     AviationMini::FineDragSlider tuneSlider { juce::Slider::RotaryVerticalDrag, juce::Slider::NoTextBox };
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> tuneAttachment;

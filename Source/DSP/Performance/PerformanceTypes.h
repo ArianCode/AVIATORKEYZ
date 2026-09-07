@@ -116,8 +116,14 @@ struct SourceSettings
     int rootNote = 60;
     LoopMode loopMode = LoopMode::Gate;
     SamplePlaybackMode playbackMode = SamplePlaybackMode::ChromaticResample;
-    /** Deprecated — playback tracking is mode-driven from preset soundType. Kept for state compat. */
-    bool keytrack = false;
+    /**
+     * When true, MIDI note − sample root drives pitchRatio (chromatic resample).
+     * Category policy sets this true for ChromaticResample presets and false for
+     * fixed-pitch phrases / non-chromatic one-shots. Users can toggle it to
+     * enable key tracking on phrases or lock a chromatic sound to original pitch.
+     * Default true to match the ChromaticResample playbackMode default.
+     */
+    bool keytrack = true;
 };
 
 struct TextureSettings
