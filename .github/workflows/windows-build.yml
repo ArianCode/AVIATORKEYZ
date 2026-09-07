@@ -107,21 +107,24 @@ jobs:
                   -format json | ConvertFrom-Json
           if (-not $vs) { Write-Error "No Visual Studio C++ toolchain on this image."; exit 1 }
           $inst  = $vs[0]
-          $line  = $inst.catalog.productLineVersion
           $major = [int]($inst.installationVersion.Split('.')[0])
           Write-Host "Found: $($inst.displayName) — $($inst.installationVersion)"
-          $gen = switch ($major) {
-            17      { 'Visual Studio 17 2022' }
-            18      { 'Visual Studio 18 2026' }
+          # One mapping drives both. vswhere's productLineVersion reports "18"
+          # rather than "2026", which would put a meaningless compiler name in
+          # VERSION.txt, so take the year from here too.
+          $year = switch ($major) {
+            17      { '2022' }
+            18      { '2026' }
             default { $null }
           }
-          if (-not $gen) {
-            Write-Error "No CMake generator mapped for Visual Studio major version $major ($line). Add it to this step."
+          if (-not $year) {
+            Write-Error "No CMake generator mapped for Visual Studio major version $major. Add it to this step."
             exit 1
           }
+          $gen = "Visual Studio $major $year"
           Write-Host "Generator: $gen"
           "AVIATORKEYZ_CMAKE_GENERATOR=$gen"                                | Out-File $env:GITHUB_ENV -Append -Encoding utf8
-          "AVIATORKEYZ_COMPILER_LABEL=Microsoft Visual Studio $line"        | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "AVIATORKEYZ_COMPILER_LABEL=Microsoft Visual Studio $year"        | Out-File $env:GITHUB_ENV -Append -Encoding utf8
           "VCVARS=$($inst.installationPath)\VC\Auxiliary\Build\vcvars64.bat" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
 
       # Same script the Windows runbook uses locally, so CI and a hand build cannot drift.
@@ -150,6 +153,9 @@ jobs:
             exit /b 1
           )
           echo Static CRT confirmed.
+          REM findstr sets errorlevel 1 when it matches nothing and echo does not
+          REM clear it, so exit explicitly or the step inherits that stale 1.
+          exit /b 0
 
       # Run under vcvars so the script's own dumpbin section records dist\dumpbin_dependents_*.txt.
       - name: Package ZIP
