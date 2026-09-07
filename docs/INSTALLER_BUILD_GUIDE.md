@@ -184,6 +184,36 @@ Build on a Windows 10 or 11 machine. Everything below runs from a
 **Developer Command Prompt for VS 2022**, which is what puts `dumpbin` and
 `signtool` on `PATH`. Plain PowerShell will not find them.
 
+### 3.0 No Windows machine? Build it on GitHub Actions
+
+`.github/workflows/windows-build.yml` runs sections 3.3 to 3.5 on a hosted
+Windows runner, calling the same scripts. It is the practical path from a Mac:
+push, then download the artifact.
+
+- Every push to `main` or a `claude/**` branch builds the **x64** bundle and
+  uploads `Aviation_Prototype1_<RC>_Windows.zip`.
+- Pushing a `prototype-*` tag also builds the x86 half and `Setup.exe`.
+- Actions tab > Windows build > Run workflow lets you pick architectures, LTO
+  and the installer by hand on any branch.
+
+Artifacts land under the run's Summary page and expire after 30 days. Download,
+unzip, and copy `VST3\Aviation.vst3` to `C:\Program Files\Common Files\VST3\`
+on the test machine.
+
+Two differences from a local build, both deliberate:
+
+- **LTO is OFF by default** in CI. `/LTCG` over the embedded factory bank is the
+  step most likely to stall or exhaust the linker on a 4-core hosted runner. It
+  costs a little runtime speed and nothing functional; re-run the workflow with
+  LTO `ON` for a shipped RC if the link stage completes. Locally the scripts
+  still default to `ON` — export `AVIATORKEYZ_ENABLE_LTO=OFF` to override.
+- **Nothing is signed.** The runner has no Authenticode certificate, so the
+  installer it produces triggers SmartScreen exactly as 3.6 describes. A signed
+  RC still has to be cut on a machine holding the `.pfx`.
+
+The workflow fails the build if the binary links `VCRUNTIME140.dll` or
+`MSVCP140.dll`, which is the 3.4 check run automatically.
+
 ### 3.1 Machine prerequisites
 
 ```bat

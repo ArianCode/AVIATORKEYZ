@@ -27,6 +27,12 @@ set BUILD_X86=build-win-x86
 set CONFIG=Release
 set WANT_X86=1
 
+REM Link-time optimisation. ON matches a local release build. Export
+REM AVIATORKEYZ_ENABLE_LTO=OFF before calling to skip it: /LTCG over the embedded
+REM factory bank is the step that stalls or exhausts the linker on a small machine,
+REM and it costs a little runtime speed but nothing functional. CI sets it OFF.
+if not defined AVIATORKEYZ_ENABLE_LTO set AVIATORKEYZ_ENABLE_LTO=ON
+
 if /I "%1"=="x64only" set WANT_X86=0
 if /I "%1"=="clean" (
     echo Cleaning %BUILD_X64% and %BUILD_X86%...
@@ -48,6 +54,7 @@ if not defined GIT_SHA set GIT_SHA=unknown
 if not defined GIT_DESC set GIT_DESC=untagged
 echo Commit:   %GIT_SHA%
 echo Describe: %GIT_DESC%
+echo LTO:      %AVIATORKEYZ_ENABLE_LTO%
 echo %GIT_DESC% | findstr /C:"dirty" >nul
 if %errorlevel% equ 0 (
     echo.
@@ -58,7 +65,8 @@ if %errorlevel% equ 0 (
 
 REM --- x64 --------------------------------------------------------------------
 echo [1/4] Configuring + building x64...
-cmake -S . -B %BUILD_X64% -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=%CONFIG%
+cmake -S . -B %BUILD_X64% -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=%CONFIG% ^
+    -DAVIATORKEYZ_ENABLE_LTO=%AVIATORKEYZ_ENABLE_LTO%
 if %errorlevel% neq 0 ( echo x64 configure failed. & exit /b 1 )
 cmake --build %BUILD_X64% --config %CONFIG% --parallel
 if %errorlevel% neq 0 ( echo x64 build failed. & exit /b 1 )
@@ -80,7 +88,8 @@ if %WANT_X86%==0 (
 REM --- x86 --------------------------------------------------------------------
 echo.
 echo [2/4] Configuring + building x86 ^(Win32^)...
-cmake -S . -B %BUILD_X86% -G "Visual Studio 17 2022" -A Win32 -DCMAKE_BUILD_TYPE=%CONFIG%
+cmake -S . -B %BUILD_X86% -G "Visual Studio 17 2022" -A Win32 -DCMAKE_BUILD_TYPE=%CONFIG% ^
+    -DAVIATORKEYZ_ENABLE_LTO=%AVIATORKEYZ_ENABLE_LTO%
 if %errorlevel% neq 0 ( echo x86 configure failed. & exit /b 1 )
 cmake --build %BUILD_X86% --config %CONFIG% --parallel
 if %errorlevel% neq 0 ( echo x86 build failed. & exit /b 1 )
