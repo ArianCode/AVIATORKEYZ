@@ -1,15 +1,19 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
-#include "GUI/FlightDeck/FlightDeckView.h"
 #include "GUI/Aviation/AviationMainView.h"
+#include "GUI/Aviation/TopHeader.h"
+#include "GUI/Cockpit/AboutOverlay.h"
+#include "GUI/Cockpit/PresetLibraryOverlay.h"
+#include "GUI/FlightDeck/FlightDeckView.h"
 #include "PluginProcessor.h"
 
 // =============================================================================
-//  AviatorKeyzEditor — hosts the Aviation MAIN interface (fixed 1647 x 955
-//  design space, scaled proportionally as one unit) and the PERFORMANCE view
-//  (Flight Deck, fixed 1366 x 860, scaled to fit below the header), switched
-//  from the main view's top header.
+//  AviatorKeyzEditor — hosts one fixed 1647 x 955 design canvas, scaled
+//  proportionally as a single unit. The canvas holds the shared top header
+//  (MAIN / PERFORMANCE navigation, SAVE, settings, about) and two full pages
+//  underneath it: the Aviation MAIN view and the PERFORMANCE Flight Deck.
+//  Exactly one page is visible at a time; the header switches between them.
 // =============================================================================
 
 class AviatorKeyzEditor final : public juce::AudioProcessorEditor
@@ -25,6 +29,8 @@ public:
 private:
     void layoutContent();
     void setPerformanceView (bool performance);
+    void openLibraryOverlay();
+    void openAboutOverlay();
 
     AviatorKeyzProcessor& processorRef;
 
@@ -33,8 +39,15 @@ private:
     static constexpr int kMinWidth  = 824;
     static constexpr int kMaxWidth  = 1976;
 
+    // Design-space root: everything below is laid out in 1647 x 955 pixels and
+    // this one component carries the scale transform.
+    juce::Component canvas;
+
     std::unique_ptr<AviationMainView> mainView;
     std::unique_ptr<FlightDeckView> flightDeck;
+    TopHeader header;
+    std::unique_ptr<PresetLibraryOverlay> libraryOverlay;
+    std::unique_ptr<AboutOverlay> aboutOverlay;
     bool performanceView { false };
 
     using PresetLoadedHandler = std::function<void (const juce::String& category,

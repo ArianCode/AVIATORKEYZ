@@ -70,33 +70,6 @@ AviationMainView::AviationMainView (AviatorKeyzProcessor& p)
     envelopePanel = std::make_unique<EnvelopePanel> (apvts);
     addAndMakeVisible (*envelopePanel);
 
-    addAndMakeVisible (topHeader);
-    topHeader.onModeChanged = [this] (bool performance) { if (onModeChanged) onModeChanged (performance); };
-    topHeader.onSaveClicked = [this] {
-        auto& pm = processor.getPresetManager();
-        pm.saveUserPreset (pm.getCurrentCategory(), pm.getCurrentPresetName());
-    };
-    topHeader.onSettingsClicked = [this] {
-        if (libraryOverlay == nullptr)
-        {
-            libraryOverlay = std::make_unique<PresetLibraryOverlay> (processor);
-            addChildComponent (*libraryOverlay);
-        }
-        libraryOverlay->setBounds (getLocalBounds());
-        libraryOverlay->showOverlay();
-        libraryOverlay->toFront (true);
-    };
-    topHeader.onUtilityClicked = [this] {
-        if (aboutOverlay == nullptr)
-        {
-            aboutOverlay = std::make_unique<AboutOverlay>();
-            addChildComponent (*aboutOverlay);
-        }
-        aboutOverlay->setBounds (getLocalBounds());
-        aboutOverlay->showOverlay();
-        aboutOverlay->toFront (true);
-    };
-
     addAndMakeVisible (presetHeader);
     presetHeader.onPrevPreset = [this] { processor.getPresetManager().loadAdjacentPresetInCategory (-1); };
     presetHeader.onNextPreset = [this] { processor.getPresetManager().loadAdjacentPresetInCategory (+1); };
@@ -309,7 +282,6 @@ void AviationMainView::openAbMenu()
 void AviationMainView::resized()
 {
     cockpitBackground.setBounds (Aviation::cockpitBounds());
-    topHeader.setBounds (Aviation::topHeaderBounds());
     presetHeader.setBounds (Aviation::presetHeaderBounds());
     categoryTabs.setBounds (Aviation::categoryTabsBounds());
     macroDeck->setBounds (Aviation::macroDeckBounds());
@@ -327,12 +299,8 @@ void AviationMainView::resized()
     filterPanel->setBounds (cockpit.getRight() - 148, cockpit.getY() + 274, 122, 100);
     envelopePanel->setBounds (cockpit.getRight() - 152, cockpit.getY() + 382, 130, 132);
 
-    if (libraryOverlay != nullptr)
-        libraryOverlay->setBounds (getLocalBounds());
     if (presetSelectorOverlay != nullptr)
         presetSelectorOverlay->setBounds (getLocalBounds());
-    if (aboutOverlay != nullptr)
-        aboutOverlay->setBounds (getLocalBounds());
 }
 
 void AviationMainView::paint (juce::Graphics& g)

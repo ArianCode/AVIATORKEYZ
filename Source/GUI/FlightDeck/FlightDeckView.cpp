@@ -62,16 +62,41 @@ void FlightDeckView::timerCallback()
     {
         sysReadLine1 = l1;
         sysReadLine2 = l2;
-        repaint (juce::Rectangle<int> (getWidth() / 2, 0, getWidth() / 2, 70));
+        repaint (titleStripBounds().withLeft (getWidth() / 2));
     }
+}
+
+juce::Rectangle<int> FlightDeckView::titleStripBounds() const
+{
+    const auto page = Deck::pageBounds();
+    return { page.getX() + 12, page.getY() + 6, page.getWidth() - 24, 42 };
 }
 
 void FlightDeckView::resized()
 {
-    slotA->setBounds (18, 72, 788, 376);
-    maneuverZone->setBounds (18, 460, 788, 142);
-    slotB->setBounds (818, 72, 530, 530);
-    cargoZone->setBounds (18, 614, 1330, 228);
+    // Fill the page below the shared header: title strip, then the zone grid
+    // spanning the full width. The left column (slot A + maneuver) and slot B
+    // keep the prototype's 788:530 width ratio; cargo runs the full width.
+    const auto page = Deck::pageBounds();
+    const auto strip = titleStripBounds();
+    const int gap = 12;
+    const int x0 = strip.getX();
+    const int totalW = strip.getWidth();
+    const int zonesTop = strip.getBottom() + 8;
+    const int zonesBottom = page.getBottom() - 8;
+
+    const int leftW = (totalW - gap) * 788 / 1318;
+    const int rightW = totalW - gap - leftW;
+
+    const int cargoH = 240;
+    const int upperH = zonesBottom - zonesTop - gap - cargoH;
+    const int maneuverH = 150;
+    const int slotAH = upperH - gap - maneuverH;
+
+    slotA->setBounds (x0, zonesTop, leftW, slotAH);
+    maneuverZone->setBounds (x0, zonesTop + slotAH + gap, leftW, maneuverH);
+    slotB->setBounds (x0 + leftW + gap, zonesTop, rightW, upperH);
+    cargoZone->setBounds (x0, zonesBottom - cargoH, totalW, cargoH);
 }
 
 void FlightDeckView::paint (juce::Graphics& g)
@@ -84,8 +109,8 @@ void FlightDeckView::paint (juce::Graphics& g)
     g.setGradientFill (glow);
     g.fillRect (getLocalBounds());
 
-    // header
-    auto hdr = juce::Rectangle<int> (18, 14, getWidth() - 36, 44);
+    // title strip (the shared top header sits above this page)
+    auto hdr = titleStripBounds();
     g.setFont (Aviation::label (13.0f, 0.40f));
     g.setColour (Aviation::gold());
     g.drawText ("FLIGHT DECK", hdr.withHeight (22), juce::Justification::centredLeft);
@@ -125,6 +150,6 @@ void FlightDeckView::paint (juce::Graphics& g)
         }
         juce::ignoreUnused (ga);
     };
-    drawSysLine (sysReadLine1, hdr.withTrimmedTop (6).withHeight (14));
-    drawSysLine (sysReadLine2, hdr.withTrimmedTop (22).withHeight (14));
+    drawSysLine (sysReadLine1, hdr.withTrimmedTop (4).withHeight (14));
+    drawSysLine (sysReadLine2, hdr.withTrimmedTop (20).withHeight (14));
 }

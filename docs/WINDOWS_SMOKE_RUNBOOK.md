@@ -5,7 +5,8 @@ MSVC/Windows at all?"** It is deliberately *not* a release. Nothing here is tagg
 and no artifact produced by this runbook should reach the client.
 
 Once Windows is proven, we cut `prototype-1-rc2` from a gated commit and rebuild
-both platforms from that tag.
+both platforms from that tag — the full procedure is in
+[INSTALLER_BUILD_GUIDE.md](INSTALLER_BUILD_GUIDE.md).
 
 ---
 

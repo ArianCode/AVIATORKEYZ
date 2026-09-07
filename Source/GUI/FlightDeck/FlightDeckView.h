@@ -9,16 +9,18 @@
 class AviatorKeyzProcessor;
 
 // =============================================================================
-//  FlightDeckView — the PERFORMANCE view ("Flight Deck") on a fixed 1366 x 860
-//  canvas. The editor scales it as one unit below the main header.
+//  FlightDeckView — the PERFORMANCE page ("Flight Deck"). A full 1647 x 955
+//  page that replaces the MAIN page below the shared top header; the editor
+//  scales the whole canvas as one unit.
 //
-//    ┌ MFX · SLOT A ───────────────────┐ ┌ MFX · SLOT B ───┐
-//    │                                 │ │                 │
-//    └─────────────────────────────────┘ │                 │
-//    ┌ MANEUVER · SAMPLE FLIP ─────────┐ │                 │
-//    └─────────────────────────────────┘ └─────────────────┘
-//    ┌ CARGO HOLD ──────────────────────────────────────────┐
-//    └──────────────────────────────────────────────────────┘
+//    FLIGHT DECK · PERFORMANCE                          SRC · KEY · BPM · MODE
+//    ┌ MFX · SLOT A ───────────────────────┐ ┌ MFX · SLOT B ─────────┐
+//    │                                     │ │                       │
+//    └─────────────────────────────────────┘ │                       │
+//    ┌ MANEUVER · SAMPLE FLIP ─────────────┐ │                       │
+//    └─────────────────────────────────────┘ └───────────────────────┘
+//    ┌ CARGO HOLD ──────────────────────────────────────────────────┐
+//    └──────────────────────────────────────────────────────────────┘
 // =============================================================================
 
 class FlightDeckView : public juce::Component,
@@ -36,6 +38,7 @@ public:
 
 private:
     void timerCallback() override;
+    juce::Rectangle<int> titleStripBounds() const;
 
     AviatorKeyzProcessor& processorRef;
 

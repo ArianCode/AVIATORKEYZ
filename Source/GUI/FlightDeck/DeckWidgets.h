@@ -12,9 +12,10 @@
 // =============================================================================
 //  DeckWidgets — FLIGHT DECK (performance view) building blocks.
 //
-//  The Flight Deck is laid out on a fixed 1366 x 860 canvas that the editor
-//  scales as one unit (same rule as the Aviation MAIN view): coordinates in
-//  these files are literal prototype pixels.
+//  The Flight Deck is a full page in the same 1647 x 955 design space as the
+//  Aviation MAIN view; the editor shows one page at a time under the shared
+//  top header and scales the whole canvas as one unit. Coordinates in these
+//  files are literal design pixels.
 //
 //    Deck::paintZone   — recessed zone panel with gold title + mono tag
 //    Deck::paintScreen — dark instrument screen (visualizers)
@@ -28,9 +29,16 @@
 
 namespace Deck
 {
-    static constexpr int kDesignW = 1366;
-    static constexpr int kDesignH = 860;
+    static constexpr int kDesignW = Aviation::kDesignW;
+    static constexpr int kDesignH = Aviation::kDesignH;
     static constexpr int kZoneHeaderH = 34;
+
+    /** Page area below the shared top header (design pixels). */
+    inline juce::Rectangle<int> pageBounds()
+    {
+        const int top = Aviation::topHeaderBounds().getBottom();
+        return { 6, top, kDesignW - 12, kDesignH - top - 6 };
+    }
 
     inline juce::Colour warn()        { return juce::Colour (0xffff6a4d); }
     inline juce::Colour warnBright()  { return juce::Colour (0xffffb3a2); }

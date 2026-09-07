@@ -196,6 +196,8 @@ Factory sounds ship inside the plugin (embedded WAV + presets), not as a separat
 
 Pre-release checks: `./scripts/verify_release.sh`
 
+Building the client installers (macOS `.pkg`, Windows `Setup.exe`): [docs/INSTALLER_BUILD_GUIDE.md](docs/INSTALLER_BUILD_GUIDE.md)
+
 Full deliverables checklist: [docs/DELIVERABLES.md](docs/DELIVERABLES.md)
 
 ---
