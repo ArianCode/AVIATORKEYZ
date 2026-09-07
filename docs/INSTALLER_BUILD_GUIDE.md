@@ -200,7 +200,15 @@ Artifacts land under the run's Summary page and expire after 30 days. Download,
 unzip, and copy `VST3\Aviation.vst3` to `C:\Program Files\Common Files\VST3\`
 on the test machine.
 
-Two differences from a local build, both deliberate:
+Three differences from a local build, all deliberate:
+
+- **The compiler is whatever the runner image ships**, not necessarily the
+  VS 2022 this guide assumes. The image is currently `windows-2025-vs2026`, so
+  CI builds with Visual Studio 2026; the workflow detects the installed version
+  and picks the matching CMake generator, and `VERSION.txt` records the compiler
+  that actually produced the binary. A local build still defaults to VS 2022 —
+  export `AVIATORKEYZ_CMAKE_GENERATOR` to override. Cut a shipping RC on one
+  compiler, not a mix.
 
 - **LTO is OFF by default** in CI. `/LTCG` over the embedded factory bank is the
   step most likely to stall or exhaust the linker on a 4-core hosted runner. It

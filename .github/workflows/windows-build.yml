@@ -92,6 +92,38 @@ jobs:
             exit 1
           }
 
+      # windows-latest ships whatever Visual Studio is current — the image is now
+      # windows-2025-vs2026, i.e. VS 2026, where the scripts' documented default
+      # generator "Visual Studio 17 2022" finds no instance of Visual Studio and
+      # configure dies before a single file compiles. Derive the generator from
+      # what is actually installed rather than assuming a version.
+      - name: Detect Visual Studio toolchain
+        shell: pwsh
+        run: |
+          cmake --version
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * `
+                  -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+                  -format json | ConvertFrom-Json
+          if (-not $vs) { Write-Error "No Visual Studio C++ toolchain on this image."; exit 1 }
+          $inst  = $vs[0]
+          $line  = $inst.catalog.productLineVersion
+          $major = [int]($inst.installationVersion.Split('.')[0])
+          Write-Host "Found: $($inst.displayName) — $($inst.installationVersion)"
+          $gen = switch ($major) {
+            17      { 'Visual Studio 17 2022' }
+            18      { 'Visual Studio 18 2026' }
+            default { $null }
+          }
+          if (-not $gen) {
+            Write-Error "No CMake generator mapped for Visual Studio major version $major ($line). Add it to this step."
+            exit 1
+          }
+          Write-Host "Generator: $gen"
+          "AVIATORKEYZ_CMAKE_GENERATOR=$gen"                                | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "AVIATORKEYZ_COMPILER_LABEL=Microsoft Visual Studio $line"        | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "VCVARS=$($inst.installationPath)\VC\Auxiliary\Build\vcvars64.bat" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
       # Same script the Windows runbook uses locally, so CI and a hand build cannot drift.
       - name: Build VST3
         shell: cmd
@@ -101,16 +133,6 @@ jobs:
           ) else (
             scripts\build_windows_universal.bat
           )
-
-      - name: Locate Visual Studio tools
-        shell: pwsh
-        run: |
-          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-          $vs = & $vswhere -latest -products * `
-                  -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
-                  -property installationPath
-          if (-not $vs) { Write-Error "No VS 2022 C++ toolchain on this image."; exit 1 }
-          "VCVARS=$vs\VC\Auxiliary\Build\vcvars64.bat" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
 
       # CMakeLists.txt pins the static CRT so testers need no VC++ Redistributable.
       # If that ever regresses the plugin fails to load on a clean machine, which is
@@ -176,6 +198,7 @@ jobs:
             "| Describe | $env:GIT_DESC |",
             "| Architectures | $env:ARCH_MODE |",
             "| LTO | $env:AVIATORKEYZ_ENABLE_LTO |",
+            "| Compiler | $env:AVIATORKEYZ_COMPILER_LABEL |",
             "| Installer | $env:BUILD_INSTALLER |",
             "",
             "Download the artifact below, unzip it, and copy VST3\Aviation.vst3 to",

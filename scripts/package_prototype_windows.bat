@@ -37,6 +37,11 @@ set DLL_X64=%VST3_SRC%\Contents\x86_64-win\Aviation.vst3
 set DLL_X86=%VST3_SRC%\Contents\x86-win\Aviation.vst3
 set SKIP_DUMPBIN=0
 
+REM VERSION.txt must name the compiler that actually produced the binary, not a
+REM hard-coded assumption. CI exports this because the hosted image builds with
+REM Visual Studio 2026.
+if not defined AVIATORKEYZ_COMPILER_LABEL set AVIATORKEYZ_COMPILER_LABEL=Microsoft Visual Studio 2022
+
 :parse_args
 if "%~1"=="" goto done_args
 if /I "%~1"=="--skip-dumpbin" set SKIP_DUMPBIN=1
@@ -146,7 +151,7 @@ echo Plugin:                VST3 Instrument>> "%OUT_DIR%\VERSION.txt"
 echo Plugin filename:       Aviation.vst3>> "%OUT_DIR%\VERSION.txt"
 echo Manufacturer / code:   Avkz / Avk1>> "%OUT_DIR%\VERSION.txt"
 echo JUCE:                  8.0.9>> "%OUT_DIR%\VERSION.txt"
-echo Compiler:              Microsoft Visual Studio 2022>> "%OUT_DIR%\VERSION.txt"
+echo Compiler:              %AVIATORKEYZ_COMPILER_LABEL%>> "%OUT_DIR%\VERSION.txt"
 echo Configuration:         Release>> "%OUT_DIR%\VERSION.txt"
 echo Runtime deps:          %RUNTIME_DEPS%>> "%OUT_DIR%\VERSION.txt"
 echo Validated hosts:       PENDING - FL11, FL20, FL21+, FL25 ^(see PROTOTYPE1_FL_MATRIX.md^)>> "%OUT_DIR%\VERSION.txt"
