@@ -25,6 +25,9 @@ Immutable release metadata. Update only when cutting a new RC (RC2, etc.).
 
 ## Build commands
 
+Step-by-step for both installers, including the RC label bump and the signing
+gates: [INSTALLER_BUILD_GUIDE.md](INSTALLER_BUILD_GUIDE.md).
+
 **Gates (macOS dev machine — run first, on the commit to be tagged):**
 
 ```bash
