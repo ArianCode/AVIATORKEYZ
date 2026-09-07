@@ -11,10 +11,7 @@
 #include "PresetHeader.h"
 #include "PresetSelectorOverlay.h"
 #include "StatusBar.h"
-#include "TopHeader.h"
 #include "VelocityPanel.h"
-#include "../Cockpit/AboutOverlay.h"
-#include "../Cockpit/PresetLibraryOverlay.h"
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <functional>
@@ -24,9 +21,11 @@
 class AviatorKeyzProcessor;
 
 // =============================================================================
-//  AviationMainView — the complete MAIN interface at the canonical
-//  1647 x 955 design size. The editor scales this view as one unit.
-//  Preset navigation: category tabs, preset header, and anchored dropdown.
+//  AviationMainView — the MAIN page at the canonical 1647 x 955 design size.
+//  The editor owns the shared top header (MAIN / PERFORMANCE navigation, SAVE,
+//  settings, about) and lays it over whichever page is showing; this view
+//  paints everything below it. Preset navigation: category tabs, preset
+//  header, and anchored dropdown.
 // =============================================================================
 
 class AviationMainView : public juce::Component,
@@ -35,11 +34,6 @@ class AviationMainView : public juce::Component,
 public:
     explicit AviationMainView (AviatorKeyzProcessor& processor);
     ~AviationMainView() override;
-
-    /** Forwarded to the embedded top header (editor switches views). */
-    std::function<void (bool performance)> onModeChanged;
-
-    TopHeader& getTopHeader() noexcept { return topHeader; }
 
     void requestPresetUiRefresh() { triggerAsyncUpdate(); }
 
@@ -67,7 +61,6 @@ private:
     AviatorKeyzProcessor& processor;
 
     CockpitBackground cockpitBackground;
-    TopHeader topHeader;
     PresetHeader presetHeader;
     CategoryTabs categoryTabs;
     std::unique_ptr<CenterDashboard> dashboard;
@@ -78,9 +71,7 @@ private:
     std::unique_ptr<MacroDeck> macroDeck;
     StatusBar statusBar;
 
-    std::unique_ptr<PresetLibraryOverlay> libraryOverlay;
     std::unique_ptr<PresetSelectorOverlay> presetSelectorOverlay;
-    std::unique_ptr<AboutOverlay> aboutOverlay;
 
     MenuLookAndFeel menuLookAndFeel;
 
