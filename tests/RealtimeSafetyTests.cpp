@@ -21,6 +21,7 @@
 #include "DSP/Performance/MotionEngine.h"
 #include "DSP/ToneShaper.h"
 #include "DSP/SamplerEngine.h"
+#include "DSP/ReverbTail.h"
 #include "State/SampleLibrary.h"
 
 #include <atomic>
@@ -223,6 +224,11 @@ public:
             sampler.noteOn (60, 0.8f, false, 0.f);
             sampler.noteOn (64, 0.8f, false, 0.f);
 
+            // Reverb cycles algorithm/color and toggles on/off inside the guard so
+            // crossfades, core resets and the dry glide are all covered.
+            ReverbTail reverb;
+            reverb.prepare (spec);
+
             juce::AudioBuffer<float> buffer (2, 256);
 
             int allocations = 0;
@@ -244,6 +250,10 @@ public:
 
                     // Sweep tone so coefficients update every block.
                     shaper.process (buffer, 0.1f + 0.004f * static_cast<float> (block));
+
+                    reverb.process (buffer, 0.35f, 0.002f * static_cast<float> (block), (block / 50) % 2 == 0, 0.4f,
+                                    AviationReverb::algorithmFromIndex (block / 10),
+                                    AviationReverb::colorFromIndex (block / 25 % 2));
                 }
                 allocations = AllocationGuard::count.load();
             }

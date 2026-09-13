@@ -10,6 +10,10 @@
 #include "DSP/Mfx/MfxDescriptors.h"
 #include "DSP/Mfx/MfxEffects.h"
 #include "DSP/Mfx/MfxRack.h"
+#include "DSP/Mfx/AviationDelay.h"
+#include <juce_audio_formats/juce_audio_formats.h>
+#include <algorithm>
+#include <functional>
 #include "State/ParameterLayout.h"
 #include "State/ApvtsStateHelpers.h"
 #include "State/StateSchema.h"
@@ -37,6 +41,98 @@ bool finiteAndBounded (const juce::AudioBuffer<float>& b, float bound)
                 return false;
         }
     return true;
+}
+
+using AD = Mfx::AviationDelay;
+
+/** Aviation Delay values: descriptor defaults, a neutral test voicing, then overrides. */
+Mfx::Values delayValues (std::initializer_list<std::pair<int, float>> overrides)
+{
+    const auto& d = Mfx::descriptor (Mfx::Effect::aviationDelay);
+    Mfx::Values v {};
+    for (int i = 0; i < Mfx::kParamsPerSlot; ++i)
+        v[(size_t) i] = d.params[(size_t) i].def;
+    v[AD::pSync] = 0.f;      v[AD::pTime] = 100.f;   v[AD::pFeedback] = 0.f; v[AD::pMix] = 100.f;
+    v[AD::pDiffusion] = 0.f; v[AD::pModDepth] = 0.f; v[AD::pLoCut] = 20.f;   v[AD::pHiCut] = 20000.f;
+    v[AD::pAge] = 0.f;       v[AD::pDuck] = 0.f;     v[AD::pWidth] = 100.f;
+    for (const auto& [index, value] : overrides)
+        v[(size_t) index] = value;
+    return v;
+}
+
+/** Runs `fx` block by block over `input`; `perBlock` may edit the values between blocks. */
+juce::AudioBuffer<float> renderDelay (Mfx::EffectProcessor& fx, const juce::AudioBuffer<float>& input, Mfx::Values v,
+                                      const std::function<void (int, Mfx::Values&)>& perBlock = {})
+{
+    Mfx::Clock clock;
+    clock.bpm = 120.0;
+    clock.sampleRate = kSr;
+    juce::AudioBuffer<float> out (input);
+    juce::AudioBuffer<float> block (2, kBlock);
+    for (int start = 0, b = 0; start < out.getNumSamples(); start += kBlock, ++b)
+    {
+        const int len = juce::jmin (kBlock, out.getNumSamples() - start);
+        if (perBlock)
+            perBlock (b, v);
+        block.setSize (2, len, false, false, true);
+        for (int ch = 0; ch < 2; ++ch)
+            block.copyFrom (ch, 0, out, ch, start, len);
+        fx.process (block, v, clock);
+        for (int ch = 0; ch < 2; ++ch)
+            out.copyFrom (ch, start, block, ch, 0, len);
+    }
+    return out;
+}
+
+juce::AudioBuffer<float> impulse (int length, float amp = 0.5f)
+{
+    juce::AudioBuffer<float> b (2, length);
+    b.clear();
+    b.setSample (0, 0, amp);
+    b.setSample (1, 0, amp);
+    return b;
+}
+
+juce::AudioBuffer<float> toneThenSilence (double toneSec, double totalSec, float hz, float amp)
+{
+    juce::AudioBuffer<float> b (2, (int) (totalSec * kSr));
+    b.clear();
+    const int toneLen = juce::jmin (b.getNumSamples(), (int) (toneSec * kSr));
+    for (int ch = 0; ch < 2; ++ch)
+        for (int i = 0; i < toneLen; ++i)
+            b.setSample (ch, i, amp * std::sin (juce::MathConstants<float>::twoPi * hz * (float) i / (float) kSr));
+    return b;
+}
+
+int peakIndex (const juce::AudioBuffer<float>& b, int ch, int from, int to)
+{
+    int best = from;
+    for (int i = from; i < to; ++i)
+        if (std::abs (b.getSample (ch, i)) > std::abs (b.getSample (ch, best)))
+            best = i;
+    return best;
+}
+
+/** Energy-weighted RMS time spread in samples (how smeared an impulse response is). */
+double energySpread (const juce::AudioBuffer<float>& b, int ch)
+{
+    double total = 0.0, centroid = 0.0;
+    for (int i = 0; i < b.getNumSamples(); ++i)
+    {
+        const double e = (double) b.getSample (ch, i) * b.getSample (ch, i);
+        total += e;
+        centroid += e * i;
+    }
+    if (total <= 0.0)
+        return 0.0;
+    centroid /= total;
+    double variance = 0.0;
+    for (int i = 0; i < b.getNumSamples(); ++i)
+    {
+        const double e = (double) b.getSample (ch, i) * b.getSample (ch, i);
+        variance += e * (i - centroid) * (i - centroid);
+    }
+    return std::sqrt (variance / total);
 }
 } // namespace
 
@@ -115,17 +211,17 @@ public:
         beginTest ("Reroll: stays inside roll ranges, honours locks and amount");
         {
             juce::Random rng (42);
-            const auto e = Mfx::Effect::tapeEcho;
+            const auto e = Mfx::Effect::aviationDelay;
             const auto& d = Mfx::descriptor (e);
             auto cur = Mfx::defaultsNormalised (e);
             for (int trial = 0; trial < 50; ++trial)
             {
-                const auto out = Mfx::reroll (e, cur, 1u << 2 /* lock feedback */, 1.f, rng);
-                expectWithinAbsoluteError (out[2], cur[2], 1e-6f);
+                const auto out = Mfx::reroll (e, cur, 1u << Mfx::AviationDelay::pFeedback /* lock feedback */, 1.f, rng);
+                expectWithinAbsoluteError (out[Mfx::AviationDelay::pFeedback], cur[Mfx::AviationDelay::pFeedback], 1e-6f);
                 for (int i = 0; i < Mfx::kParamsPerSlot; ++i)
                 {
                     const auto& p = d.params[(size_t) i];
-                    if (! p.used() || i == 2) continue;
+                    if (! p.used() || i == Mfx::AviationDelay::pFeedback) continue;
                     const float real = p.denormalise (out[(size_t) i]);
                     expect (real >= p.rollMin - 1e-3f && real <= p.rollMax + 1e-3f,
                             juce::String (p.label) + " rolled " + juce::String (real));
@@ -134,9 +230,10 @@ public:
             const auto half = Mfx::reroll (e, cur, 0, 0.f, rng);
             for (int i = 0; i < Mfx::kParamsPerSlot; ++i)
                 expectWithinAbsoluteError (half[(size_t) i], cur[(size_t) i], 1e-6f);
-            // unused slots never change
-            const auto out = Mfx::reroll (e, cur, 0, 1.f, rng);
-            expectWithinAbsoluteError (out[15], cur[15], 1e-6f);
+            // unused slots never change (the delay uses all 16, the sweep filter does not)
+            const auto sweep = Mfx::defaultsNormalised (Mfx::Effect::sweepFilter);
+            const auto out = Mfx::reroll (Mfx::Effect::sweepFilter, sweep, 0, 1.f, rng);
+            expectWithinAbsoluteError (out[15], sweep[15], 1e-6f);
         }
 
         beginTest ("Every effect renders finite, bounded audio at defaults and presets");
@@ -245,6 +342,209 @@ public:
             for (int i = 0; i < fresh.getNumChildren(); ++i)
                 if (fresh.getChild (i).getProperty ("id").toString() == Mfx::onId (1)) foundOn = true;
             expect (! foundOn, "no migration when the rack params already exist");
+        }
+
+        // ---------------------------------------------------------------------
+        //  Aviation Delay (multi-model delay, slot effect 2)
+        // ---------------------------------------------------------------------
+        const juce::dsp::ProcessSpec delaySpec { kSr, (juce::uint32) kBlock, 2 };
+        const auto& delayDesc = Mfx::descriptor (Mfx::Effect::aviationDelay);
+        auto modeName = [&] (AD::Mode m) { return Mfx::valueText (delayDesc.params[AD::pMode], (float) (int) m); };
+
+        beginTest ("Aviation Delay: the echo lands on the delay time (clean, tape, analog, pitch at 0 st)");
+        {
+            const int T = 4800; // 100 ms
+            for (auto mode : { AD::Mode::clean, AD::Mode::tape, AD::Mode::analog, AD::Mode::pitch })
+            {
+                AD fx;
+                fx.prepare (delaySpec);
+                const auto out = renderDelay (fx, impulse (T * 2), delayValues ({ { AD::pMode, (float) (int) mode },
+                                                                                    { AD::pStyle, (float) (int) AD::Style::single },
+                                                                                    { AD::pPitch, 0.f } }));
+                const int peak = peakIndex (out, 0, 1, out.getNumSamples());
+                expect (std::abs (peak - T) <= 2, modeName (mode) + " echo at sample " + juce::String (peak));
+                expect (std::abs (out.getSample (0, peak)) > 0.2f, modeName (mode) + " echo level");
+            }
+        }
+
+        beginTest ("Aviation Delay: PING-PONG starts left and answers right");
+        {
+            const int T = 4800;
+            AD fx;
+            fx.prepare (delaySpec);
+            const auto out = renderDelay (fx, impulse (T * 3), delayValues ({ { AD::pStyle, (float) (int) AD::Style::pingPong },
+                                                                                { AD::pFeedback, 50.f } }));
+            auto level = [&] (int ch, int at) { return std::abs (out.getSample (ch, peakIndex (out, ch, at - 3, at + 4))); };
+            expect (level (0, T) > 0.3f && level (1, T) < 0.02f, "first repeat on the left only");
+            expect (level (1, 2 * T) > 0.15f && level (0, 2 * T) < 0.02f, "second repeat on the right only");
+        }
+
+        beginTest ("Aviation Delay: DIFFUSION smears a repeat into a wash");
+        {
+            auto spread = [&] (float diffusion)
+            {
+                AD fx;
+                fx.prepare (delaySpec);
+                const auto out = renderDelay (fx, impulse ((int) kSr), delayValues ({ { AD::pStyle, (float) (int) AD::Style::single },
+                                                                                        { AD::pTime, 200.f },
+                                                                                        { AD::pDiffusion, diffusion } }));
+                return energySpread (out, 0);
+            };
+            const double tight = spread (0.f), washed = spread (100.f);
+            expect (tight < 150.0, "diffusion 0 keeps the repeat tight: " + juce::String (tight, 1));
+            expect (washed > 1000.0, "diffusion 100 spreads the repeat: " + juce::String (washed, 1));
+        }
+
+        beginTest ("Aviation Delay: PITCH +12 st repeats an octave up");
+        {
+            AD fx;
+            fx.prepare (delaySpec);
+            const auto out = renderDelay (fx, toneThenSilence (1.5, 1.5, 220.f, 0.5f),
+                                          delayValues ({ { AD::pMode, (float) (int) AD::Mode::pitch },
+                                                         { AD::pStyle, (float) (int) AD::Style::single },
+                                                         { AD::pPitch, 12.f } }));
+            const int from = (int) (0.5 * kSr), to = (int) (1.5 * kSr);
+            int crossings = 0;
+            for (int i = from + 1; i < to; ++i)
+                if (out.getSample (0, i - 1) <= 0.f && out.getSample (0, i) > 0.f)
+                    ++crossings;
+            const double hz = crossings / ((to - from) / kSr);
+            expect (hz > 400.0 && hz < 480.0, "wet frequency " + juce::String (hz, 1) + " Hz");
+        }
+
+        beginTest ("Aviation Delay: DUCK holds the wet down while playing and blooms after");
+        {
+            const auto in = toneThenSilence (1.5, 2.5, 330.f, 0.5f);
+            auto wetRms = [&] (float duck, double fromSec, double toSec)
+            {
+                AD fx;
+                fx.prepare (delaySpec);
+                const auto out = renderDelay (fx, in, delayValues ({ { AD::pTime, 150.f }, { AD::pFeedback, 60.f },
+                                                                       { AD::pMix, 50.f }, { AD::pDuck, duck } }));
+                double sum = 0.0;
+                const int from = (int) (fromSec * kSr), to = (int) (toSec * kSr);
+                for (int i = from; i < to; ++i)
+                {
+                    const double w = out.getSample (0, i) - in.getSample (0, i);   // dry is unity at 50 % mix
+                    sum += w * w;
+                }
+                return std::sqrt (sum / (to - from));
+            };
+            const double openPlaying = wetRms (0.f, 0.8, 1.5), duckedPlaying = wetRms (100.f, 0.8, 1.5);
+            const double openTail = wetRms (0.f, 1.9, 2.4), duckedTail = wetRms (100.f, 1.9, 2.4);
+            expect (openPlaying > 0.05, "wet is audible without ducking");
+            expect (duckedPlaying < 0.2 * openPlaying,
+                    "ducked while playing: " + juce::String (duckedPlaying, 4) + " vs " + juce::String (openPlaying, 4));
+            expect (duckedTail > 0.35 * openTail,
+                    "tail blooms after the input stops: " + juce::String (duckedTail, 4) + " vs " + juce::String (openTail, 4));
+        }
+
+        beginTest ("Aviation Delay: every mode x style stays finite and bounded at 100 % feedback");
+        {
+            const auto in = toneThenSilence (2.0, 3.0, 220.f, 0.8f);
+            for (int mode = 0; mode < (int) AD::Mode::count; ++mode)
+                for (int style = 0; style < (int) AD::Style::count; ++style)
+                {
+                    AD fx;
+                    fx.prepare (delaySpec);
+                    const auto out = renderDelay (fx, in, delayValues ({ { AD::pMode, (float) mode }, { AD::pStyle, (float) style },
+                                                                           { AD::pTime, 90.f }, { AD::pFeedback, 100.f },
+                                                                           { AD::pDiffusion, 100.f }, { AD::pAge, 100.f },
+                                                                           { AD::pModDepth, 100.f }, { AD::pRatio, 50.f } }));
+                    expect (finiteAndBounded (out, 4.f), "mode " + juce::String (mode) + " style " + juce::String (style));
+                }
+        }
+
+        beginTest ("Aviation Delay: switching mode and style mid-stream is click-free");
+        {
+            AD fx;
+            fx.prepare (delaySpec);
+            const auto in = toneThenSilence (4.0, 4.0, 220.f, 0.4f);
+            int mode = 0, style = 1;
+            const auto out = renderDelay (fx, in, delayValues ({ { AD::pTime, 180.f }, { AD::pFeedback, 55.f },
+                                                                   { AD::pMix, 50.f }, { AD::pModDepth, 20.f } }),
+                                          [&] (int block, Mfx::Values& values)
+                                          {
+                                              if (block > 0 && block % 40 == 0)
+                                              {
+                                                  mode = (mode + 3) % (int) AD::Mode::count;
+                                                  style = (style + 1) % (int) AD::Style::count;
+                                                  values[AD::pMode] = (float) mode;
+                                                  values[AD::pStyle] = (float) style;
+                                              }
+                                          });
+            float maxStep = 0.f;
+            int maxAt = 0;
+            for (int ch = 0; ch < 2; ++ch)
+                for (int i = 1; i < out.getNumSamples(); ++i)
+                {
+                    const float step = std::abs (out.getSample (ch, i) - out.getSample (ch, i - 1));
+                    if (step > maxStep) { maxStep = step; maxAt = i; }
+                }
+            expect (finiteAndBounded (out, 4.f), "bounded through switches");
+            expect (maxStep < 0.25f, "largest sample step " + juce::String (maxStep) + " at block " + juce::String (maxAt / kBlock)
+                                     + " (switch every 40 blocks)");
+        }
+
+        // AVIATORKEYZ_DELAY_DEMO_DIR=<dir> renders every factory preset over a short
+        // plucked phrase so the modes can be auditioned without a host.
+        const auto demoDir = juce::SystemStats::getEnvironmentVariable ("AVIATORKEYZ_DELAY_DEMO_DIR", {});
+        if (demoDir.isNotEmpty())
+        {
+            beginTest ("Aviation Delay: render preset demos");
+            const juce::File dir (demoDir);
+            dir.createDirectory();
+
+            // C4 E4 G4 B4 plucks, 8th notes at 120 BPM, then a long tail
+            juce::AudioBuffer<float> phrase (2, (int) (6.0 * kSr));
+            phrase.clear();
+            const float notes[] { 261.63f, 329.63f, 392.0f, 493.88f };
+            for (int k = 0; k < 4; ++k)
+            {
+                const int start = (int) (k * 0.25 * kSr);
+                for (int i = 0; i < (int) (0.9 * kSr) && start + i < phrase.getNumSamples(); ++i)
+                {
+                    const float t = (float) i / (float) kSr;
+                    const float env = std::exp (-t * 6.f) * juce::jmin (1.f, t * 400.f);
+                    const float w = juce::MathConstants<float>::twoPi * notes[k] * t;
+                    const float s = 0.3f * env * (std::sin (w) + 0.4f * std::sin (2.f * w) + 0.15f * std::sin (3.f * w));
+                    phrase.addSample (0, start + i, s);
+                    phrase.addSample (1, start + i, s);
+                }
+            }
+
+            auto writeWav = [&] (const juce::String& name, const juce::AudioBuffer<float>& audio)
+            {
+                const auto file = dir.getChildFile (name + ".wav");
+                file.deleteFile();
+                juce::WavAudioFormat wav;
+                std::unique_ptr<juce::OutputStream> stream (file.createOutputStream());
+                std::unique_ptr<juce::AudioFormatWriter> writer;
+                if (stream != nullptr)   // on success the writer takes ownership of the stream
+                    writer = wav.createWriterFor (stream, juce::AudioFormatWriterOptions{}.withSampleRate (kSr)
+                                                                                         .withNumChannels (2)
+                                                                                         .withBitsPerSample (24));
+                expect (writer != nullptr, "writer for " + file.getFileName());
+                if (writer != nullptr)
+                    expect (writer->writeFromAudioSampleBuffer (audio, 0, audio.getNumSamples()));
+            };
+
+            writeWav ("0_Dry", phrase);
+            for (int p = 0; p < Mfx::kMaxPresets; ++p)
+            {
+                const auto& pr = delayDesc.presets[(size_t) p];
+                if (pr.name == nullptr)
+                    continue;
+                const auto norm = Mfx::presetNormalised (Mfx::Effect::aviationDelay, p);
+                Mfx::Values values {};
+                for (int i = 0; i < Mfx::kParamsPerSlot; ++i)
+                    values[(size_t) i] = delayDesc.params[(size_t) i].denormalise (norm[(size_t) i]);
+                AD fx;
+                fx.prepare (delaySpec);
+                writeWav (juce::String (p + 1) + "_" + juce::String (pr.name).replaceCharacter (' ', '_'),
+                          renderDelay (fx, phrase, values));
+            }
+            logMessage ("Aviation Delay demos written to " + dir.getFullPathName());
         }
     }
 };

@@ -13,7 +13,7 @@ Mfx::EffectProcessor* MfxRack::makeEffect (Mfx::Effect e)
     {
         case Mfx::Effect::grainCloud:  return new Mfx::GrainCloud();
         case Mfx::Effect::sweepFilter: return new Mfx::SweepFilter();
-        case Mfx::Effect::tapeEcho:    return new Mfx::TapeEcho();
+        case Mfx::Effect::aviationDelay: return new Mfx::AviationDelay();
         case Mfx::Effect::saturator:   return new Mfx::Saturator();
         case Mfx::Effect::stutter:     return new Mfx::Stutter();
         case Mfx::Effect::freeze:      return new Mfx::Freeze();
@@ -55,15 +55,15 @@ void MfxRack::prepare (const juce::dsp::ProcessSpec& spec)
         slot.levelSmoothed.reset (spec.sampleRate, 0.02);
         slot.levelSmoothed.setCurrentAndTargetValue (1.f);
     }
-    sendReverb.setSampleRate (spec.sampleRate);
-    juce::Reverb::Parameters p;
-    p.roomSize = 0.82f;
-    p.damping = 0.45f;
-    p.width = 1.f;
-    p.wetLevel = 1.f;
-    p.dryLevel = 0.f;
-    sendReverb.setParameters (p);
-    sendReverb.reset();
+    AviationReverb::Settings send;
+    send.algorithm = AviationReverb::Algorithm::hall;
+    send.size = 0.6f;
+    send.damping = 0.45f;
+    send.width = 1.f;
+    sendReverb.setSettings (send);
+    sendReverb.prepare (spec.sampleRate, (int) spec.maximumBlockSize);
+    sendTailLength = (int) (1.5f * AviationReverb::targetRt60Seconds (send.algorithm, send.size) * spec.sampleRate);
+    sendTailRemaining = 0;
     sendBus.setSize (2, (int) spec.maximumBlockSize, false, true, true);
     prepared = true;
 }
@@ -74,6 +74,7 @@ void MfxRack::reset()
         for (auto& fx : slot.effects)
             fx->reset();
     sendReverb.reset();
+    sendTailRemaining = 0;
     sendBus.clear();
 }
 
@@ -190,8 +191,13 @@ void MfxRack::process (juce::AudioBuffer<float>& buffer,
     }
 
     if (anySend)
+        sendTailRemaining = sendTailLength;
+
+    if (anySend || sendTailRemaining > 0)
     {
-        sendReverb.processStereo (sendBus.getWritePointer (0), sendBus.getWritePointer (1), n);
+        sendTailRemaining = juce::jmax (0, sendTailRemaining - n);
+        sendReverb.process (sendBus.getReadPointer (0), sendBus.getReadPointer (1),
+                            sendBus.getWritePointer (0), sendBus.getWritePointer (1), n);
         buffer.addFrom (0, 0, sendBus, 0, 0, n, 0.6f);
         buffer.addFrom (1, 0, sendBus, 1, 0, n, 0.6f);
     }

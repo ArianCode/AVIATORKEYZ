@@ -114,6 +114,8 @@ public:
             expectEquals (juce::String (ParamID::PHRASE_TEMPO_SYNC),  juce::String ("phrase_tempo_sync"));
             expectEquals (juce::String (ParamID::FX_REVERB_ON),       juce::String ("fx_reverb_on"));
             expectEquals (juce::String (ParamID::FX_REVERB_DAMP),     juce::String ("fx_reverb_damp"));
+            expectEquals (juce::String (ParamID::FX_REVERB_MODE),     juce::String ("fx_reverb_mode"));
+            expectEquals (juce::String (ParamID::FX_REVERB_COLOR),    juce::String ("fx_reverb_color"));
             expectEquals (juce::String (ParamID::FX_EDITS_ON),        juce::String ("fx_edits_on"));
             expectEquals (juce::String (ParamID::PERF_MACRO_1),       juce::String ("perf_macro_1"));
             expectEquals (juce::String (ParamID::PERF_MACRO_4),       juce::String ("perf_macro_4"));

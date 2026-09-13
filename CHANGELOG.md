@@ -5,6 +5,62 @@ Format: [Version] — Date — Summary
 
 ---
 
+## [Unreleased] — 2026-09-10 — Aviation Reverb: multi-topology reverb engine
+
+### Added
+- **AviationReverb** (`Source/DSP/Reverb/AviationReverb.*`) replaces Freeverb
+  (`juce::Reverb`) in all three places: the main Space reverb (`ReverbTail`),
+  the MFX Space effect and the MFX send return. Five topologies, not presets of
+  one network: PLATE (Dattorro figure-eight tank), HALL and ROOM (8-line
+  Hadamard FDN with early reflections), CLOUD (FDN with in-loop all-pass
+  diffusion and slow random drift), HARDWARE (ring of nested all-pass sections
+  with a band-limited loop). COLOR: MODERN or VINTAGE (converter band limiting +
+  12-bit magnitude truncation on the tank input and wet output).
+- Params `fx_reverb_mode` (default Plate) and `fx_reverb_color` (default
+  Modern) — host/preset only, no editor control yet. MFX Space and the send
+  return use Hall.
+- Calibrated against the old engine: measured RT60 within ±4 % of target;
+  wet energy within 0.7 dB of `juce::Reverb` at size 0.5 / damping 0.4.
+- Tests: `AviationReverbTests` (RT60 via Schroeder integration, wet level,
+  stereo decorrelation, click-free algorithm switching, no limit cycles,
+  vintage reaches digital silence, ReverbTail mix law); reverb added to the
+  realtime allocation guard.
+
+### Fixed
+- Enabling the main reverb no longer boosts the dry signal: `juce::Reverb`
+  scaled dry by 2×, so reverb at mix 0.1 raised the whole instrument ~5 dB.
+  `ReverbTail` now uses an equal-power mix and glides to dry when switched off.
+- The MFX send return keeps ringing after sends close instead of cutting off.
+
+## [Unreleased] — 2026-09-10 — Aviation Delay: multi-model delay engine
+
+### Added
+- **Aviation Delay** (`Source/DSP/Mfx/AviationDelay.*`) replaces Tape Echo as MFX
+  effect index 2, so saved slots still load a delay. Uses all 16 generic slots, no
+  new parameter IDs: MODE, STYLE, TIME, SYNC (13 divisions), FEEDBACK, MIX,
+  DIFFUSION, MOD DEPTH, MOD RATE, LO CUT, HI CUT, AGE, DUCK, PITCH, RATIO, WIDTH.
+- MODE changes the delay line itself. All colouring sits inside the feedback loop,
+  so each repeat is coloured again:
+  CLEAN (Hermite fractional delay + chorus mod), TAPE (record saturation,
+  delay-time-dependent gap loss, wow/flutter/drift, asperity noise, splice bumps
+  and dropouts with AGE), ANALOG (asymmetric diode clip, drift, hiss), BBD
+  (compander, clock-rate sample & hold with tracking anti-alias filters,
+  signal-dependent noise), LO-FI (32 kHz/15-bit → 5.5 kHz/6-bit converter),
+  PITCH (rotating-head shifter in the loop, L/R detune), REVERSE (windowed
+  backwards grains), CLOUD (8-stage modulated diffusion, long-tail feedback).
+- STYLE sets routing: SINGLE, STEREO, PING-PONG, DUAL (R = T·ratio), RATIO
+  (snapped musical ratios, cross-fed), QUAD (taps at T·r³, T·r², T·r, T).
+- DIFFUSION: all-pass chain in the record path. Its nominal delay is subtracted
+  from the playback head, and it fades in over the first 5 % of the knob, so
+  0 % stays an exact, uncoloured delay.
+- DUCK: one-knob, program-dependent. The dry signal holds the wet down; the
+  wet blooms when you stop playing.
+- 8 factory presets (one per mode); `Mfx::kMaxPresets` 4 → 8.
+- Tests: 7 new MFX cases (echo timing, ping-pong, diffusion smear, octave pitch,
+  ducking, 48 mode×style runs at 100 % feedback, click-free mode switching).
+  `AVIATORKEYZ_DELAY_DEMO_DIR=<dir>` renders each preset to WAV.
+
+
 ## [Unreleased] — 2026-09-05 (evening) — Time stretch, slice pads, flipper controls, front-page pan + envelope switch
 
 ### Added

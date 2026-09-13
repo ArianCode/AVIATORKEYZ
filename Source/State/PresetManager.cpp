@@ -41,6 +41,8 @@ constexpr const char* kFxPresetParamIds[] {
     AviatorKeyz::ParamID::REVERB_SIZE,
     AviatorKeyz::ParamID::FX_REVERB_ON,
     AviatorKeyz::ParamID::FX_REVERB_DAMP,
+    AviatorKeyz::ParamID::FX_REVERB_MODE,
+    AviatorKeyz::ParamID::FX_REVERB_COLOR,
     AviatorKeyz::ParamID::FX_DELAY_ON,
     AviatorKeyz::ParamID::FX_DELAY_TIME,
     AviatorKeyz::ParamID::FX_DELAY_FEEDBACK,

@@ -1,5 +1,6 @@
 #include "AdvancedParameterLayout.h"
 #include "../../DSP/ModMatrix.h"
+#include "../../DSP/Reverb/AviationReverb.h"
 #include "../../State/StateSchema.h"
 
 using namespace juce;
@@ -118,6 +119,8 @@ void AdvancedParameterLayout::appendParameters (std::vector<std::unique_ptr<Rang
 
     params.push_back (std::make_unique<APB> (ParameterID { ParamID::FX_REVERB_ON, 1 }, "Reverb On", false));
     params.push_back (std::make_unique<APF> (ParameterID { ParamID::FX_REVERB_DAMP, 1 }, "Reverb Damp", NR (0.f, 1.f, 0.001f), 0.4f));
+    params.push_back (std::make_unique<APFC> (ParameterID { ParamID::FX_REVERB_MODE, 1 }, "Reverb Mode", AviationReverb::algorithmNames(), 0));
+    params.push_back (std::make_unique<APFC> (ParameterID { ParamID::FX_REVERB_COLOR, 1 }, "Reverb Color", AviationReverb::colorNames(), 0));
     params.push_back (std::make_unique<APB> (ParameterID { ParamID::FX_EDITS_ON, 1 }, "Preset FX Edits", true));
 
     params.push_back (std::make_unique<APB> (ParameterID { ParamID::FX_DELAY_ON, 1 }, "Delay On", false));

@@ -23,7 +23,7 @@ PERFORMANCE_LAYOUT_CPP = ROOT / "Source" / "GUI" / "Advanced" / "PerformancePara
 PROCESSOR_CPP = ROOT / "Source" / "PluginProcessor.cpp"
 PRESETS_DIR = ROOT / "Resources" / "Presets" / "Factory"
 
-EXPECTED_PARAM_COUNT = 249
+EXPECTED_PARAM_COUNT = 268
 CHOP_STEP_COUNT = 16
 CHOP_STEP_SUFFIXES = ("on", "vol", "offset", "rev", "pitch")
 

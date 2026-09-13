@@ -3,6 +3,7 @@
 #include "MfxDescriptors.h"
 #include "../TextureEngine.h"
 #include "../FilterProcessor.h"
+#include "../Reverb/AviationReverb.h"
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_dsp/juce_dsp.h>
 #include <array>
@@ -66,26 +67,7 @@ namespace Mfx
         float envLevel { 0.f };
     };
 
-    // -------------------------------------------------------------------------
-    class TapeEcho final : public EffectProcessor
-    {
-    public:
-        void prepare (const juce::dsp::ProcessSpec& spec) override;
-        void reset() override;
-        void process (juce::AudioBuffer<float>& buffer, const Values& v, const Clock& clock) noexcept override;
-    private:
-        static constexpr double kMaxDelaySec = 2.2;
-        juce::AudioBuffer<float> line;       // circular, 2 ch
-        int writePos { 0 };
-        int lineLen { 1 };
-        double sampleRate { 44100.0 };
-        float wowPhase { 0.f };
-        float delaySmoothed { 0.f };
-        float fbLpL { 0.f }, fbLpR { 0.f };
-        float fbHpL { 0.f }, fbHpR { 0.f };
-        float fbHpInL { 0.f }, fbHpInR { 0.f };
-        juce::AudioBuffer<float> dry;
-    };
+    // (the delay slot lives in AviationDelay.h)
 
     // -------------------------------------------------------------------------
     class Saturator final : public EffectProcessor
@@ -198,10 +180,7 @@ namespace Mfx
         void reset() override;
         void process (juce::AudioBuffer<float>& buffer, const Values& v, const Clock& clock) noexcept override;
     private:
-        juce::Reverb reverb;
-        juce::AudioBuffer<float> pre;     // predelay circular buffer
-        int preLen { 1 };
-        int preWrite { 0 };
+        AviationReverb::Engine reverb;    // Hall; pre-delay handled by the engine
         float hpL { 0.f }, hpR { 0.f }, hpInL { 0.f }, hpInR { 0.f };
         double sampleRate { 44100.0 };
         juce::AudioBuffer<float> dry;

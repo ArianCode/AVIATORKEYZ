@@ -998,6 +998,10 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
     const bool reverbOn = apvts.getRawParameterValue (P::FX_REVERB_ON)->load() > 0.5f
                           && revAmt >= 0.001f;
     const float reverbDamp = apvts.getRawParameterValue (P::FX_REVERB_DAMP)->load();
+    const auto reverbMode = AviationReverb::algorithmFromIndex (
+        (int) apvts.getRawParameterValue (P::FX_REVERB_MODE)->load());
+    const auto reverbColor = AviationReverb::colorFromIndex (
+        (int) apvts.getRawParameterValue (P::FX_REVERB_COLOR)->load());
 
     const float brightnessTone = (brightness - 0.5f) * 2.f;
     if (std::abs (brightnessTone) >= 0.001f)
@@ -1024,13 +1028,12 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
 #endif
     }
 
-    if (reverbOn)
-    {
-        reverbTail.process (buffer, revAmt, revSize, true, reverbDamp);
+    // Always called: off/amount changes glide to dry instead of cutting the tail.
+    reverbTail.process (buffer, revAmt, revSize, reverbOn, reverbDamp, reverbMode, reverbColor);
 #if JUCE_DEBUG
+    if (reverbTail.isActive())
         printBufferLevel ("07 reverb", buffer);
 #endif
-    }
 
     const bool delayOn   = apvts.getRawParameterValue (P::FX_DELAY_ON)->load() > 0.5f;
     const float delayTime = apvts.getRawParameterValue (P::FX_DELAY_TIME)->load();

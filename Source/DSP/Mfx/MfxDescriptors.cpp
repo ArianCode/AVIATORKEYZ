@@ -76,22 +76,34 @@ const std::array<Descriptor, (size_t) Effect::count>& table()
             preset ("HP Riser",    { 3000, 35, 1, 5, 0.1f, 40, 0, 100 }),
             preset ("Notch Swirl", { 1400, 40, 3, 0, 0.25f, 70, 0, 100 }) } },
 
-        // 2 TAPE ECHO
-        { Effect::tapeEcho, "tape", "Tape Echo", Category::delay,
-          { lg  ("Time",     20.f, 2000.f, 120.f, 900.f, 375.f, "ms"),       // 0
-            chc ("Sync",     7, 0, 6, 0),                                    // 1 Free 1/16 1/8 1/8T 1/4 1/4D 1/2
-            lin ("Feedback", 0.f, 95.f, 10.f, 55.f, 38.f, "%", true),        // 2
-            lin ("Wow",      0.f, 100.f, 0.f, 45.f, 18.f, "%"),              // 3
-            lin ("Age",      0.f, 100.f, 10.f, 80.f, 42.f, "%"),             // 4
-            lg  ("Lo Cut",   20.f, 800.f, 40.f, 400.f, 120.f, "Hz"),         // 5
-            lin ("Spread",   0.f, 100.f, 0.f, 60.f, 25.f, "%"),              // 6
-            lin ("Mix",      0.f, 100.f, 15.f, 60.f, 32.f, "%"),             // 7
-            none, none, none, none, none, none, none, none },
-          { 2, 7, 3, 0 },
-          { preset ("Slapback",  { 110, 0, 12, 5, 30, 150, 0, 28 }),
-            preset ("Dub Tail",  { 375, 4, 62, 30, 65, 120, 40, 40 }),
-            preset ("Dotted Air",{ 500, 5, 40, 10, 25, 200, 20, 30 }),
-            preset ("Worn Reel", { 430, 0, 50, 45, 85, 90, 10, 35 }) } },
+        // 2 AVIATION DELAY  (multi-model engine, see AviationDelay.h; slot order = AviationDelay::Param)
+        { Effect::aviationDelay, "delay", "Aviation Delay", Category::delay,
+          { chc ("Mode",      8, 0, 7, 0),                                     // 0 Clean Tape Analog BBD Lo-Fi Pitch Reverse Cloud
+            chc ("Style",     6, 0, 5, 1),                                     // 1 Single Stereo Ping-Pong Dual Ratio Quad
+            lg  ("Time",      10.f, 2000.f, 90.f, 900.f, 375.f, "ms"),         // 2
+            chc ("Sync",      13, 0, 11, 0),                                   // 3 FREE 1/32 .. 1/1
+            lin ("Feedback",  0.f, 100.f, 10.f, 70.f, 35.f, "%", true),        // 4
+            lin ("Mix",       0.f, 100.f, 15.f, 55.f, 30.f, "%"),              // 5
+            lin ("Diffusion", 0.f, 100.f, 0.f, 70.f, 0.f, "%"),                // 6
+            lin ("Mod Depth", 0.f, 100.f, 0.f, 55.f, 12.f, "%"),               // 7 wow/flutter, chorus, pitch detune
+            lg  ("Mod Rate",  0.05f, 10.f, 0.1f, 3.f, 0.6f, "Hz"),             // 8
+            lg  ("Lo Cut",    20.f, 2000.f, 20.f, 400.f, 60.f, "Hz"),          // 9  in the feedback loop
+            lg  ("Hi Cut",    400.f, 20000.f, 2500.f, 16000.f, 12000.f, "Hz"), // 10 in the feedback loop
+            lin ("Age",       0.f, 100.f, 0.f, 70.f, 25.f, "%"),               // 11 saturation / noise / wear per mode
+            lin ("Duck",      0.f, 100.f, 0.f, 60.f, 0.f, "%"),                // 12 one-knob ducking
+            lin ("Pitch",    -12.f, 12.f, -12.f, 12.f, 12.f, "st"),            // 13 PITCH mode
+            lin ("Ratio",     25.f, 100.f, 40.f, 100.f, 75.f, "%"),            // 14 DUAL / RATIO / QUAD
+            lin ("Width",     0.f, 100.f, 50.f, 100.f, 100.f, "%") },          // 15
+          { 5, 4, 6, 2 },
+          //                         mode sty time sync  fb mix dif dep  rate  lo    hi   age duck pit rat wid
+          { preset ("Clean Dotted",   { 0, 2, 375,  7,  38, 28,  0,  8, 0.4f,  80, 11000,  0, 20, 12, 75, 100 }),
+            preset ("Dub Reel",       { 1, 1, 420,  9,  66, 34,  8, 28, 0.7f, 110,  7500, 55, 15, 12, 75,  90 }),
+            preset ("Warm Analog",    { 2, 3, 330,  0,  45, 30,  0, 18, 0.35f, 90,  6500, 35, 25, 12, 75, 100 }),
+            preset ("Bucket Brigade", { 3, 1, 300,  6,  55, 32,  0, 30, 0.9f, 100,  9000, 40, 10, 12, 75, 100 }),
+            preset ("Sampler Grit",   { 4, 2, 250,  6,  45, 30,  0, 10, 2.5f, 150,  9000, 60, 20, 12, 75, 100 }),
+            preset ("Octave Shimmer", { 5, 1, 480, 10,  60, 32, 45, 20, 0.4f, 150,  9000, 10, 35, 12, 75, 100 }),
+            preset ("Reverse Swell",  { 6, 1, 600, 11,  40, 38, 25, 10, 0.3f, 120, 10000, 10,  0, 12, 75, 100 }),
+            preset ("Cloud Bloom",    { 7, 1, 700,  0,  72, 40, 80, 35, 0.35f, 180, 8000, 20, 60, 12, 75, 100 }) } },
 
         // 3 SATURATOR
         { Effect::saturator, "sat", "Saturator", Category::drive,
@@ -323,7 +335,9 @@ juce::String valueText (const ParamSpec& spec, float v)
         const int idx = (int) std::round (v);
         const juce::String label (spec.label);
         if (label == "Type")     { static const char* n[] = { "LP", "HP", "BP", "NOTCH" }; return n[juce::jlimit (0, 3, idx)]; }
-        if (label == "Sync")     { static const char* n[] = { "FREE", "1/16", "1/8", "1/8T", "1/4", "1/4D", "1/2" }; return n[juce::jlimit (0, 6, idx)]; }
+        if (label == "Sync")     { static const char* n[] = { "FREE", "1/32", "1/16T", "1/16", "1/16D", "1/8T", "1/8", "1/8D", "1/4T", "1/4", "1/4D", "1/2", "1/1" }; return n[juce::jlimit (0, 12, idx)]; }
+        if (label == "Mode")     { static const char* n[] = { "CLEAN", "TAPE", "ANALOG", "BBD", "LO-FI", "PITCH", "REVERSE", "CLOUD" }; return n[juce::jlimit (0, 7, idx)]; }
+        if (label == "Style")    { static const char* n[] = { "SINGLE", "STEREO", "PING-PONG", "DUAL", "RATIO", "QUAD" }; return n[juce::jlimit (0, 5, idx)]; }
         if (label == "Division") { static const char* n[] = { "1/4", "1/8", "1/16", "1/32" }; return n[juce::jlimit (0, 3, idx)]; }
         if (label == "Freeze" || label == "Engage") return idx ? "ON" : "OFF";
         return juce::String (idx);

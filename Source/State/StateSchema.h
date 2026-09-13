@@ -263,6 +263,10 @@ namespace ParamID {
     // --- FX routing (v3) ---
     static constexpr const char* FX_REVERB_DAMP  = "fx_reverb_damp";
     static constexpr const char* FX_REVERB_ON    = "fx_reverb_on";
+    // AviationReverb algorithm (Plate/Hall/Room/Cloud/Hardware) and color
+    // (Modern/Vintage). Host/preset only for now — no editor control yet.
+    static constexpr const char* FX_REVERB_MODE  = "fx_reverb_mode";
+    static constexpr const char* FX_REVERB_COLOR = "fx_reverb_color";
     /** When true, preset state includes audio FX parameter edits. */
     static constexpr const char* FX_EDITS_ON     = "fx_edits_on";
 

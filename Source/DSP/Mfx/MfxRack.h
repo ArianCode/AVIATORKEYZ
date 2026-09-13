@@ -2,6 +2,7 @@
 
 #include "MfxDescriptors.h"
 #include "MfxEffects.h"
+#include "AviationDelay.h"
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 #include <array>
@@ -104,8 +105,10 @@ private:
     std::array<std::atomic<float>, Mfx::kNumSlots> slotLevel {};
     std::array<std::array<std::atomic<float>, Mfx::kParamsPerSlot>, Mfx::kNumSlots> liveValues {};
 
-    juce::Reverb sendReverb;
+    AviationReverb::Engine sendReverb;     // Hall return
     juce::AudioBuffer<float> sendBus;
+    int sendTailRemaining { 0 };           // keeps the return ringing after sends close
+    int sendTailLength { 0 };
     bool prepared { false };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MfxRack)

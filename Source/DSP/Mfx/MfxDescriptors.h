@@ -23,13 +23,13 @@ namespace Mfx
     static constexpr int kNumSlots      = 2;   // rack: slot A -> slot B in series
     static constexpr int kParamsPerSlot = 16;
     static constexpr int kNumAssigns    = 4;
-    static constexpr int kMaxPresets    = 4;
+    static constexpr int kMaxPresets    = 8;
 
     enum class Effect : int
     {
         grainCloud = 0,
         sweepFilter,
-        tapeEcho,
+        aviationDelay,   // multi-model delay (index 2, formerly Tape Echo — saved slots keep a delay)
         saturator,
         stutter,
         freeze,

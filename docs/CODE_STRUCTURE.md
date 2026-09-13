@@ -96,7 +96,8 @@ Audio-thread-only processing. No allocations, GUI calls, or locks inside `proces
 | `TextureEngine` | Granular / spectral texture processing |
 | `ToneShaper` | Single-knob tilt EQ |
 | `SmearProcessor` | Transient blur / diffusion |
-| `ReverbTail` | Plate-style reverb |
+| `ReverbTail` | Space section reverb — equal-power mix over `AviationReverb` |
+| `Reverb/AviationReverb` | Algorithmic reverb engine (Dattorro plate, Hadamard FDN hall/room/cloud, nested all-pass hardware ring; Modern/Vintage color). Also drives MFX Space and the MFX send return |
 | `FxChain` | Delay, chorus, lo-fi, distortion |
 | `OutputLimiter` | Final peak limiting |
 

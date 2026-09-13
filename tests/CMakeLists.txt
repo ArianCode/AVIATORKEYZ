@@ -53,11 +53,13 @@ target_sources(${_AVIATORKEYZ_TEST_TARGET}
         ArpeggiatorTests.cpp
         FlightDeckWiringTests.cpp
         MfxTests.cpp
+        AviationReverbTests.cpp
         ${CMAKE_SOURCE_DIR}/Source/PluginProcessor.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/Arpeggiator.cpp
         ${CMAKE_SOURCE_DIR}/Source/State/SampleAnalysis.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/Mfx/MfxDescriptors.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/Mfx/MfxEffects.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/Mfx/AviationDelay.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/Mfx/MfxRack.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/StretchPlayer.cpp
         StretchAndSliceTests.cpp
@@ -65,6 +67,7 @@ target_sources(${_AVIATORKEYZ_TEST_TARGET}
         ${CMAKE_SOURCE_DIR}/Source/DSP/OutputLimiter.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/SmearProcessor.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/ReverbTail.cpp
+        ${CMAKE_SOURCE_DIR}/Source/DSP/Reverb/AviationReverb.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/FxChain.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/Performance/PerformanceTexturePipeline.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/Performance/PerformanceFxEngine.cpp

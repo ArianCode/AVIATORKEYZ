@@ -23,21 +23,6 @@ inline void copyDry (juce::AudioBuffer<float>& dry, const juce::AudioBuffer<floa
         dry.copyFrom (ch, 0, src, ch, 0, n);
 }
 
-/** Beats for a Tape Echo SYNC choice (0 = free). */
-inline double syncBeats (int choice) noexcept
-{
-    switch (choice)
-    {
-        case 1: return 0.25;          // 1/16
-        case 2: return 0.5;           // 1/8
-        case 3: return 1.0 / 3.0;     // 1/8T
-        case 4: return 1.0;           // 1/4
-        case 5: return 1.5;           // 1/4D
-        case 6: return 2.0;           // 1/2
-        default: return 0.0;
-    }
-}
-
 inline double divisionBeats (int choice) noexcept
 {
     switch (choice)
@@ -132,95 +117,6 @@ void SweepFilter::process (juce::AudioBuffer<float>& buffer, const Values& v, co
                           envLevel);
     filter.process (buffer);
     blendDry (buffer, dry, pct (v[7]));
-}
-
-// =============================================================================
-//  Tape Echo
-// =============================================================================
-void TapeEcho::prepare (const juce::dsp::ProcessSpec& spec)
-{
-    sampleRate = spec.sampleRate;
-    lineLen = juce::jmax (16, (int) (kMaxDelaySec * sampleRate) + 64);
-    line.setSize (2, lineLen, false, true, true);
-    dry.setSize (2, (int) spec.maximumBlockSize, false, true, true);
-    reset();
-}
-
-void TapeEcho::reset()
-{
-    line.clear();
-    writePos = 0;
-    wowPhase = 0.f;
-    delaySmoothed = 0.f;
-    fbLpL = fbLpR = fbHpL = fbHpR = fbHpInL = fbHpInR = 0.f;
-}
-
-void TapeEcho::process (juce::AudioBuffer<float>& buffer, const Values& v, const Clock& clock) noexcept
-{
-    const int n = buffer.getNumSamples();
-    if (n <= 0 || n > dry.getNumSamples())
-        return;
-    copyDry (dry, buffer);
-
-    double timeSec = v[0] * 0.001;
-    const double beats = syncBeats (juce::roundToInt (v[1]));
-    if (beats > 0.0)
-        timeSec = beats * 60.0 / juce::jmax (20.0, clock.bpm);
-    const float targetSamples = (float) juce::jlimit (1.0, kMaxDelaySec * sampleRate - 8.0, timeSec * sampleRate);
-    if (delaySmoothed <= 0.f)
-        delaySmoothed = targetSamples;
-
-    const float fb = pct (v[2]) * 0.95f;
-    const float wowDepth = pct (v[3]) * 0.006f * (float) sampleRate;   // up to 6 ms
-    const float ageCoef = onePoleCoef (juce::jmap (pct (v[4]), 16000.f, 1800.f), sampleRate);
-    const float hpCoef = onePoleCoef (v[5], sampleRate);
-    const float spread = pct (v[6]);
-    const float mix = pct (v[7]);
-    const float wowInc = 0.45f / (float) sampleRate;
-    const float smoothCoef = 0.0008f;
-
-    float* L = buffer.getWritePointer (0);
-    float* R = buffer.getWritePointer (1);
-    float* lineL = line.getWritePointer (0);
-    float* lineR = line.getWritePointer (1);
-
-    for (int i = 0; i < n; ++i)
-    {
-        delaySmoothed += (targetSamples - delaySmoothed) * smoothCoef;
-        const float wow = std::sin (wowPhase * kTwoPi) * wowDepth;
-        wowPhase += wowInc;
-        if (wowPhase >= 1.f) wowPhase -= 1.f;
-
-        auto readAt = [&] (const float* src, float delaySamples) noexcept
-        {
-            float pos = (float) writePos - delaySamples;
-            while (pos < 0.f) pos += (float) lineLen;
-            const int i0 = (int) pos;
-            const float frac = pos - (float) i0;
-            const int i1 = (i0 + 1) % lineLen;
-            return src[i0] + (src[i1] - src[i0]) * frac;
-        };
-
-        const float dL = juce::jlimit (1.f, (float) lineLen - 4.f, delaySmoothed + wow);
-        const float dR = juce::jlimit (1.f, (float) lineLen - 4.f, delaySmoothed * (1.f + spread * 0.18f) - wow);
-        const float wetL = readAt (lineL, dL);
-        const float wetR = readAt (lineR, dR);
-
-        // feedback path: age (LP) + lo cut (HP) + soft clip
-        fbLpL += ageCoef * (wetL - fbLpL);
-        fbLpR += ageCoef * (wetR - fbLpR);
-        const float hpOutL = fbLpL - fbHpInL + (1.f - hpCoef) * fbHpL; fbHpInL = fbLpL; fbHpL = hpOutL;
-        const float hpOutR = fbLpR - fbHpInR + (1.f - hpCoef) * fbHpR; fbHpInR = fbLpR; fbHpR = hpOutR;
-
-        lineL[writePos] = std::tanh (L[i] + hpOutL * fb);
-        lineR[writePos] = std::tanh (R[i] + hpOutR * fb);
-        writePos = (writePos + 1) % lineLen;
-
-        L[i] = wetL;
-        R[i] = wetR;
-    }
-
-    blendDry (buffer, dry, mix);
 }
 
 // =============================================================================
@@ -585,9 +481,7 @@ void Chorus::process (juce::AudioBuffer<float>& buffer, const Values& v, const C
 void Space::prepare (const juce::dsp::ProcessSpec& spec)
 {
     sampleRate = spec.sampleRate;
-    reverb.setSampleRate (spec.sampleRate);
-    preLen = juce::jmax (16, (int) (0.25 * sampleRate));
-    pre.setSize (2, preLen, false, true, true);
+    reverb.prepare (spec.sampleRate, (int) spec.maximumBlockSize);
     dry.setSize (2, (int) spec.maximumBlockSize, false, true, true);
     reset();
 }
@@ -595,8 +489,6 @@ void Space::prepare (const juce::dsp::ProcessSpec& spec)
 void Space::reset()
 {
     reverb.reset();
-    pre.clear();
-    preWrite = 0;
     hpL = hpR = hpInL = hpInR = 0.f;
 }
 
@@ -607,36 +499,28 @@ void Space::process (juce::AudioBuffer<float>& buffer, const Values& v, const Cl
         return;
     copyDry (dry, buffer);
 
-    juce::Reverb::Parameters p;
-    p.roomSize = pct (v[0]);
-    p.damping = pct (v[1]);
-    p.width = pct (v[2]);
-    p.wetLevel = 1.f;
-    p.dryLevel = 0.f;
-    p.freezeMode = 0.f;
-    reverb.setParameters (p);
+    AviationReverb::Settings settings;
+    settings.algorithm = AviationReverb::Algorithm::hall;
+    settings.size = pct (v[0]);
+    settings.damping = pct (v[1]);
+    settings.width = pct (v[2]);
+    settings.preDelayMs = v[3];
+    reverb.setSettings (settings);
 
-    const int preSamples = juce::jlimit (1, preLen - 2, (int) (v[3] * 0.001 * sampleRate));
     const float hpCoef = onePoleCoef (v[4], sampleRate);
 
     float* L = buffer.getWritePointer (0);
     float* R = buffer.getWritePointer (1);
-    float* pL = pre.getWritePointer (0);
-    float* pR = pre.getWritePointer (1);
     for (int i = 0; i < n; ++i)
     {
-        pL[preWrite] = L[i];
-        pR[preWrite] = R[i];
-        const int rp = (preWrite - preSamples + preLen) % preLen;
-        float inL = pL[rp], inR = pR[rp];
         // lo cut into the reverb
+        const float inL = L[i], inR = R[i];
         const float oL = inL - hpInL + (1.f - hpCoef) * hpL; hpInL = inL; hpL = oL;
         const float oR = inR - hpInR + (1.f - hpCoef) * hpR; hpInR = inR; hpR = oR;
         L[i] = oL;
         R[i] = oR;
-        preWrite = (preWrite + 1) % preLen;
     }
-    reverb.processStereo (L, R, n);
+    reverb.process (L, R, L, R, n);
     blendDry (buffer, dry, pct (v[5]));
 }
 } // namespace Mfx

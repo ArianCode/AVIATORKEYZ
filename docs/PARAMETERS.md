@@ -116,7 +116,7 @@ Two effect slots in series (A → B) with a shared reverb send. Each slot owns *
 | ID pattern | Type | Range | Default | Notes |
 |---|---|---|---|---|
 | `mfx{1,2}_on` | Bool | off / on | off | Slot power |
-| `mfx{1,2}_effect` | Choice | Grain Cloud, Sweep Filter, Tape Echo, Saturator, Stutter, Freeze, Bitcrusher, Compressor, Chorus, Space | A: Sweep Filter · B: Grain Cloud | Switching loads that effect's defaults into the bank |
+| `mfx{1,2}_effect` | Choice | Grain Cloud, Sweep Filter, Aviation Delay, Saturator, Stutter, Freeze, Bitcrusher, Compressor, Chorus, Space | A: Sweep Filter · B: Grain Cloud | Switching loads that effect's defaults into the bank. Index 2 was Tape Echo until 2026-09-10 |
 | `mfx{1,2}_send` | Float | 0–1 | 0 | Send to the shared reverb return |
 | `mfx{1,2}_level` | Float | −24…+6 dB | 0 | Slot output level |
 | `mfx{1,2}_p01…p16` | Float | 0–1 (normalised) | per effect | Generic slots; the descriptor maps each to a musical range and label. Hosts see "MFX A Param 3" |
@@ -124,6 +124,27 @@ Two effect slots in series (A → B) with a shared reverb send. Each slot owns *
 | `mfx{1,2}_asg{1..4}_amt` | Float | −1…+1 | 0 | Sens; the target slot is fixed per effect (see descriptor `assignTargets`) |
 
 Randomiser locks and the reroll undo stack are plugin state (`mfxLocks1/2` properties), not parameters.
+
+**Aviation Delay slot map** (effect 2; indices match `Mfx::AviationDelay::Param`):
+
+| Slot | Label | Range | Default | Notes |
+|---|---|---|---|---|
+| p01 | Mode | Clean, Tape, Analog, BBD, Lo-Fi, Pitch, Reverse, Cloud | Clean | Changes the delay-line model; switching fades the wet out and back in (~24 ms) |
+| p02 | Style | Single, Stereo, Ping-Pong, Dual, Ratio, Quad | Stereo | Routing of line A (L/mono) and line B (R) |
+| p03 | Time | 10–2000 ms | 375 ms | Ignored when Sync ≠ Free |
+| p04 | Sync | Free, 1/32, 1/16T, 1/16, 1/16D, 1/8T, 1/8, 1/8D, 1/4T, 1/4, 1/4D, 1/2, 1/1 | Free | Host tempo; clamped to 2 s |
+| p05 | Feedback | 0–100 % | 35 % | Loop stays bounded at 100 % (saturating / soft-limited) |
+| p06 | Mix | 0–100 % | 30 % | Dry stays at unity up to 50 %; wet reaches unity at 50 % |
+| p07 | Diffusion | 0–100 % | 0 % | All-pass smear inside the loop; Cloud mode has a 35 % floor |
+| p08 | Mod Depth | 0–100 % | 12 % | Wow/flutter (Tape), chorus (Clean/BBD), drift (Analog), detune (Pitch) |
+| p09 | Mod Rate | 0.05–10 Hz | 0.6 Hz | |
+| p10 | Lo Cut | 20–2000 Hz | 60 Hz | In the feedback loop |
+| p11 | Hi Cut | 400–20000 Hz | 12 kHz | In the feedback loop; BBD/Lo-Fi filters also track their clock |
+| p12 | Age | 0–100 % | 25 % | Saturation, noise and wear for the active mode |
+| p13 | Duck | 0–100 % | 0 % | One-knob ducking of the wet by the dry signal |
+| p14 | Pitch | −12…+12 st | +12 st | Pitch mode only |
+| p15 | Ratio | 25–100 % | 75 % | Dual: R = T·ratio · Ratio: snapped musical ratio · Quad: tap spacing |
+| p16 | Width | 0–100 % | 100 % | Mid/side width of the wet |
 
 **Migration:** projects/presets with the old ATMOSPHERE layer (`ptex_on` = 1) that predate the rack load with slot B = Grain Cloud carrying the old values. The `ptex_*` IDs stay registered but are no longer processed; the Texture macro destinations now offset whichever slot hosts Grain Cloud. On the MAIN page the LAYER MIX "GRN" fader/toggle became "FX B" (slot B level/power) and the centre-strip WIDTH cell became REV SEND (slot A).
 

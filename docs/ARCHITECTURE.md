@@ -18,7 +18,8 @@ AviatorKeyz
 │   ├── GlideEngine         Portamento pitch ramp between notes
 │   ├── SmearProcessor      Transient blur / diffusion effect
 │   ├── ToneShaper          Single-knob tilt/shelf EQ coloring
-│   └── ReverbTail          Plate reverb for Space section
+│   ├── ReverbTail          Space section reverb (equal-power mix over AviationReverb)
+│   └── Reverb/AviationReverb  Multi-topology reverb: Plate/Hall/Room/Cloud/Hardware + Modern/Vintage color
 │
 ├── State Layer         (message thread)
 │   ├── StateSchema         Frozen param IDs + schema version constant (header only)

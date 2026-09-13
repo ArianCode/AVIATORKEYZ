@@ -168,6 +168,7 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
             Source/DSP/SmearProcessor.cpp
             Source/DSP/GlideEngine.cpp
             Source/DSP/ReverbTail.cpp
+            Source/DSP/Reverb/AviationReverb.cpp
             Source/DSP/LfoEngine.cpp
             Source/DSP/FxChain.cpp
             Source/DSP/ModMatrix.cpp
@@ -177,6 +178,7 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
             Source/State/SampleAnalysis.cpp
             Source/DSP/Mfx/MfxDescriptors.cpp
             Source/DSP/Mfx/MfxEffects.cpp
+            Source/DSP/Mfx/AviationDelay.cpp
             Source/DSP/Mfx/MfxRack.cpp
             Source/DSP/StretchPlayer.cpp
 

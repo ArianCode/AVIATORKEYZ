@@ -69,6 +69,7 @@ inline juce::StringArray allSchemaParamIDs()
         ParamID::PHRASE_PITCH,
 
         ParamID::FX_REVERB_DAMP, ParamID::FX_REVERB_ON, ParamID::FX_EDITS_ON,
+        ParamID::FX_REVERB_MODE, ParamID::FX_REVERB_COLOR,
 
         ParamID::PERF_MACRO_1, ParamID::PERF_MACRO_2,
         ParamID::PERF_MACRO_3, ParamID::PERF_MACRO_4,
@@ -128,4 +129,4 @@ inline juce::StringArray allPerformanceParamIDs()
 }
 
 // 266 core/perf + 2 MFX slots x 28
-inline constexpr int kExpectedSchemaParamCount = 266 + Mfx::kNumSlots * Mfx::kIdsPerSlot;
+inline constexpr int kExpectedSchemaParamCount = 268 + Mfx::kNumSlots * Mfx::kIdsPerSlot;
