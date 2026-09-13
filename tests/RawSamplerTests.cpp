@@ -279,7 +279,7 @@ public:
             settings.bpmSync = false;
             settings.keytrack = false;
             engine.setSourceSettings (settings, 120.0);
-            engine.setPlaybackContext (AviatorKeyz::SoundType::OneShot, AviatorKeyz::Category::CHORDS);
+            engine.setPlaybackContext (AviatorKeyz::SoundType::OneShot, AviatorKeyz::Category::PHRASES);
             expect (engine.getNoteGatePolicy() == NoteGatePolicy::TriggerToEnd);
 
             engine.noteOn (60, 1.f, false, 0.f);

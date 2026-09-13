@@ -30,4 +30,19 @@ namespace SampleAnalysis
 
     /** MIDI root note used for pitch: the key's tonic folded nearest to C4 (60). */
     int rootNoteForPitchClass (int pitchClass);
+
+    struct LoopPoints
+    {
+        bool  found { false };
+        float startNorm { 0.f };   // normalised to the whole sample, like src_start
+        float endNorm { 1.f };
+    };
+
+    /** Picks a sustain loop inside [trimStartNorm, trimEndNorm] so a short
+        one-shot can hold: start on a rising zero crossing past the attack
+        (~40 % in), end on the later rising zero crossing whose following
+        waveform best matches the start's. Falls back to the sustain region
+        as-is when the material has no usable crossings. */
+    LoopPoints findSustainLoop (const float* mono, int numFrames, double sampleRate,
+                                float trimStartNorm, float trimEndNorm);
 } // namespace SampleAnalysis

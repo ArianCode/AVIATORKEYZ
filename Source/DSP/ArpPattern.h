@@ -37,6 +37,7 @@ namespace Arp
         float  octSpread { 0.f };
         bool   hold { false };
         Target target { Target::notes };
+        int    numSlices { kNumSlices }; // pads across the window (SLICE_DIV)
     };
 
     struct HeldNote
@@ -74,11 +75,12 @@ namespace Arp
         return beats;
     }
 
-    /** Slice index (0..15) a held note selects in SLICES target: C1 = slice 0. */
-    inline int sliceIndexForNote (int baseNote, int octave = 0) noexcept
+    /** Slice index (0..numSlices-1) a held note selects in SLICES target: C1 = slice 0. */
+    inline int sliceIndexForNote (int baseNote, int octave = 0, int numSlices = kNumSlices) noexcept
     {
+        const int n = numSlices > 0 ? numSlices : kNumSlices;
         const int rel = baseNote - kSliceBaseNote + octave * 4;
-        return ((rel % kNumSlices) + kNumSlices) % kNumSlices;
+        return ((rel % n) + n) % n;
     }
 
     /**

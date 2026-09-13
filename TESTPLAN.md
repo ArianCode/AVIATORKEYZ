@@ -133,7 +133,7 @@
 - Expected: same preset state recalled correctly
 
 ### T-M3-05: Preset browser categories
-- All 10 categories visible: Leads, Brass, Ensembles, Strings, Pads, Chords, Synths, Arps, Vocals, Bells
+- All 10 categories visible: Leads, Brass, Ensembles, Strings, Pads, Phrases, Synths, Arps, Vocals, Bells
 
 ---
 

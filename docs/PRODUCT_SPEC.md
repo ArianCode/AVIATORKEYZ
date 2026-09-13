@@ -47,7 +47,7 @@ The browser must present presets in exactly these 10 categories, in this order:
 3. Ensembles
 4. Strings
 5. Pads
-6. Chords
+6. Phrases
 7. Synths
 8. Arps
 9. Vocals

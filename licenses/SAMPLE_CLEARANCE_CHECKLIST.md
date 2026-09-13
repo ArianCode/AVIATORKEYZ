@@ -10,7 +10,7 @@ Complete one row per factory WAV before commercial release. Store signed agreeme
 | factory_ensembles | factory_ensembles.wav | Placeholder / TBD | | | | | |
 | factory_strings | factory_strings.wav | Placeholder / TBD | | | | | |
 | factory_pads | factory_pads.wav | Placeholder / TBD | | | | | |
-| factory_chords | factory_chords.wav | Placeholder / TBD | | | | | |
+| factory_phrases | factory_phrases.wav | Placeholder / TBD | | | | | |
 | factory_synths | factory_synths.wav | Placeholder / TBD | | | | | |
 | factory_arps | factory_arps.wav | Placeholder / TBD | | | | | |
 | factory_vocals | factory_vocals.wav | Placeholder / TBD | | | | | |

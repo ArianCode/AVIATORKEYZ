@@ -1,4 +1,5 @@
 #include "PerformanceApvtsReader.h"
+#include "SliceGrid.h"
 #include "../../State/StateSchema.h"
 #include "../../State/CategorySoundPolicy.h"
 #include "../Mfx/MfxDescriptors.h"
@@ -26,6 +27,7 @@ void PerformanceApvtsReader::ParamCache::init (const juce::AudioProcessorValueTr
     srcEnd = get (P::SRC_END);
     srcTune = get (P::SRC_TUNE);
     srcSpeed = get (P::SRC_SPEED);
+    srcSpeedSnap = get (P::SRC_SPEED_SNAP);
     srcReverse = get (P::SRC_REVERSE);
     srcBpmSync = get (P::SRC_BPM_SYNC);
     srcOriginalBpm = get (P::SRC_ORIGINAL_BPM);
@@ -33,6 +35,13 @@ void PerformanceApvtsReader::ParamCache::init (const juce::AudioProcessorValueTr
     srcPlaybackMode = get (P::SRC_PLAYBACK_MODE);
     srcKeytrack = get (P::SRC_KEYTRACK);
     srcLoopMode = get (P::SRC_LOOP_MODE);
+    srcLoopStart = get (P::SRC_LOOP_START);
+    srcLoopEnd = get (P::SRC_LOOP_END);
+
+    sliceDiv = get (P::SLICE_DIV);
+    sliceRandom = get (P::SLICE_RANDOM);
+    for (int i = 0; i < P::SLICE_CUT_COUNT; ++i)
+        sliceCut[i] = apvts.getRawParameterValue (P::sliceCutParamId (i));
 
     chopOn = get (P::CHOP_ON);
     chopAmount = get (P::CHOP_AMOUNT);
@@ -82,6 +91,7 @@ EngineState PerformanceApvtsReader::readBaseState (const ParamCache& c) noexcept
     s.source.end = juce::jmax (s.source.start + 0.01f, load (c.srcEnd));
     s.source.tune = load (c.srcTune);
     s.source.speed = load (c.srcSpeed);
+    s.source.speedSnap = loadBool (c.srcSpeedSnap);
     s.source.reverse = loadBool (c.srcReverse);
     s.source.bpmSync = loadBool (c.srcBpmSync);
     s.source.originalBpm = load (c.srcOriginalBpm);
@@ -90,6 +100,13 @@ EngineState PerformanceApvtsReader::readBaseState (const ParamCache& c) noexcept
         juce::jlimit (0, 4, static_cast<int> (load (c.srcPlaybackMode))));
     s.source.keytrack = loadBool (c.srcKeytrack);
     s.source.loopMode = static_cast<LoopMode> (juce::jlimit (0, 2, static_cast<int> (load (c.srcLoopMode))));
+    s.source.loopStart = load (c.srcLoopStart);
+    s.source.loopEnd = load (c.srcLoopEnd);
+
+    s.slice.divisions = SliceGrid::divisionsForChoice (static_cast<int> (load (c.sliceDiv)));
+    s.slice.random = load (c.sliceRandom);
+    for (int i = 0; i < AviatorKeyz::ParamID::SLICE_CUT_COUNT; ++i)
+        s.slice.cutOffsets[static_cast<size_t> (i)] = load (c.sliceCut[i]);
 
     s.chop.enabled = loadBool (c.chopOn);
     s.chop.amount = load (c.chopAmount);

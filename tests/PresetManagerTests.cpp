@@ -2,7 +2,7 @@
 //  PresetManager unit tests (headless, no embedded BinaryData required)
 //
 //  Tests cover:
-//    - getAllCategories() returns all 10 expected categories in order
+//    - getAllCategories() returns all 13 expected categories in order
 //    - saveUserPreset / loadPreset round-trip via temp directory
 //    - getCurrentPresetName / getCurrentCategory tracking
 //    - Loading a non-existent preset returns false
@@ -17,6 +17,7 @@
 #include "State/PresetManager.h"
 #include "State/ParameterLayout.h"
 #include "State/StateSchema.h"
+#include "DSP/Mfx/MfxDescriptors.h"
 
 // ---------------------------------------------------------------------------
 // Minimal APVTS for testing (no AudioProcessor needed, just a stub)
@@ -65,12 +66,12 @@ public:
 
     void runTest() override
     {
-        beginTest ("getAllCategories returns exactly 10 categories");
+        beginTest ("getAllCategories returns exactly 13 categories");
         {
             TestProcessor proc;
             PresetManager pm (proc.apvts);
             const auto cats = pm.getAllCategories();
-            expectEquals (cats.size(), 10);
+            expectEquals (cats.size(), 13);
         }
 
         beginTest ("getAllCategories order matches spec");
@@ -81,10 +82,11 @@ public:
             const auto cats = pm.getAllCategories();
 
             const juce::StringArray expected {
-                Category::LEADS, Category::BRASS, Category::ENSEMBLES,
-                Category::STRINGS, Category::PADS, Category::CHORDS,
-                Category::SYNTHS, Category::ARPS, Category::VOCALS,
-                Category::BELLS,
+                Category::BASS, Category::LEADS, Category::KEYS,
+                Category::BRASS, Category::PHRASES, Category::ARPS,
+                Category::SYNTHS, Category::BELLS, Category::STRINGS,
+                Category::PLUCKS, Category::ENSEMBLES, Category::PADS,
+                Category::VOCALS,
             };
             expectEquals (cats.size(), expected.size());
             for (int i = 0; i < juce::jmin (cats.size(), expected.size()); ++i)
@@ -198,5 +200,113 @@ public:
     }
 };
 
+class PresetManagerKeepPerformanceTests : public juce::UnitTest
+{
+public:
+    PresetManagerKeepPerformanceTests() : juce::UnitTest ("PresetManager_KeepPerformance", "AviatorKeyz") {}
+
+    void runTest() override
+    {
+        using namespace AviatorKeyz;
+        const juce::String category = "Pads";
+        const auto userDir = juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                                 .getChildFile ("AviatorKeyz/Presets").getChildFile (category);
+
+        auto setValue = [] (TestProcessor& proc, const juce::String& id, float value)
+        {
+            auto* p = proc.apvts.getParameter (id);
+            p->setValueNotifyingHost (p->convertTo0to1 (value));
+        };
+        auto raw = [] (TestProcessor& proc, const juce::String& id)
+        {
+            return proc.apvts.getRawParameterValue (id)->load();
+        };
+
+        beginTest ("keepPerformance load keeps MFX + speed; a plain load recalls them");
+        {
+            TestProcessor proc;
+            PresetManager pm (proc.apvts);
+            const juce::String name = "ZZ_UnitTest_KeepPerf";
+            const auto mfxLevel = Mfx::levelId (0);
+            const auto* levelParam = proc.apvts.getParameter (mfxLevel);
+            const float savedLevel = levelParam->convertFrom0to1 (0.2f);
+            const float liveLevel  = levelParam->convertFrom0to1 (0.9f);
+
+            setValue (proc, ParamID::SMEAR, 0.75f);
+            setValue (proc, mfxLevel, savedLevel);
+            setValue (proc, ParamID::SRC_SPEED, 1.f);
+            if (! pm.saveUserPreset (category, name))
+            {
+                logMessage ("saveUserPreset returned false — skipping (file system restriction)");
+                return;
+            }
+
+            setValue (proc, ParamID::SMEAR, 0.1f);
+            setValue (proc, mfxLevel, liveLevel);
+            setValue (proc, ParamID::SRC_SPEED, 0.5f);
+
+            expect (pm.loadPreset (category, name, true));
+            expectWithinAbsoluteError (raw (proc, ParamID::SMEAR), 0.75f, 0.01f, "the sound itself is recalled");
+            expectWithinAbsoluteError (raw (proc, mfxLevel), liveLevel, 0.01f, "MFX survives in the raw value the DSP reads");
+            expectWithinAbsoluteError (raw (proc, ParamID::SRC_SPEED), 0.5f, 0.001f, "speed survives");
+
+            expect (pm.loadPreset (category, name));
+            expectWithinAbsoluteError (raw (proc, mfxLevel), savedLevel, 0.01f, "plain load recalls the preset's MFX");
+            expectWithinAbsoluteError (raw (proc, ParamID::SRC_SPEED), 1.f, 0.001f);
+
+            userDir.getChildFile (name + ".xml").deleteFile();
+        }
+
+        beginTest ("Root shift is saved as an offset and re-applied on load");
+        {
+            TestProcessor proc;
+            PresetManager pm (proc.apvts);
+            const juce::String name = "ZZ_UnitTest_RootShift";
+            pm.setRootShift (3);
+            setValue (proc, ParamID::SRC_ROOT_NOTE, (float) pm.getEffectiveRootNote());
+            if (! pm.saveUserPreset (category, name))
+                return;
+
+            pm.setRootShift (0);
+            setValue (proc, ParamID::SRC_ROOT_NOTE, 60.f);
+            expect (pm.loadPreset (category, name));
+            expectEquals (pm.getRootShift(), 3);
+            expectEquals (juce::roundToInt (raw (proc, ParamID::SRC_ROOT_NOTE)), pm.getCurrentRootNote() + 3);
+            userDir.getChildFile (name + ".xml").deleteFile();
+        }
+
+        beginTest ("loadRandomPreset picks a different preset and keeps MFX");
+        {
+            TestProcessor proc;
+            PresetManager pm (proc.apvts);
+            const juce::String nameA = "ZZ_UnitTest_DiceA", nameB = "ZZ_UnitTest_DiceB";
+            if (! pm.saveUserPreset (category, nameA) || ! pm.saveUserPreset (category, nameB))
+                return;
+
+            expect (pm.loadPreset (category, nameA));
+            const auto mfxLevel = Mfx::levelId (1);
+            const float liveLevel = proc.apvts.getParameter (mfxLevel)->convertFrom0to1 (0.33f);
+            setValue (proc, mfxLevel, liveLevel);
+
+            expect (pm.loadRandomPreset (false));
+            expect (pm.getCurrentPresetName() != nameA, "the dice never re-loads the current preset");
+            expectWithinAbsoluteError (raw (proc, mfxLevel), liveLevel, 0.01f);
+
+            userDir.getChildFile (nameA + ".xml").deleteFile();
+            userDir.getChildFile (nameB + ".xml").deleteFile();
+        }
+
+        beginTest ("snapSpeedRatio lands on 0.25 steps inside 0.25..4");
+        {
+            expectEquals (snapSpeedRatio (0.53f), 0.5f);
+            expectEquals (snapSpeedRatio (0.63f), 0.75f);
+            expectEquals (snapSpeedRatio (1.12f), 1.0f);
+            expectEquals (snapSpeedRatio (0.05f), 0.25f);
+            expectEquals (snapSpeedRatio (9.0f), 4.0f);
+        }
+    }
+};
+
 static PresetManagerCategoryTests presetCatTests;
 static PresetManagerSaveLoadTests presetSaveLoadTests;
+static PresetManagerKeepPerformanceTests presetKeepPerformanceTests;

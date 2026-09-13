@@ -109,12 +109,21 @@ struct SourceSettings
     float end = 1.0f;
     float tune = 0.0f;
     float speed = 1.0f;
+    /** SPEED lock: speed plays on 0.25 steps (snapSpeedRatio). */
+    bool speedSnap = false;
     bool reverse = false;
     bool bpmSync = true;
     float originalBpm = 120.0f;
-    /** Mirrored from the loaded sample for state/UI; pitch math uses voice sampleRootNote. */
+    /** src_root_note: the sample's own root plus the user's re-root (state / UI mirror). */
     int rootNote = 60;
+    /** User re-root in semitones, added to the sample region's own root at note-on.
+        The processor derives it from rootNote every block. */
+    int rootShift = 0;
     LoopMode loopMode = LoopMode::Gate;
+    /** Sustain loop inside [start, end] for LoopMode::Loop, normalised to the
+        whole sample. 0..1 loops the entire trim window. */
+    float loopStart = 0.0f;
+    float loopEnd = 1.0f;
     SamplePlaybackMode playbackMode = SamplePlaybackMode::ChromaticResample;
     /**
      * When true, MIDI note − sample root drives pitchRatio (chromatic resample).
@@ -125,6 +134,15 @@ struct SourceSettings
      */
     bool keytrack = true;
 };
+
+inline constexpr int   kMaxRootShiftSemis = 36;
+inline constexpr float kSpeedSnapStep = 0.25f;
+
+/** SPEED lock grid: nearest 0.25 step inside 0.25..4 (x0.5, x0.75, x1, x1.25 ...). */
+inline float snapSpeedRatio (float speed) noexcept
+{
+    return juce::jlimit (0.25f, 4.0f, std::round (speed / kSpeedSnapStep) * kSpeedSnapStep);
+}
 
 struct TextureSettings
 {
@@ -165,9 +183,18 @@ struct PerformanceSettings
     bool filterSweep = false;
 };
 
+/** Slice pads: how the trim window is cut for SLICE mode / arp SLICES / flip SLICE. */
+struct SliceSettings
+{
+    int divisions = 16;                   // 3 / 4 / 6 / 8 / 16 pads across the window
+    float random = 0.0f;                  // chance (0..1) that a pad plays a random slice
+    std::array<float, 15> cutOffsets {};  // per-cut nudge, -1..1 = ± half a slice
+};
+
 struct EngineState
 {
     SourceSettings source;
+    SliceSettings slice;
     ChopSettings chop;
     TextureSettings texture;
     PerformanceSettings performance;

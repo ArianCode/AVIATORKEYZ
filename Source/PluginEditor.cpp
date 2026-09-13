@@ -44,6 +44,12 @@ AviatorKeyzEditor::AviatorKeyzEditor (AviatorKeyzProcessor& p)
         auto& pm = processorRef.getPresetManager();
         pm.saveUserPreset (pm.getCurrentCategory(), pm.getCurrentPresetName());
     };
+    // Dice: a new sound through the effects the user has dialled in — no trip
+    // to MAIN and back, which would reset the PERFORMANCE settings.
+    header.onRandomSoundClicked = [this] (bool anyCategory)
+    {
+        processorRef.getPresetManager().loadRandomPreset (anyCategory);
+    };
     header.onSettingsClicked = [this] { openLibraryOverlay(); };
     header.onUtilityClicked = [this] { openAboutOverlay(); };
     canvas.addAndMakeVisible (header);
@@ -84,10 +90,24 @@ AviatorKeyzEditor::AviatorKeyzEditor (AviatorKeyzProcessor& p)
     const auto snapshotPath = juce::SystemStats::getEnvironmentVariable ("AVIATORKEYZ_SNAPSHOT_PATH", {});
     if (snapshotPath.isNotEmpty())
     {
-        const bool performance = juce::SystemStats::getEnvironmentVariable ("AVIATORKEYZ_SNAPSHOT_VIEW", {})
-                                     .equalsIgnoreCase ("performance");
+        const auto view = juce::SystemStats::getEnvironmentVariable ("AVIATORKEYZ_SNAPSHOT_VIEW", {});
+        const bool performance = view.equalsIgnoreCase ("performance") || view.equalsIgnoreCase ("scope");
         if (performance)
             setPerformanceView (true);
+
+        // AVIATORKEYZ_SNAPSHOT_MFX_A=<effect index>[:<preset index>] loads that effect into slot A first.
+        const auto mfxA = juce::SystemStats::getEnvironmentVariable ("AVIATORKEYZ_SNAPSHOT_MFX_A", {});
+        if (mfxA.isNotEmpty())
+        {
+            const int effect = juce::jlimit (0, (int) Mfx::Effect::count - 1, mfxA.upToFirstOccurrenceOf (":", false, false).getIntValue());
+            const int preset = mfxA.containsChar (':') ? mfxA.fromFirstOccurrenceOf (":", false, false).getIntValue() : -1;
+            processorRef.setMfxEffect (0, static_cast<Mfx::Effect> (effect), preset);
+        }
+
+        // AVIATORKEYZ_SNAPSHOT_VIEW=scope also fills the live sampler's window,
+        // so its inline waveform captures with something in it.
+        if (view.equalsIgnoreCase ("scope"))
+            processorRef.fillRollingWindowForSnapshot();
 
         juce::Timer::callAfterDelay (1000,
             [safe = juce::Component::SafePointer<AviatorKeyzEditor> (this), snapshotPath]

@@ -5,32 +5,76 @@ Format: [Version] — Date — Summary
 
 ---
 
-## [Unreleased] — 2026-09-10 — Aviation Reverb: multi-topology reverb engine
+## [Unreleased] — 2026-09-13 — Sound tabs: Bass / Keys / Plucks, new order, re-filed bank
+
+### Changed
+- **Browser tab order** is now Bass, Leads, Keys, Brass, Phrases, Arps, Synths,
+  Bells, Strings, Plucks, Ensembles, Pads, Vocals. Phrases remains the only
+  STRETCH tab — speed and host sync change its length, never its key; every
+  other tab is a chromatic instrument.
+- **Three new tabs — Bass, Keys and Plucks** — filled from content that was
+  filed in the wrong place rather than from new samples. 150 sounds moved:
+  36 bass patches out of Brass (plus 2 electric basses out of Strings), 80 keys
+  built from Pads (45), Leads (22), Bells (8) and Synths (5), 12 plucks out of
+  Bells and Synths, 12 real brass sections recovered from Ensembles, and the
+  Synths textures moved to Pads. Nothing was deleted.
+- **Bass loads monophonic.** A new note chokes the previous one through the
+  engine's short crossfade, so overlapping sub tails can't stack into a muddy
+  low end. Play Mode is still yours to change; leaving Bass only clears the
+  Mono this rule imposed and leaves a deliberate Legato alone.
+- `ContentImport/Chords` renamed to `ContentImport/Phrases` — the tab was
+  renamed long ago and `import_factory_bank.py` had been rejecting the folder.
 
 ### Added
-- **AviationReverb** (`Source/DSP/Reverb/AviationReverb.*`) replaces Freeverb
-  (`juce::Reverb`) in all three places: the main Space reverb (`ReverbTail`),
-  the MFX Space effect and the MFX send return. Five topologies, not presets of
-  one network: PLATE (Dattorro figure-eight tank), HALL and ROOM (8-line
-  Hadamard FDN with early reflections), CLOUD (FDN with in-loop all-pass
-  diffusion and slow random drift), HARDWARE (ring of nested all-pass sections
-  with a band-limited loop). COLOR: MODERN or VINTAGE (converter band limiting +
-  12-bit magnitude truncation on the tank input and wet output).
-- Params `fx_reverb_mode` (default Plate) and `fx_reverb_color` (default
-  Modern) — host/preset only, no editor control yet. MFX Space and the send
-  return use Hall.
-- Calibrated against the old engine: measured RT60 within ±4 % of target;
-  wet energy within 0.7 dB of `juce::Reverb` at size 0.5 / damping 0.4.
-- Tests: `AviationReverbTests` (RT60 via Schroeder integration, wet level,
-  stereo decorrelation, click-free algorithm switching, no limit cycles,
-  vintage reaches digital silence, ReverbTail mix law); reverb added to the
-  realtime allocation guard.
+- `Scripts/refile_factory_categories.py` — classifies factory samples by name,
+  renames the WAVs, rewrites each preset's `category`/`sampleId`, and mirrors
+  the moves into `ContentImport/`. Dry run by default; `--apply` to commit.
 
 ### Fixed
-- Enabling the main reverb no longer boosts the dry signal: `juce::Reverb`
-  scaled dry by 2×, so reverb at mix 0.1 raised the whole instrument ~5 dB.
-  `ReverbTail` now uses an equal-power mix and glides to dry when switched off.
-- The MFX send return keeps ringing after sends close instead of cutting off.
+- **Sessions saved before a re-file no longer fall back to the default sample.**
+  `FactoryResources::findWavResource` now retries on the sample's stem when the
+  `factory_<category>_` prefix no longer matches, so an old `factory_pads_…` id
+  still resolves after the sound moved to Keys.
+
+---
+
+## [Unreleased] — 2026-09-13 — Noise-floor fixes, Grain Cloud repair, CHOP FADE
+
+### Fixed
+- **Delay hissed into an idle mix.** TAPE and ANALOG injected noise every sample
+  whether or not anything was playing: measured −87 dBFS (tape) and −69 dBFS
+  (analog, and unfiltered white) with a silent input. Noise now sits behind a
+  signal-presence follower (fast open, 600 ms close) and analog's is low-passed
+  into circuit hiss rather than white noise. Silent input now measures −240 dB.
+- **PITCH mode hash.** The rotating-head shifter's artefacts compounded on every
+  pass through the feedback loop. A 7 kHz roll-off in the pitch path takes ~2.5 dB
+  off the hash-to-tail ratio and darkens the repeats as they climb. PITCH is still
+  the grainiest mode; a pitch-synchronous shifter is the real fix.
+- **Grain Cloud produced only white noise.** Two bugs: the MFX wrapper passed a
+  fixed `0.55` grain rate into a mapping that read it as a *division*, yielding
+  ~0.4 grains/second (roughly one 80 ms grain every 10 s at normal mix), and the
+  "air" input was a literal white-noise generator fed from the SMEAR knob. Grain
+  rate now comes from DENSITY (6..100 grains/s, capped to the voice pool), levels
+  are normalised for overlap so density changes thickness not loudness, and the
+  noise generator is gone. Measured tail after the input stops: −240 dB → −41 dB,
+  and it is tone, not noise (HF −113 dB).
+- **Grain scan/motion.** `spawnGrain` overwrote the shared scan position, so
+  MOTION did nothing and grains read from ~3 s of stale audio. Grains now read
+  behind the write head (POSITION 0 = what you just played) and MOTION sweeps.
+
+### Added
+- **CHOP FADE** (`slice_xfade`, 0–50 ms, default 2 ms): a fade applied at every
+  chop / slice / flip edge so clicky chops can be repaired by hand. Drag either
+  top corner of the Cargo Hold waveform inward, DAW-clip style, or use the FADE
+  chip in the control row. Clamped per voice to under half the slice so short
+  slices still speak.
+
+### Notes
+- Grain density no longer scales with mix; a granular tail is now proportional to
+  the mix and dies once the 4 s capture refills with silence (test updated).
+- A hard note onset on a sample whose first frame is away from zero still clicks.
+  Fixing that automatically contradicts "zero attack starts at full level"
+  (EnvelopeTests), so it is left to CHOP FADE rather than forced on every note.
 
 ## [Unreleased] — 2026-09-10 — Aviation Delay: multi-model delay engine
 
@@ -59,6 +103,7 @@ Format: [Version] — Date — Summary
 - Tests: 7 new MFX cases (echo timing, ping-pong, diffusion smear, octave pitch,
   ducking, 48 mode×style runs at 100 % feedback, click-free mode switching).
   `AVIATORKEYZ_DELAY_DEMO_DIR=<dir>` renders each preset to WAV.
+  Debug snapshot harness: `AVIATORKEYZ_SNAPSHOT_MFX_A=<effect>[:<preset>]`.
 
 
 ## [Unreleased] — 2026-09-05 (evening) — Time stretch, slice pads, flipper controls, front-page pan + envelope switch

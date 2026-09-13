@@ -21,7 +21,7 @@ CATEGORIES = [
     ("Ensembles", "factory_ensembles", 440.0),
     ("Strings", "factory_strings", 523.25),
     ("Pads", "factory_pads", 196.0),
-    ("Chords", "factory_chords", 329.63),
+    ("Phrases", "factory_phrases", 329.63),
     ("Synths", "factory_synths", 660.0),
     ("Arps", "factory_arps", 740.0),
     ("Vocals", "factory_vocals", 392.0),
@@ -34,7 +34,7 @@ PRESET_NAMES: dict[str, list[str]] = {
     "Ensembles": ["Full Stack", "Chamber", "Wide Ensemble", "Smear Wash", "Dark Ensemble"],
     "Strings": ["Legato Strings", "Staccato Hit", "Trem Strings", "Reverse Bow", "Air Strings"],
     "Pads": ["Pad Warm", "Cloud Pad", "Dark Pad", "Wide Pad", "Glide Pad"],
-    "Chords": ["Warm Chords", "Bright Chords", "Smear Chords", "Narrow Chords", "Reverse Chords"],
+    "Phrases": ["Warm Phrase", "Bright Phrase", "Smear Phrase", "Narrow Phrase", "Reverse Phrase"],
     "Synths": ["Analog Glow", "Glass Synth", "Wide Synth", "Dark Synth", "Reverse Synth"],
     "Arps": ["Sparkle Arp", "Tight Arp", "Wide Arp", "Smear Arp", "Reverse Arp"],
     "Vocals": ["Vox Air", "Vox Choir", "Vox Glide", "Vox Reverse", "Vox Bright"],
@@ -49,7 +49,7 @@ def preset_params(category: str, index: int) -> dict[str, str | float | int]:
         "Ensembles": dict(smear=0.25, tone=0.0, reverb_amount=0.35, glide_time=0.0, reverse=0),
         "Strings": dict(smear=0.15, tone=-0.1, reverb_amount=0.3, glide_time=40.0, reverse=0),
         "Pads": dict(smear=0.35, tone=-0.2, reverb_amount=0.45, glide_time=0.0, reverse=0),
-        "Chords": dict(smear=0.2, tone=0.05, reverb_amount=0.25, glide_time=0.0, reverse=0),
+        "Phrases": dict(smear=0.2, tone=0.05, reverb_amount=0.25, glide_time=0.0, reverse=0),
         "Synths": dict(smear=0.1, tone=0.25, reverb_amount=0.15, glide_time=60.0, reverse=0),
         "Arps": dict(smear=0.05, tone=0.3, reverb_amount=0.1, glide_time=0.0, reverse=0),
         "Vocals": dict(smear=0.2, tone=0.0, reverb_amount=0.3, glide_time=80.0, reverse=0),
@@ -168,10 +168,18 @@ def write_preset_xml(
         "src_root_note",
         "src_original_bpm",
     )
+    # Attributes are hand-written, so escape them. Sample filenames legitimately
+    # contain & and quotes ("Hyper&b Lead", "Bass - Tumbles & Turns"), which
+    # otherwise produce XML the plugin's parser silently drops.
+    from xml.sax.saxutils import quoteattr
+
+    def attr(value: object) -> str:
+        return quoteattr(str(value))
+
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
-        f'<Preset category="{category}" name="{name}" schemaVersion="1" sampleId="{sample_id}" '
-        f'rootNote="{root_note}" soundType="{sound_type}" originalBpm="{params.get("src_original_bpm", 120)}" '
+        f'<Preset category={attr(category)} name={attr(name)} schemaVersion="1" sampleId={attr(sample_id)} '
+        f'rootNote="{root_note}" soundType={attr(sound_type)} originalBpm="{params.get("src_original_bpm", 120)}" '
         f'author="AviatorKeyz">',
         '  <AviatorKeyzState stateVersion="1">',
         f'    <PARAM id="input_gain" value="{params.get("input_gain", 0.0)}"/>',

@@ -21,7 +21,9 @@
 #include "DSP/Arpeggiator.h"
 #include "DSP/Mfx/MfxRack.h"
 #include "DSP/StretchPlayer.h"
+#include "DSP/RollingSampler.h"
 #include "DSP/Performance/PerformanceTypes.h"
+#include "DSP/Performance/SliceGrid.h"
 #include "DSP/Performance/PerformanceTexturePipeline.h"
 #include "DSP/Performance/PerformanceApvtsReader.h"
 #include "DSP/ToneShaper.h"
@@ -107,9 +109,59 @@ public:
 
     static constexpr double kMaxUserSampleSeconds = 60.0;
 
-    /** Loads a WAV/AIFF (<= 60 s) as the active sound. Returns false with a
+    /** Loads an audio file (WAV/AIFF/FLAC/MP3/AAC, <= 60 s) as the active sound. Returns false with a
         human-readable reason in errorOut. */
     bool loadUserSample (const juce::File& file, juce::String& errorOut);
+
+    /** Message thread: picks sustain loop points for the loaded sound (LOOP
+        mode) from its waveform and writes src_loop_start / src_loop_end.
+        Returns false when nothing is loaded. */
+    bool autoDetectLoopPoints();
+
+    // --- ROLLING SAMPLER: a live window of the plugin's own output ------------
+    /** Arms / disarms the rolling capture of the plugin's output. */
+    void setRollingSamplerArmed (bool armed) noexcept { rollingSampler.setArmed (armed); }
+    bool isRollingSamplerArmed() const noexcept { return rollingSampler.isArmed(); }
+    double getRollingSamplerSeconds() const noexcept { return rollingSampler.getBufferedSeconds(); }
+    float  getRollingSamplerLevel() const noexcept { return rollingSampler.getPeakLevel(); }
+    void   clearRollingSampler() noexcept { rollingSampler.reset(); }
+
+    /** Absolute frame positions of the live window's right ("now") and left
+        (oldest still-held) edges. Audio before oldestFrame has been deleted. */
+    int64_t getRollingNowFrame() const noexcept { return rollingSampler.nowFrame(); }
+    int64_t getRollingOldestFrame() const noexcept { return rollingSampler.oldestFrame(); }
+    double  getRollingWindowSeconds() const noexcept { return rollingSampler.getWindowSeconds(); }
+    double  getRollingSampleRate() const noexcept { return rollingSampler.getSampleRate(); }
+
+    /** Message thread: min/max per column across an absolute frame range, for
+        drawing the scrolling waveform. Reads the decimated envelope only. */
+    void readRollingEnvelope (RollingSampler::Bucket* out, int numColumns,
+                              int64_t fromFrame, int64_t toFrame) const noexcept
+    {
+        rollingSampler.readEnvelope (out, numColumns, fromFrame, toFrame);
+    }
+
+    /** Message thread: writes the absolute range [fromFrame, toFrame) to a WAV
+        in the capture folder. `fileOut` receives the file on success. */
+    bool exportRollingRange (int64_t fromFrame, int64_t toFrame,
+                             juce::File& fileOut, juce::String& errorOut);
+
+    /** Message thread: exports the range and loads it as the active sound, so a
+        moment from the live window becomes cargo to resample. */
+    bool loadRollingRange (int64_t fromFrame, int64_t toFrame, juce::String& errorOut);
+
+    /** Message thread: takes the last `seconds` of captured output and loads it
+        as the active sound — the whole resample loop without leaving the plugin. */
+    bool captureRollingSample (double seconds, juce::String& errorOut);
+
+    /** Where rolling-sampler exports are written. */
+    static juce::File getRollingCaptureDir();
+
+#if JUCE_DEBUG
+    /** UI calibration harness only: arms the live sampler and fills its window
+        with a demo signal so the scope can be captured with a waveform in it. */
+    void fillRollingWindowForSnapshot();
+#endif
 
     /** Message thread only. */
     const UserSampleInfo& getUserSampleInfo() const noexcept { return userSampleInfo; }
@@ -213,6 +265,16 @@ private:
     bool   liveReverseApplied { false };
     int    lastFlipWindowFrames { 0 };
     bool   stretchModeThisBlock { false };
+    RollingSampler rollingSampler;
+    juce::File     lastRollingCapture;
+
+    /** Slice grid for this block — MIDI dispatch and flipWindowFrames() read it
+        instead of touching APVTS (no per-note parameter lookups). */
+    SliceSettings sliceThisBlock {};
+    juce::Random  sliceRng { 0x5AF3 };
+
+    /** Pad a key selects, with SLICE RANDOM applied. Audio thread. */
+    int pickSlice (int requestedIndex) noexcept;
 
     std::array<MacroControl, 4> macroControls {};
 

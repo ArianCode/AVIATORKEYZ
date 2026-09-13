@@ -19,32 +19,64 @@ struct CategoryPolicy
 {
     juce::String           name;
     SoundType              defaultSoundType { SoundType::Phrase };
-    SamplePlaybackMode     defaultPlaybackMode { SamplePlaybackMode::PhraseOriginal };
-    bool                   keytrack { false };
+    SamplePlaybackMode     defaultPlaybackMode { SamplePlaybackMode::PhraseTimeStretch };
+    bool                   keytrack { true };
 };
+
+/** MIDI pitch tracking is on for every mode except SLICE, where the key picks
+    the slice rather than the note. Phrase content transposes through the
+    stretcher at constant length; one-shots repitch by varispeed. */
+inline bool keytrackFor (SamplePlaybackMode mode) noexcept
+{
+    return mode != SamplePlaybackMode::SlicePhrase;
+}
+
+/** PHRASES is the one tab that runs through the stretcher; everything else is
+    a chromatic instrument tab, so SPEED / host sync never changes key there. */
+inline bool isPhraseCategory (const juce::String& category) noexcept
+{
+    return category.equalsIgnoreCase (Category::PHRASES);
+}
 
 inline bool isChromaticCategory (const juce::String& category) noexcept
 {
-    return category.equalsIgnoreCase (Category::LEADS)
-           || category.equalsIgnoreCase (Category::BRASS)
-           || category.equalsIgnoreCase (Category::STRINGS)
-           || category.equalsIgnoreCase (Category::SYNTHS)
-           || category.equalsIgnoreCase (Category::BELLS);
+    return ! isPhraseCategory (category);
 }
 
+/** BASS plays monophonically: a new note cuts the one before it so overlapping
+    tails never stack sub energy into a muddy low end. */
+inline bool isBassCategory (const juce::String& category) noexcept
+{
+    return category.equalsIgnoreCase (Category::BASS);
+}
+
+/** Categories renamed after release map to their current tab so old user
+    presets and saved sessions still resolve. Chords became Phrases. */
+inline juce::String normaliseCategory (const juce::String& category)
+{
+    if (category.equalsIgnoreCase ("Chords"))
+        return Category::PHRASES;
+    return category;
+}
+
+/** Browser tab order. PHRASES is the one stretcher tab; everything around it
+    is a chromatic instrument tab. */
 inline juce::StringArray getCanonicalCategories()
 {
     return {
+        Category::BASS,
         Category::LEADS,
+        Category::KEYS,
         Category::BRASS,
-        Category::ENSEMBLES,
-        Category::STRINGS,
-        Category::PADS,
-        Category::CHORDS,
-        Category::SYNTHS,
+        Category::PHRASES,
         Category::ARPS,
-        Category::VOCALS,
+        Category::SYNTHS,
         Category::BELLS,
+        Category::STRINGS,
+        Category::PLUCKS,
+        Category::ENSEMBLES,
+        Category::PADS,
+        Category::VOCALS,
     };
 }
 
@@ -53,15 +85,17 @@ inline CategoryPolicy getPolicyForCategory (const juce::String& category) noexce
     CategoryPolicy p;
     p.name = category;
 
-    if (isChromaticCategory (category))
+    if (! isPhraseCategory (category))
     {
         p.defaultSoundType = SoundType::OneShot;
         p.defaultPlaybackMode = SamplePlaybackMode::ChromaticResample;
         return p;
     }
 
+    // PHRASES runs through the pitch-preserving stretcher so SPEED and host
+    // sync change length, never key.
     p.defaultSoundType = SoundType::Phrase;
-    p.defaultPlaybackMode = SamplePlaybackMode::PhraseOriginal;
+    p.defaultPlaybackMode = SamplePlaybackMode::PhraseTimeStretch;
     return p;
 }
 
@@ -133,22 +167,20 @@ inline SamplePlaybackMode playbackModeFor (const juce::String& category, SoundTy
     if (soundType == SoundType::Slice)
         return SamplePlaybackMode::SlicePhrase;
 
+    // Outside PHRASES every tab is a chromatic instrument: the keyboard
+    // repitches the sample and SPEED is a plain varispeed control.
+    if (! isPhraseCategory (category))
+        return SamplePlaybackMode::ChromaticResample;
+
+    // A one-shot filed under PHRASES (a chord hit, a stab) keeps its recorded
+    // pitch and plays through.
     if (soundType == SoundType::OneShot)
-    {
-        // Ensembles one-shots are single pitched notes (guitars, basses, etc.)
-        // and must track the keyboard. Other non-chromatic categories keep
-        // OneShotOriginal so chord hits / pads stay at the recorded pitch.
-        if (isChromaticCategory (category)
-            || category.equalsIgnoreCase (Category::ENSEMBLES))
-            return SamplePlaybackMode::ChromaticResample;
-
         return SamplePlaybackMode::OneShotOriginal;
-    }
 
-    if (soundType == SoundType::Loop)
-        return SamplePlaybackMode::PhraseOriginal;
-
-    return SamplePlaybackMode::PhraseOriginal;
+    // Phrases and loops: STRETCH keeps pitch fixed under SPEED / BPM sync and
+    // makes keytrack a transpose at constant length. PHRASE (varispeed) stays
+    // available as an explicit mode choice.
+    return SamplePlaybackMode::PhraseTimeStretch;
 }
 
 inline LoopMode loopModeFor (const juce::String& category, SoundType soundType) noexcept
@@ -156,11 +188,9 @@ inline LoopMode loopModeFor (const juce::String& category, SoundType soundType) 
     if (soundType == SoundType::Loop)
         return LoopMode::Loop;
 
-    // Fixed-pitch non-chromatic one-shots (e.g. Chords hits) play through;
-    // Ensembles one-shots are chromatic keyboard instruments → Gate like Brass.
-    if (soundType == SoundType::OneShot
-        && ! isChromaticCategory (category)
-        && ! category.equalsIgnoreCase (Category::ENSEMBLES))
+    // Fixed-pitch one-shots in PHRASES (chord hits, stabs) play through;
+    // every chromatic tab gates like Brass.
+    if (soundType == SoundType::OneShot && isPhraseCategory (category))
         return LoopMode::OneShot;
 
     return LoopMode::Gate;
@@ -221,14 +251,32 @@ inline void applyPlaybackPolicyToApvts (juce::AudioProcessorValueTreeState& apvt
 
     const auto mode = playbackModeFor (category, soundType);
     setChoice (P::SRC_PLAYBACK_MODE, static_cast<float> (mode));
-    // Keytrack is the runtime switch for MIDI pitch tracking. Chromatic
-    // presets load with it on; phrases / fixed one-shots load with it off.
-    setBool (P::SRC_KEYTRACK, mode == SamplePlaybackMode::ChromaticResample);
+    // Keytrack is the runtime switch for MIDI pitch tracking. Every category
+    // follows the keyboard; only SLICE turns it off (keys select slices).
+    setBool (P::SRC_KEYTRACK, keytrackFor (mode));
 
     setChoice (P::SRC_LOOP_MODE, static_cast<float> (loopModeFor (category, soundType)));
     setBool (P::SRC_BPM_SYNC, soundType == SoundType::Loop
                               || (! isChromaticCategory (category)
                                   && soundType != SoundType::OneShot));
+
+    // BASS loads monophonic (play mode 1) so each note chokes the previous one
+    // through the engine's short crossfade — two overlapping sub tails read as
+    // a mud build-up, never as a chord.
+    //
+    // Play mode is otherwise the player's choice, not the content's, so a
+    // non-bass preset only undoes the mono this rule imposed: it clears Mono
+    // back to Poly and leaves a deliberate Legato alone.
+    if (auto* playMode = apvts.getRawParameterValue (P::VOICE_PLAY_MODE))
+    {
+        // Play Mode choice indices: 0 = Poly, 1 = Mono, 2 = Legato.
+        constexpr int kPoly = 0, kMono = 1;
+
+        if (isBassCategory (category))
+            setChoice (P::VOICE_PLAY_MODE, static_cast<float> (kMono));
+        else if (static_cast<int> (playMode->load()) == kMono)
+            setChoice (P::VOICE_PLAY_MODE, static_cast<float> (kPoly));
+    }
 }
 
 /** Write authoritative root into APVTS so host state matches the loaded sample. */

@@ -3,6 +3,7 @@
 #include "CargoHoldZone.h"
 #include "ManeuverZone.h"
 #include "MfxSlotPanel.h"
+#include "RollingSamplerStrip.h"
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <memory>
 
@@ -13,7 +14,7 @@ class AviatorKeyzProcessor;
 //  page that replaces the MAIN page below the shared top header; the editor
 //  scales the whole canvas as one unit.
 //
-//    FLIGHT DECK · PERFORMANCE                          SRC · KEY · BPM · MODE
+//    ○LIVE ▁▂▃▅▂▁ live 30s ▁▂▅▃  0.00s   TO CARGO  DRAG   SRC · KEY · BPM
 //    ┌ MFX · SLOT A ───────────────────────┐ ┌ MFX · SLOT B ─────────┐
 //    │                                     │ │                       │
 //    └─────────────────────────────────────┘ │                       │
@@ -21,10 +22,12 @@ class AviatorKeyzProcessor;
 //    └─────────────────────────────────────┘ └───────────────────────┘
 //    ┌ CARGO HOLD ──────────────────────────────────────────────────┐
 //    └──────────────────────────────────────────────────────────────┘
+//
+//  The live sampler lives entirely in the title strip: it never covers or
+//  resizes a zone below it.
 // =============================================================================
 
-class FlightDeckView : public juce::Component,
-                       private juce::Timer
+class FlightDeckView : public juce::Component
 {
 public:
     explicit FlightDeckView (AviatorKeyzProcessor& processor);
@@ -37,7 +40,6 @@ public:
     void resized() override;
 
 private:
-    void timerCallback() override;
     juce::Rectangle<int> titleStripBounds() const;
 
     AviatorKeyzProcessor& processorRef;
@@ -45,8 +47,7 @@ private:
     std::unique_ptr<MfxSlotPanel> slotA, slotB;
     std::unique_ptr<ManeuverZone> maneuverZone;
     std::unique_ptr<CargoHoldZone> cargoZone;
-
-    juce::String sysReadLine1, sysReadLine2;
+    std::unique_ptr<RollingSamplerStrip> samplerStrip;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FlightDeckView)
 };

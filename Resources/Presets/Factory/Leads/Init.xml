@@ -13,7 +13,7 @@
     <PARAM id="env_attack" value="0.0" />
     <PARAM id="env_release" value="10.0" />
     <PARAM id="pan" value="0.0" />
-  <PARAM id="src_playback_mode" value="2" /><PARAM id="src_keytrack" value="0" /><PARAM id="src_loop_mode" value="2" /><PARAM id="src_bpm_sync" value="0" /></AviatorKeyzState>
+  <PARAM id="src_playback_mode" value="2" /><PARAM id="src_keytrack" value="1" /><PARAM id="src_loop_mode" value="2" /><PARAM id="src_bpm_sync" value="0" /></AviatorKeyzState>
   <Macros>
     <Macro index="0" name="Chop">
       <Mapping destination="ChopAmount" amount="0.80" curve="1.00" />

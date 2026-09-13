@@ -31,7 +31,7 @@ Presets are the primary way users experience variety; category WAVs define the *
 | Ensembles | `factory_ensembles` | `factory_ensembles.wav` | 5 |
 | Strings | `factory_strings` | `factory_strings.wav` | 5 |
 | Pads | `factory_pads` | `factory_pads.wav` | 5 |
-| Chords | `factory_chords` | `factory_chords.wav` | 5 |
+| Phrases | `factory_phrases` | `factory_phrases.wav` | 5 |
 | Synths | `factory_synths` | `factory_synths.wav` | 5 |
 | Arps | `factory_arps` | `factory_arps.wav` | 5 |
 | Vocals | `factory_vocals` | `factory_vocals.wav` | 5 |

@@ -59,22 +59,53 @@ constexpr const char* kFxPresetParamIds[] {
     nullptr
 };
 
-using FxSnapshot = std::vector<std::pair<juce::String, float>>;
+using ParamSnapshot = std::vector<std::pair<juce::String, float>>;
 
-FxSnapshot captureFxParams (juce::AudioProcessorValueTreeState& apvts)
+juce::StringArray fxPresetParamIds()
 {
-    FxSnapshot snap;
+    juce::StringArray ids;
     for (auto* id = kFxPresetParamIds; *id != nullptr; ++id)
-        if (auto* p = apvts.getParameter (*id))
-            snap.emplace_back (*id, p->getValue());
+        ids.add (*id);
+    return ids;
+}
+
+/** What a keepPerformance load holds on to: everything the PERFORMANCE page
+    shapes the sound with (MFX rack, MANEUVER flip, perf macros / toggles), the
+    FX chain behind its shared reverb send, the reverse lever and SPEED. */
+juce::StringArray performanceParamIds (juce::AudioProcessorValueTreeState& apvts)
+{
+    namespace P = AviatorKeyz::ParamID;
+    auto ids = fxPresetParamIds();
+    for (auto* param : apvts.processor.getParameters())
+    {
+        if (auto* withId = dynamic_cast<juce::AudioProcessorParameterWithID*> (param))
+        {
+            const auto& id = withId->paramID;
+            if (id.startsWith ("mfx") || id.startsWith ("flip_") || id.startsWith ("perf_"))
+                ids.addIfNotAlreadyThere (id);
+        }
+    }
+    for (auto* id : { P::REVERSE, P::SRC_SPEED, P::SRC_SPEED_SNAP })
+        ids.addIfNotAlreadyThere (id);
+    return ids;
+}
+
+ParamSnapshot captureParams (juce::AudioProcessorValueTreeState& apvts, const juce::StringArray& ids)
+{
+    ParamSnapshot snap;
+    for (const auto& id : ids)
+        if (auto* p = apvts.getParameter (id))
+            snap.emplace_back (id, p->getValue());
     return snap;
 }
 
-void restoreFxParams (juce::AudioProcessorValueTreeState& apvts, const FxSnapshot& snap)
+void restoreParams (juce::AudioProcessorValueTreeState& apvts, const ParamSnapshot& snap)
 {
+    // setValueNotifyingHost, not setValue: only the notifying call updates the
+    // APVTS raw values the audio thread reads.
     for (const auto& [id, val] : snap)
         if (auto* p = apvts.getParameter (id))
-            p->setValue (val);
+            p->setValueNotifyingHost (val);
 }
 
 bool fxEditsEnabledInTree (const juce::ValueTree& state)
@@ -202,13 +233,26 @@ juce::StringArray PresetManager::getAllCategories() const
     return AviatorKeyz::getCanonicalCategories();
 }
 
+/** Folders a tab's user presets may sit in: its own name, plus any name the
+    tab used in an earlier release (Chords became Phrases). */
+static juce::StringArray userPresetDirNamesFor (const juce::String& category)
+{
+    juce::StringArray dirs { category };
+    if (category.equalsIgnoreCase (AviatorKeyz::Category::PHRASES))
+        dirs.add ("Chords");
+    return dirs;
+}
+
 juce::StringArray PresetManager::getPresetsForCategory (const juce::String& category) const
 {
     auto names = FactoryResources::getPresetNamesForCategory (category);
 
-    const auto dir = getUserPresetsDir().getChildFile (category);
-    if (dir.isDirectory())
+    for (const auto& dirName : userPresetDirNamesFor (category))
     {
+        const auto dir = getUserPresetsDir().getChildFile (dirName);
+        if (! dir.isDirectory())
+            continue;
+
         juce::Array<juce::File> files;
         dir.findChildFiles (files, juce::File::findFiles, false, "*.xml");
         for (const auto& f : files)
@@ -222,7 +266,7 @@ juce::StringArray PresetManager::getPresetsForCategory (const juce::String& cate
     return names;
 }
 
-bool PresetManager::loadPreset (const juce::String& category, const juce::String& name)
+bool PresetManager::loadPreset (const juce::String& category, const juce::String& name, bool keepPerformance)
 {
     std::unique_ptr<juce::XmlElement> parsed;
     juce::String sampleId = AviatorKeyz::SampleID::DEFAULT;
@@ -243,7 +287,16 @@ bool PresetManager::loadPreset (const juce::String& category, const juce::String
     }
     else
     {
-        const auto file = getUserPresetsDir().getChildFile (category).getChildFile (name + ".xml");
+        juce::File file;
+        for (const auto& dirName : userPresetDirNamesFor (category))
+        {
+            const auto candidate = getUserPresetsDir().getChildFile (dirName).getChildFile (name + ".xml");
+            if (candidate.existsAsFile())
+            {
+                file = candidate;
+                break;
+            }
+        }
         if (! file.existsAsFile())
             return false;
         parsed = juce::XmlDocument::parse (file);
@@ -258,6 +311,7 @@ bool PresetManager::loadPreset (const juce::String& category, const juce::String
     juce::XmlElement* stateEl = nullptr;
 
     int rootNote = 60;
+    int savedRootShift = 0;
     juce::String soundTypeAttr;
     float originalBpm = 0.f;
 
@@ -267,6 +321,7 @@ bool PresetManager::loadPreset (const juce::String& category, const juce::String
             sampleId = parsed->getStringAttribute (AviatorKeyz::PresetKey::SAMPLE_ID,
                                                    AviatorKeyz::SampleID::DEFAULT);
         rootNote = parseRootNoteAttribute (parsed.get());
+        savedRootShift = parsed->getIntAttribute (AviatorKeyz::PresetKey::ROOT_SHIFT, 0);
         if (! parsed->hasAttribute (AviatorKeyz::PresetKey::ROOT_NOTE))
             rootNote = inferRootNoteFromPresetName (name, sampleId);
         soundTypeAttr = parsed->getStringAttribute (AviatorKeyz::PresetKey::SOUND_TYPE);
@@ -297,7 +352,8 @@ bool PresetManager::loadPreset (const juce::String& category, const juce::String
     }
 
     const bool recallFx = fxEditsEnabledInTree (state);
-    const auto fxSnap   = recallFx ? FxSnapshot {} : captureFxParams (apvts);
+    const auto fxSnap   = recallFx ? ParamSnapshot {} : captureParams (apvts, fxPresetParamIds());
+    const auto perfSnap = keepPerformance ? captureParams (apvts, performanceParamIds (apvts)) : ParamSnapshot {};
 
     currentSoundType = soundTypeAttr.isNotEmpty()
                            ? AviatorKeyz::soundTypeFromString (soundTypeAttr)
@@ -311,10 +367,12 @@ bool PresetManager::loadPreset (const juce::String& category, const juce::String
         originalBpm = 120.f;
     currentOriginalBpm = juce::jlimit (40.f, 240.f, originalBpm);
     AviatorKeyz::syncOriginalBpmToApvts (apvts, currentOriginalBpm);
-    AviatorKeyz::syncRootNoteToApvts (apvts, rootNote);
+    rootShift = juce::jlimit (-kMaxRootShiftSemis, kMaxRootShiftSemis, savedRootShift);
+    AviatorKeyz::syncRootNoteToApvts (apvts, rootNote + rootShift);
 
     if (! recallFx)
-        restoreFxParams (apvts, fxSnap);
+        restoreParams (apvts, fxSnap);
+    restoreParams (apvts, perfSnap);
     currentCategory = category;
     currentPresetName = name;
     currentSampleId = sampleId;
@@ -355,6 +413,11 @@ bool PresetManager::saveUserPreset (const juce::String& category, const juce::St
                           currentSampleId.isNotEmpty() ? currentSampleId
                                                        : juce::String (AviatorKeyz::SampleID::DEFAULT));
     preset.setAttribute (AviatorKeyz::PresetKey::ROOT_NOTE, currentRootNote);
+    // The re-root is stored as an offset: the sample's own root is re-derived on
+    // load (smpl chunk / key detection); the user's move on top of it persists.
+    const int liveRoot = juce::roundToInt (apvts.getRawParameterValue (AviatorKeyz::ParamID::SRC_ROOT_NOTE)->load());
+    preset.setAttribute (AviatorKeyz::PresetKey::ROOT_SHIFT,
+                         juce::jlimit (-kMaxRootShiftSemis, kMaxRootShiftSemis, liveRoot - currentRootNote));
     preset.setAttribute (AviatorKeyz::PresetKey::SOUND_TYPE,
                           AviatorKeyz::soundTypeToString (currentSoundType));
     preset.setAttribute (AviatorKeyz::PresetKey::ORIGINAL_BPM, currentOriginalBpm);
@@ -376,6 +439,11 @@ void PresetManager::setCurrentRootNote (int rootNote) noexcept
     currentRootNote = juce::jlimit (0, 127, rootNote);
 }
 
+void PresetManager::setRootShift (int semitones) noexcept
+{
+    rootShift = juce::jlimit (-kMaxRootShiftSemis, kMaxRootShiftSemis, semitones);
+}
+
 void PresetManager::setPresetIdentity (const juce::String& category,
                                          const juce::String& name,
                                          const juce::String& sampleId,
@@ -384,7 +452,7 @@ void PresetManager::setPresetIdentity (const juce::String& category,
                                          float originalBpm)
 {
     if (category.isNotEmpty())
-        currentCategory = category;
+        currentCategory = AviatorKeyz::normaliseCategory (category);
     if (name.isNotEmpty())
         currentPresetName = name;
     if (sampleId.isNotEmpty())
@@ -462,6 +530,31 @@ bool PresetManager::loadAdjacentPresetInCategory (int delta)
     const int idx = getCurrentPresetIndexInCategory();
     const int wrapped = ((idx + delta) % names.size() + names.size()) % names.size();
     return loadPreset (currentCategory, names[wrapped]);
+}
+
+bool PresetManager::loadRandomPreset (bool anyCategory)
+{
+    juce::Array<FlatPreset> pool;
+    if (anyCategory)
+        pool = buildFlatPresetList();
+    else
+        for (const auto& name : getPresetsForCategory (currentCategory))
+            pool.add ({ currentCategory, name });
+
+    // Never "roll" the sound that is already loaded.
+    pool.removeIf ([this] (const FlatPreset& f)
+                   { return f.category.equalsIgnoreCase (currentCategory) && f.name.equalsIgnoreCase (currentPresetName); });
+
+    // A candidate can be refused (e.g. sample / category mismatch) before any
+    // state changes, so keep drawing until one loads.
+    auto& rng = juce::Random::getSystemRandom();
+    while (! pool.isEmpty())
+    {
+        const auto pick = pool.removeAndReturn (rng.nextInt (pool.size()));
+        if (loadPreset (pick.category, pick.name, true))
+            return true;
+    }
+    return false;
 }
 
 bool PresetManager::loadAdjacentCategory (int delta)

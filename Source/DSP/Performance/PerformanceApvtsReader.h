@@ -24,6 +24,7 @@ public:
         std::atomic<float>* srcEnd = nullptr;
         std::atomic<float>* srcTune = nullptr;
         std::atomic<float>* srcSpeed = nullptr;
+        std::atomic<float>* srcSpeedSnap = nullptr;
         std::atomic<float>* srcReverse = nullptr;
         std::atomic<float>* srcBpmSync = nullptr;
         std::atomic<float>* srcOriginalBpm = nullptr;
@@ -31,6 +32,13 @@ public:
         std::atomic<float>* srcPlaybackMode = nullptr;
         std::atomic<float>* srcKeytrack = nullptr;
         std::atomic<float>* srcLoopMode = nullptr;
+        std::atomic<float>* srcLoopStart = nullptr;
+        std::atomic<float>* srcLoopEnd = nullptr;
+
+        // Slice pads
+        std::atomic<float>* sliceDiv = nullptr;
+        std::atomic<float>* sliceRandom = nullptr;
+        std::atomic<float>* sliceCut[15] = {};
 
         // Chop
         std::atomic<float>* chopOn = nullptr;

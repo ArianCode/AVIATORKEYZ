@@ -83,6 +83,7 @@ struct AviationDelay::BlockSettings
     // mode models
     float gapCoef { 1.f }, satDrive { 1.f }, noiseLevel { 0.f };
     float envAtt { 0.f }, envRel { 0.f };
+    float noiseGateRelease { 0.f }, pitchToneCoef { 1.f };
     double clockRatio { 2.0 };                               // hold rate in cycles/sample; >= 1 = no hold
     float quantSteps { 0.f };
     std::array<double, 2> pitchRatio { 1.0, 1.0 };
@@ -190,8 +191,13 @@ float AviationDelay::Shifter::process (float x, double ratio, int window) noexce
     }
 
     const double pb = phase >= 0.5 ? phase - 0.5 : phase + 0.5;
+    // Hann pair: gA + gB == 1, and each head is silent at its own wrap.
+    // (A plateau crossfade — one head alone for most of the cycle — was tried
+    // to cut the comb filtering between the two heads. It raised the level but
+    // measured no better hash-to-tail ratio, because the steeper crossfade
+    // splatters as much as the overlap did. Reverted.)
     const float s = (float) std::sin (kPiD * phase);
-    const float gA = s * s;                                   // Hann pair: gA + gB = 1
+    const float gA = s * s;
     const float y = gA * buf.read ((float) (3.0 + phase * w))
                   + (1.f - gA) * buf.read ((float) (3.0 + pb * w));
     buf.push (x);
@@ -209,7 +215,7 @@ void AviationDelay::Voice::clearState() noexcept
     convAA.clear();
     convRecon.clear();
     reversePhase.fill (0.0);
-    gapLp = noiseLp = satEnv = 0.f;
+    gapLp = toneLp = noiseLp = satEnv = noiseGate = 0.f;
     compEnv = expEnv = 0.f;
     expGain = 1.f;
     holdValue = 0.f;
@@ -369,6 +375,7 @@ void AviationDelay::configureBlock (const Values& v, const Clock& clock, BlockSe
     s.modRate = juce::jlimit (0.01f, 20.f, v[pModRate]);
     s.envAtt = coefForTau (0.002, sr);
     s.envRel = coefForTau (0.040, sr);
+    s.noiseGateRelease = coefForTau (0.60, sr);   // hiss follows the tail out, then stops
     s.switchFadeSamples = juce::jmax (16, (int) (0.012 * sr));
 
     // ---- diffusion ------------------------------------------------------------
@@ -464,6 +471,7 @@ void AviationDelay::configureBlock (const Values& v, const Clock& clock, BlockSe
             const double base = std::pow (2.0, semis / 12.0);
             s.pitchRatio = { base * std::pow (2.0, cents / 1200.0), base * std::pow (2.0, -cents / 1200.0) };
             s.pitchCompensation = 0.5f * (float) pitchWindow + 3.f;
+            s.pitchToneCoef = onePoleCoef (7000.f, sr);
             break;
         }
         case Mode::clean:
@@ -501,6 +509,12 @@ float AviationDelay::record (Voice& voice, int vi, float x, float diffScale, con
         diffusersDirty = true;
     }
 
+    // Analogue noise belongs under the audio, not hissing into an idle mix:
+    // fast to open, slow to close so tails keep their floor and silence is silent.
+    const float level = std::abs (x);
+    voice.noiseGate += (level > voice.noiseGate ? s.envAtt : s.noiseGateRelease) * (level - voice.noiseGate);
+    const float noiseGain = juce::jmin (1.f, voice.noiseGate * 50.f);   // fully open around -34 dBFS
+
     switch (s.mode)
     {
         case Mode::tape:
@@ -515,14 +529,15 @@ float AviationDelay::record (Voice& voice, int vi, float x, float diffScale, con
             const float a = std::abs (x);
             voice.satEnv += (a > voice.satEnv ? s.envAtt : s.envRel) * (a - voice.satEnv);
             voice.noiseLp += 0.3f * (nextNoise() - voice.noiseLp);
-            x += voice.noiseLp * s.age * (0.0005f + 0.02f * voice.satEnv);
+            x += voice.noiseLp * s.age * (0.0002f + 0.02f * voice.satEnv) * noiseGain;
             break;
         }
         case Mode::analog:
         {
             const float d = s.satDrive;
             x = x >= 0.f ? std::tanh (d * x) / d : std::tanh (1.35f * d * x) / (1.35f * d);
-            x += nextNoise() * s.noiseLevel;
+            voice.noiseLp += 0.25f * (nextNoise() - voice.noiseLp);   // circuit hiss, not white noise
+            x += voice.noiseLp * s.noiseLevel * noiseGain;
             break;
         }
         case Mode::bbd:
@@ -569,7 +584,12 @@ float AviationDelay::record (Voice& voice, int vi, float x, float diffScale, con
             break;
         }
         case Mode::pitch:
-            x = softLimit (voice.shifter.process (x, s.pitchRatio[(size_t) vi], pitchWindow));
+            x = voice.shifter.process (x, s.pitchRatio[(size_t) vi], pitchWindow);
+            // The two rotating heads leave a little broadband hash; inside a
+            // feedback loop it would compound on every repeat, so roll the top
+            // off once per pass — the repeats also darken as they climb.
+            voice.toneLp += s.pitchToneCoef * (x - voice.toneLp);
+            x = softLimit (voice.toneLp);
             break;
 
         case Mode::clean:

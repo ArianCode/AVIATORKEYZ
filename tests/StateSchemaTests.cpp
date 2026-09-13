@@ -139,7 +139,7 @@ public:
                 SampleID::ENSEMBLES,
                 SampleID::STRINGS,
                 SampleID::PADS,
-                SampleID::CHORDS,
+                SampleID::PHRASES,
                 SampleID::SYNTHS,
                 SampleID::ARPS,
                 SampleID::VOCALS,
@@ -162,7 +162,7 @@ public:
             juce::StringArray sids {
                 SampleID::DEFAULT, SampleID::LEADS, SampleID::BRASS,
                 SampleID::ENSEMBLES, SampleID::STRINGS, SampleID::PADS,
-                SampleID::CHORDS, SampleID::SYNTHS, SampleID::ARPS,
+                SampleID::PHRASES, SampleID::SYNTHS, SampleID::ARPS,
                 SampleID::VOCALS, SampleID::BELLS,
             };
             expectEquals (sids.size(), 11);
@@ -176,10 +176,11 @@ public:
         beginTest ("All Category constants are non-empty");
         {
             const char* cats[] = {
-                Category::LEADS,    Category::BRASS,  Category::ENSEMBLES,
-                Category::STRINGS,  Category::PADS,   Category::CHORDS,
-                Category::SYNTHS,   Category::ARPS,   Category::VOCALS,
-                Category::BELLS,
+                Category::BASS,     Category::LEADS,  Category::KEYS,
+                Category::BRASS,    Category::PHRASES, Category::ARPS,
+                Category::SYNTHS,   Category::BELLS,  Category::STRINGS,
+                Category::PLUCKS,   Category::ENSEMBLES, Category::PADS,
+                Category::VOCALS,
             };
             for (const char* c : cats)
                 expect (c != nullptr && juce::String (c).isNotEmpty(),
@@ -188,27 +189,31 @@ public:
 
         beginTest ("Category constant values match spec");
         {
+            expectEquals (juce::String (Category::BASS),      juce::String ("Bass"));
             expectEquals (juce::String (Category::LEADS),     juce::String ("Leads"));
+            expectEquals (juce::String (Category::KEYS),      juce::String ("Keys"));
             expectEquals (juce::String (Category::BRASS),     juce::String ("Brass"));
             expectEquals (juce::String (Category::ENSEMBLES), juce::String ("Ensembles"));
             expectEquals (juce::String (Category::STRINGS),   juce::String ("Strings"));
             expectEquals (juce::String (Category::PADS),      juce::String ("Pads"));
-            expectEquals (juce::String (Category::CHORDS),    juce::String ("Chords"));
+            expectEquals (juce::String (Category::PHRASES),    juce::String ("Phrases"));
             expectEquals (juce::String (Category::SYNTHS),    juce::String ("Synths"));
             expectEquals (juce::String (Category::ARPS),      juce::String ("Arps"));
             expectEquals (juce::String (Category::VOCALS),    juce::String ("Vocals"));
             expectEquals (juce::String (Category::BELLS),     juce::String ("Bells"));
+            expectEquals (juce::String (Category::PLUCKS),    juce::String ("Plucks"));
         }
 
         beginTest ("No duplicate Category values");
         {
             juce::StringArray cats {
-                Category::LEADS, Category::BRASS, Category::ENSEMBLES,
-                Category::STRINGS, Category::PADS, Category::CHORDS,
-                Category::SYNTHS, Category::ARPS, Category::VOCALS,
-                Category::BELLS,
+                Category::BASS, Category::LEADS, Category::KEYS,
+                Category::BRASS, Category::PHRASES, Category::ARPS,
+                Category::SYNTHS, Category::BELLS, Category::STRINGS,
+                Category::PLUCKS, Category::ENSEMBLES, Category::PADS,
+                Category::VOCALS,
             };
-            expectEquals (cats.size(), 10);
+            expectEquals (cats.size(), 13);
             for (int i = 0; i < cats.size(); ++i)
                 for (int j = i + 1; j < cats.size(); ++j)
                     expect (cats[i] != cats[j],

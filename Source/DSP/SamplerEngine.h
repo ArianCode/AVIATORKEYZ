@@ -57,6 +57,10 @@ public:
         Consumed by startVoice; other voices are untouched. */
     void setNextNoteSliceWindow (int startFrame, int endFrame) noexcept;
 
+    /** CHOP FADE: fade applied at chop / slice / flip window edges, in ms.
+        Clamped per voice to under half the window so short slices still speak. */
+    void setSliceCrossfadeMs (float ms) noexcept;
+
     /**
         MANEUVER lever: flip the read direction of every sounding voice in place.
         windowFrames == 0 flips across the whole phrase window; > 0 confines the
@@ -155,6 +159,8 @@ private:
         int      envSegSamplesLeft = 0;
         float    declickGain = 1.f;
         float    declickStep = 0.f;
+        float    lastOut = 0.f;      // previous rendered sample — seeds the steal tail
+        float    stealTail = 0.f;    // decaying remnant of the waveform this voice replaced
 
         const float* sampleData = nullptr;
         int          sampleNumFrames = 0;
@@ -165,6 +171,10 @@ private:
         // dedicated stretch engine — do NOT fold pitch into the sample read cursor.
         int          phraseStartFrame = 0;
         int          phraseEndFrame = 0;
+        // sustain loop inside the phrase window (LOOP mode); equal = whole window
+        int          loopStartFrame = 0;
+        int          loopEndFrame = 0;
+        bool         windowedByStep = false; // slice pad / chop step: no sustain loop
         int          chopPitchOffsetSemis = 0;
         uint32_t     voiceInstanceId = 0;
         // live flip window (MANEUVER lever, slice/beat modes)
@@ -193,6 +203,7 @@ private:
     void advanceEnvelope (Voice& v) noexcept;
     void advanceGlide (Voice& v) noexcept;
     void updateVoicePlaybackRates (Voice& v) noexcept;
+    void updateVoiceLoopBounds (Voice& v) noexcept;
     float voiceReadIncrement (const Voice& v) const noexcept;
     SamplePlaybackMode getEffectivePlaybackMode() const noexcept;
     bool usesPhraseWindow() const noexcept;
@@ -206,8 +217,12 @@ private:
     static constexpr int kMaxStackPerNote = 8;
     static constexpr float kChokeFadeMs = 5.f;
     static constexpr float kDeclickFadeMs = 1.5f;
+    static constexpr float kStealTailTauMs = 1.f;
+    static constexpr float kLoopXfadeMs = 10.f;   // sustain-loop seam crossfade (source time)
+    static constexpr int   kMinLoopFrames = 64;   // shorter loop regions fall back to the window
 
     Voice    voices[kMaxVoices];
+    float    stealTailDecay = 0.98f; // per-sample, set in prepare() from kStealTailTauMs
     int      noteVoiceStack[128][kMaxStackPerNote];
     uint8_t  noteVoiceStackCount[128] {};
     uint32_t nextVoiceInstanceId { 1 };
@@ -215,6 +230,7 @@ private:
 
     const SampleLibrary::AudioSnapshot* sampleSnapshot = nullptr;
 
+    float sliceCrossfadeMs = 0.f;
     float attackMs = 0.f;
     float decayMs = 0.f;
     float sustainLevel = 1.f;

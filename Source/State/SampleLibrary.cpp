@@ -220,13 +220,8 @@ bool SampleLibrary::loadSample (const juce::File& file,
 {
     lastError.clear();
 
-    const auto ext = file.getFileExtension().toLowerCase();
-    if (ext != ".wav" && ext != ".aif" && ext != ".aiff")
-    {
-        lastError = "Unsupported file format: " + ext
-                    + ". Please use WAV or AIFF.";
-        return false;
-    }
+    // Format support is whatever the manager can open (PCM, FLAC/Ogg, MP3, AAC);
+    // a reader failure below reports the unsupported extension.
 
     std::unique_ptr<juce::AudioFormatReader> reader (
         formatManager.createReaderFor (file));

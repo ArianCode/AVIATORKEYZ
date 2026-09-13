@@ -45,6 +45,7 @@ target_sources(${_AVIATORKEYZ_TEST_TARGET}
         PitchAlignmentTests.cpp
         PitchTrackingTests.cpp
         PerformanceBenchmarkTests.cpp
+        PluginCpuBenchmark.cpp
         PresetPlaybackTests.cpp
         HostStateRoundtripTests.cpp
         RawSamplerTests.cpp
@@ -53,6 +54,9 @@ target_sources(${_AVIATORKEYZ_TEST_TARGET}
         ArpeggiatorTests.cpp
         FlightDeckWiringTests.cpp
         MfxTests.cpp
+        LoopPointTests.cpp
+        SliceGridTests.cpp
+        RollingSamplerTests.cpp
         AviationReverbTests.cpp
         ${CMAKE_SOURCE_DIR}/Source/PluginProcessor.cpp
         ${CMAKE_SOURCE_DIR}/Source/DSP/Arpeggiator.cpp
@@ -111,6 +115,7 @@ target_compile_definitions(${_AVIATORKEYZ_TEST_TARGET}
         AVIATORKEYZ_HEADLESS_TESTS=1
         JUCE_USE_CURL=0
         JUCE_WEB_BROWSER=0
+        JUCE_USE_MP3AUDIOFORMAT=1
 )
 
 target_link_libraries(${_AVIATORKEYZ_TEST_TARGET}

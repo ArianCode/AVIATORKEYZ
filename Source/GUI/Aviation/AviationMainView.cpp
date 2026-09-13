@@ -61,10 +61,6 @@ AviationMainView::AviationMainView (AviatorKeyzProcessor& p)
     dashboard->bpmProvider = [this] { return processor.getLastKnownHostBpm(); };
     addAndMakeVisible (*dashboard);
 
-    velocityPanel = std::make_unique<VelocityPanel> (apvts);
-    addAndMakeVisible (*velocityPanel);
-    layerMixPanel = std::make_unique<LayerMixPanel> (apvts);
-    addAndMakeVisible (*layerMixPanel);
     filterPanel = std::make_unique<FilterPanel> (apvts);
     addAndMakeVisible (*filterPanel);
     envelopePanel = std::make_unique<EnvelopePanel> (apvts);
@@ -293,11 +289,12 @@ void AviationMainView::resized()
     // cockpit pillar and the macro deck's brand block
     dashboard->setBounds (Aviation::kDesignW / 2 - 305, cockpit.getY() + 222, 610, 250);
 
-    // cockpit side panels, mirrored insets from the cockpit edges
-    velocityPanel->setBounds (cockpit.getX() + 26, cockpit.getY() + 274, 118, 104);
-    layerMixPanel->setBounds (cockpit.getX() + 22, cockpit.getY() + 386, 126, 118);
-    filterPanel->setBounds (cockpit.getRight() - 148, cockpit.getY() + 274, 122, 100);
-    envelopePanel->setBounds (cockpit.getRight() - 152, cockpit.getY() + 382, 130, 132);
+    // cockpit side panels: ENVELOPE and FILTER sit on the same row, mirrored
+    // about the centre axis with matching 26 px insets from the cockpit edges.
+    constexpr int kSideInset = 26;
+    constexpr int kSidePanelY = 274;
+    envelopePanel->setBounds (cockpit.getX() + kSideInset, cockpit.getY() + kSidePanelY, 130, 132);
+    filterPanel->setBounds (cockpit.getRight() - kSideInset - 130, cockpit.getY() + kSidePanelY, 130, 132);
 
     if (presetSelectorOverlay != nullptr)
         presetSelectorOverlay->setBounds (getLocalBounds());

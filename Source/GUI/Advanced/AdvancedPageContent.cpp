@@ -8,6 +8,7 @@ namespace P = AviatorKeyz::ParamID;
 const juce::StringArray kOnOff { "OFF", "ON" };
 const juce::StringArray kLoopModes { "One Shot", "Loop", "Gate" };
 const juce::StringArray kChopRates { "1/4", "1/8", "1/16", "1/32" };
+const juce::StringArray kSliceDivs { "3", "4", "6", "8", "16" };
 const juce::StringArray kPerfModes {
     "Normal", "Chop", "Gate", "Stutter", "Half Time", "Reverse", "Scatter", "Freeze"
 };
@@ -25,8 +26,12 @@ AdvancedPageContent::AdvancedPageContent (juce::AudioProcessorValueTreeState& ap
     addCell (P::SRC_SPEED, "SPEED", "Playback speed (affects pitch).", Fmt::plain);
     addChoice (P::SRC_REVERSE, "REVERSE", "Reverse playback.", kOnOff);
     addChoice (P::SRC_LOOP_MODE, "LOOP", "Loop mode.", kLoopModes);
+    addCell (P::SRC_LOOP_START, "LOOP START", "Sustain loop start (LOOP mode), as a fraction of the sample.", Fmt::percent);
+    addCell (P::SRC_LOOP_END, "LOOP END", "Sustain loop end (LOOP mode), as a fraction of the sample.", Fmt::percent);
     addChoice (P::SRC_BPM_SYNC, "BPM SYNC", "Varispeed sync to host tempo.", kOnOff);
     addChoice (P::SRC_KEYTRACK, "KEY TRACK", "Transpose sample pitch with MIDI notes.", kOnOff);
+    addChoice (P::SLICE_DIV, "SLICES", "Pads across the trim window (SLICE mode, arp SLICES, flip SLICE).", kSliceDivs);
+    addCell (P::SLICE_RANDOM, "SLICE RND", "Chance a pad plays a random slice.", Fmt::percent);
     addCell (P::SRC_ORIGINAL_BPM, "ORIG BPM", "Sample tempo for sync (auto from preset when possible).", Fmt::integer);
 
     addChoice (P::CHOP_ON, "CHOP", "Enable phrase chopper.", kOnOff);
@@ -170,7 +175,8 @@ void AdvancedPageContent::layoutSection (juce::Rectangle<int> area)
     {
         case Section::sourceChop:
             for (const char* id : { P::SRC_START, P::SRC_END, P::SRC_TUNE, P::SRC_SPEED,
-                                    P::SRC_REVERSE, P::SRC_LOOP_MODE, P::SRC_BPM_SYNC, P::SRC_KEYTRACK,
+                                    P::SRC_REVERSE, P::SRC_LOOP_MODE, P::SRC_LOOP_START, P::SRC_LOOP_END,
+                                    P::SRC_BPM_SYNC, P::SRC_KEYTRACK, P::SLICE_DIV, P::SLICE_RANDOM,
                                     P::SRC_ORIGINAL_BPM,
                                     P::CHOP_ON, P::CHOP_AMOUNT, P::CHOP_RATE, P::CHOP_GATE,
                                     P::CHOP_SWING, P::CHOP_RANDOM, P::CHOP_REVERSE_CHANCE, P::CHOP_SMOOTH })

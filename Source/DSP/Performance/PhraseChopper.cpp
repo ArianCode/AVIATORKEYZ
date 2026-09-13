@@ -36,7 +36,12 @@ int PhraseChopper::stepIndexForClock (double hostBpm, int rateIndex, float swing
 
 float PhraseChopper::crossfadeGain (float smooth01, int samplesIntoStep, int stepLenSamples) const noexcept
 {
-    const int fadeLen = juce::jmax (1, static_cast<int> (smooth01 * sampleRate * 0.05f));
+    // Never a hard gate: at least ~1.5 ms of ramp on each edge (a 1-sample gate
+    // clicks), and never more than half the step so short steps still reach
+    // full gain in the middle.
+    const int minFade = juce::jmax (1, static_cast<int> (0.0015 * sampleRate));
+    int fadeLen = juce::jmax (minFade, static_cast<int> (smooth01 * sampleRate * 0.05f));
+    fadeLen = juce::jmax (1, juce::jmin (fadeLen, stepLenSamples / 2));
     if (samplesIntoStep < fadeLen)
         return static_cast<float> (samplesIntoStep) / static_cast<float> (fadeLen);
     if (samplesIntoStep > stepLenSamples - fadeLen)

@@ -113,6 +113,7 @@ void AviatorKeyzProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
     arpeggiator.prepare (sampleRate);
     mfxRack.prepare (spec);
     stretchPlayer.prepare (sampleRate, samplesPerBlock);
+    rollingSampler.prepare (sampleRate, samplesPerBlock);
     filteredMidi.ensureSize (4096);
 
     // Timeline buffer capacity: host MIDI + arp events for one block. Reserved
@@ -216,7 +217,7 @@ bool AviatorKeyzProcessor::loadFactorySample (const juce::String& sampleId, int 
             const int authoritativeRoot = sampleLibrary.getPrimaryRootNote();
             factoryRootNote = authoritativeRoot;
             presetManager->setCurrentRootNote (authoritativeRoot);
-            AviatorKeyz::syncRootNoteToApvts (apvts, authoritativeRoot);
+            AviatorKeyz::syncRootNoteToApvts (apvts, presetManager->getEffectiveRootNote());
             juce::ignoreUnused (rootNote);
             return samplerEngine.hasLoadedSample();
         }
@@ -310,7 +311,7 @@ bool AviatorKeyzProcessor::loadFactorySample (const juce::String& sampleId, int 
     const int authoritativeRoot = sampleLibrary.getPrimaryRootNote();
     factoryRootNote = authoritativeRoot;
     presetManager->setCurrentRootNote (authoritativeRoot);
-    AviatorKeyz::syncRootNoteToApvts (apvts, authoritativeRoot);
+    AviatorKeyz::syncRootNoteToApvts (apvts, presetManager->getEffectiveRootNote());
 
     const bool samplerValid = samplerEngine.validateCurrentState();
 
@@ -340,20 +341,14 @@ bool AviatorKeyzProcessor::loadUserSample (const juce::File& file, juce::String&
         return false;
     }
 
-    const auto ext = file.getFileExtension().toLowerCase();
-    if (ext == ".mp3" || ext == ".m4a" || ext == ".aac" || ext == ".ogg")
-    {
-        errorOut = "Compressed audio is not accepted as cargo. Drop a WAV or AIFF.";
-        return false;
-    }
-
     // Pre-flight: length cap + analysis on a private reader (no audio-thread impact).
+    // Compressed formats are decoded here once; the engine only ever sees PCM.
     juce::AudioFormatManager formatManager;
     formatManager.registerBasicFormats();
     std::unique_ptr<juce::AudioFormatReader> reader (formatManager.createReaderFor (file));
     if (reader == nullptr || reader->sampleRate <= 0.0 || reader->lengthInSamples <= 0)
     {
-        errorOut = "Could not read " + file.getFileName() + " (WAV / AIFF only).";
+        errorOut = "Could not read " + file.getFileName() + " (WAV / AIFF / FLAC / MP3 / AAC).";
         return false;
     }
 
@@ -436,12 +431,17 @@ bool AviatorKeyzProcessor::loadUserSample (const juce::File& file, juce::String&
     const auto soundType = phraseLike ? AviatorKeyz::SoundType::Loop : AviatorKeyz::SoundType::OneShot;
     const float bpm = analysis.bpm > 1.f ? analysis.bpm : 120.f;
 
+    // A different file starts from its own root; restoring the same file (host
+    // state) keeps the user's re-root.
+    if (sampleId != presetManager->getCurrentSampleId())
+        presetManager->setRootShift (0);
+
     presetManager->setPresetIdentity (presetManager->getCurrentCategory(),
                                       file.getFileNameWithoutExtension(),
                                       sampleId, rootNote, soundType, bpm);
     AviatorKeyz::applyPlaybackPolicyToApvts (apvts, presetManager->getCurrentCategory(), soundType);
     AviatorKeyz::syncOriginalBpmToApvts (apvts, bpm);
-    AviatorKeyz::syncRootNoteToApvts (apvts, rootNote);
+    AviatorKeyz::syncRootNoteToApvts (apvts, presetManager->getEffectiveRootNote());
 
     auto setNorm = [&] (const char* id, float value)
     {
@@ -464,6 +464,153 @@ bool AviatorKeyzProcessor::loadUserSample (const juce::File& file, juce::String&
     return true;
 }
 
+bool AviatorKeyzProcessor::autoDetectLoopPoints()
+{
+    SampleAnalysis::LoopPoints lp;
+    {
+        // The mono waveform copy is only replaced under this lock.
+        const juce::ScopedLock lock (sampleLoadLock);
+        if (factoryWaveformData == nullptr || factoryWaveformFrames <= 0)
+            return false;
+        lp = SampleAnalysis::findSustainLoop (factoryWaveformData, factoryWaveformFrames,
+                                              samplerEngine.getPrimarySampleRate(),
+                                              apvts.getRawParameterValue (ParamID::SRC_START)->load(),
+                                              apvts.getRawParameterValue (ParamID::SRC_END)->load());
+    }
+    if (! lp.found)
+        return false;
+
+    auto setNorm = [&] (const char* id, float value)
+    {
+        if (auto* p = apvts.getParameter (id))
+            p->setValueNotifyingHost (p->convertTo0to1 (value));
+    };
+    setNorm (ParamID::SRC_LOOP_START, lp.startNorm);
+    setNorm (ParamID::SRC_LOOP_END, lp.endNorm);
+    return true;
+}
+
+juce::File AviatorKeyzProcessor::getRollingCaptureDir()
+{
+    return juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+               .getChildFile ("Aviation")
+               .getChildFile ("Captures");
+}
+
+bool AviatorKeyzProcessor::captureRollingSample (double seconds, juce::String& errorOut)
+{
+    const int64_t now = rollingSampler.nowFrame();
+    const auto want = (int64_t) std::llround (juce::jlimit (0.1, rollingSampler.getWindowSeconds(), seconds)
+                                              * rollingSampler.getSampleRate());
+    return loadRollingRange (now - want, now, errorOut);
+}
+
+bool AviatorKeyzProcessor::loadRollingRange (int64_t fromFrame, int64_t toFrame, juce::String& errorOut)
+{
+    juce::File file;
+    if (! exportRollingRange (fromFrame, toFrame, file, errorOut))
+        return false;
+
+    // Round-trip through the normal cargo path so analysis, policy and the
+    // waveform display all behave exactly as they do for a dropped file.
+    if (! loadUserSample (file, errorOut))
+        return false;
+
+    lastRollingCapture = file;
+    return true;
+}
+
+bool AviatorKeyzProcessor::exportRollingRange (int64_t fromFrame, int64_t toFrame,
+                                               juce::File& fileOut, juce::String& errorOut)
+{
+    errorOut.clear();
+
+    juce::AudioBuffer<float> take;
+    if (! rollingSampler.snapshotRange (take, fromFrame, toFrame) || take.getNumSamples() < 64)
+    {
+        errorOut = rollingSampler.isArmed()
+                       ? "That moment has already rolled out of the window."
+                       : "Nothing captured yet — arm the rolling sampler and play.";
+        return false;
+    }
+
+    const auto dir = getRollingCaptureDir();
+    const auto dirResult = dir.createDirectory();
+    if (! dirResult.wasOk())
+    {
+        errorOut = "Could not create " + dir.getFullPathName() + ": " + dirResult.getErrorMessage();
+        return false;
+    }
+
+    const auto stamp = juce::Time::getCurrentTime().formatted ("%Y%m%d_%H%M%S");
+    const auto file = dir.getNonexistentChildFile ("Capture_" + stamp, ".wav");
+
+    {
+        juce::WavAudioFormat wav;
+        std::unique_ptr<juce::FileOutputStream> stream (file.createOutputStream());
+        if (stream == nullptr)
+        {
+            errorOut = "Could not write " + file.getFileName();
+            return false;
+        }
+        std::unique_ptr<juce::AudioFormatWriter> writer (
+            wav.createWriterFor (stream.get(), rollingSampler.getSampleRate(),
+                                 (unsigned int) take.getNumChannels(), 24, {}, 0));
+        if (writer == nullptr)
+        {
+            errorOut = "Could not encode the capture as WAV.";
+            return false;
+        }
+        stream.release(); // the writer owns the stream from here
+        if (! writer->writeFromAudioSampleBuffer (take, 0, take.getNumSamples()))
+        {
+            errorOut = "Failed while writing " + file.getFileName();
+            return false;
+        }
+    }
+
+    fileOut = file;
+    return true;
+}
+
+#if JUCE_DEBUG
+void AviatorKeyzProcessor::fillRollingWindowForSnapshot()
+{
+    rollingSampler.setArmed (true);
+
+    const double sr = rollingSampler.getSampleRate();
+    const int blockLen = 1024;
+    juce::AudioBuffer<float> block (2, blockLen);
+    juce::Random rng (0x51CE);
+
+    const int64_t totalFrames = (int64_t) (RollingSampler::kWindowSeconds * sr);
+    int64_t written = 0;
+    float envelope = 0.f;
+    double phase = 0.0;
+
+    while (written < totalFrames)
+    {
+        for (int i = 0; i < blockLen; ++i)
+        {
+            // A bar-ish pulse train so the scope shows recognisable transients
+            // rather than a solid block of noise.
+            const int64_t f = written + i;
+            if (f % (int64_t) (sr * 0.5) == 0)
+                envelope = 0.55f + 0.35f * rng.nextFloat();
+            envelope *= 0.99985f;
+
+            phase += 220.0 * juce::MathConstants<double>::twoPi / sr;
+            const float s = envelope * (float) std::sin (phase)
+                            + 0.05f * envelope * (rng.nextFloat() * 2.f - 1.f);
+            block.setSample (0, i, s);
+            block.setSample (1, i, s * 0.92f);
+        }
+        rollingSampler.write (block);
+        written += blockLen;
+    }
+}
+#endif
+
 void AviatorKeyzProcessor::releaseResources()
 {
     isPrepared = false;
@@ -481,6 +628,7 @@ void AviatorKeyzProcessor::releaseResources()
     arpeggiator.reset();
     mfxRack.reset();
     stretchPlayer.reset();
+    rollingSampler.reset();
 }
 
 bool AviatorKeyzProcessor::isBusesLayoutSupported (const AudioProcessor::BusesLayout& layouts) const
@@ -511,18 +659,28 @@ Arp::Settings AviatorKeyzProcessor::readArpSettings() const noexcept
     s.octSpread = raw (P::ARP_OCT_SPREAD);
     s.hold      = raw (P::ARP_HOLD) > 0.5f;
     s.target    = static_cast<Arp::Target> (juce::jlimit (0, 1, (int) raw (P::ARP_TARGET)));
+    s.numSlices = SliceGrid::divisionsForChoice ((int) raw (P::SLICE_DIV));
     return s;
+}
+
+int AviatorKeyzProcessor::pickSlice (int requestedIndex) noexcept
+{
+    const int n = juce::jmax (1, sliceThisBlock.divisions);
+    const int wrapped = ((requestedIndex % n) + n) % n;
+    if (sliceThisBlock.random > 0.001f && sliceRng.nextFloat() < sliceThisBlock.random)
+        return sliceRng.nextInt (n);
+    return wrapped;
 }
 
 int AviatorKeyzProcessor::flipWindowFrames (int sampleFrames, double hostBpm) const noexcept
 {
     const int window = (int) apvts.getRawParameterValue (ParamID::FLIP_WINDOW)->load();
-    if (window == 1) // SLICE: one of 16 slices of the source window
+    if (window == 1) // SLICE: one pad (SLICE_DIV of them) of the source window
     {
         const float start = apvts.getRawParameterValue (ParamID::SRC_START)->load();
         const float end = apvts.getRawParameterValue (ParamID::SRC_END)->load();
         const int windowLen = juce::jmax (1, (int) ((end - start) * (float) (sampleFrames - 1)));
-        return juce::jmax (64, windowLen / ParamID::ARP_NUM_SLICES);
+        return juce::jmax (64, windowLen / juce::jmax (1, sliceThisBlock.divisions));
     }
     if (window == 2) // BEAT: one host beat, in sample frames of the loaded file
     {
@@ -566,20 +724,18 @@ void AviatorKeyzProcessor::dispatchTimelineMessage (const juce::MidiMessage& msg
 
         if (msg.isNoteOn() || msg.isNoteOff())
         {
-            // Slice steps play the sample at its own root (no repitch) inside a
-            // 1/16 window of the source range.
-            const int rootNote = samplerEngine.getPrimarySampleRootNote();
+            // Slice steps play the sample at its own root (no repitch) inside one
+            // pad of the source range (SliceGrid: division + cut nudges + random).
+            const int rootNote = juce::jlimit (0, 127, samplerEngine.getPrimarySampleRootNote() + src.rootShift);
             if (msg.isNoteOn())
             {
                 if (sampleFrames > 1)
                 {
-                    const int slice = juce::jlimit (0, ParamID::ARP_NUM_SLICES - 1,
-                                                    msg.getNoteNumber() - Arp::kSliceBaseNote);
+                    const int slice = pickSlice (msg.getNoteNumber() - Arp::kSliceBaseNote);
                     const int windowStart = (int) (src.start * (float) (sampleFrames - 1));
                     const int windowEnd = juce::jmax (windowStart + 2, (int) (src.end * (float) (sampleFrames - 1)));
-                    const int sliceLen = juce::jmax (2, (windowEnd - windowStart) / ParamID::ARP_NUM_SLICES);
-                    const int s = windowStart + slice * sliceLen;
-                    const int e = juce::jmin (windowEnd, s + sliceLen);
+                    int s = 0, e = 0;
+                    SliceGrid::sliceBounds (sliceThisBlock, windowStart, windowEnd, slice, s, e);
                     samplerEngine.setNextNoteSliceWindow (s, e);
                 }
                 midiHandler.handleMessage (juce::MidiMessage::noteOn (1, rootNote, msg.getFloatVelocity()),
@@ -610,12 +766,11 @@ void AviatorKeyzProcessor::dispatchTimelineMessage (const juce::MidiMessage& msg
         }
         if (src.playbackMode == SamplePlaybackMode::SlicePhrase && msg.isNoteOn() && msg.getVelocity() > 0 && sampleFrames > 1)
         {
-            const int slice = Arp::sliceIndexForNote (msg.getNoteNumber());
+            const int slice = pickSlice (SliceGrid::indexForNote (msg.getNoteNumber(), sliceThisBlock.divisions));
             const int windowStart = (int) (src.start * (float) (sampleFrames - 1));
             const int windowEnd = juce::jmax (windowStart + 2, (int) (src.end * (float) (sampleFrames - 1)));
-            const int sliceLen = juce::jmax (2, (windowEnd - windowStart) / ParamID::ARP_NUM_SLICES);
-            const int s = windowStart + slice * sliceLen;
-            const int e = juce::jmin (windowEnd, s + sliceLen);
+            int s = 0, e = 0;
+            SliceGrid::sliceBounds (sliceThisBlock, windowStart, windowEnd, slice, s, e);
             samplerEngine.setNextNoteSliceWindow (s, e);
         }
     }
@@ -671,6 +826,12 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
 
     EngineState baseState = PerformanceApvtsReader::readBaseState (perfParamCache);
     EngineState engineState = MacroMapper::applyMacros (baseState, macroControls, perfParamCache);
+    // SPEED lock applies after the macros, so a macro sweep lands on steps too.
+    if (engineState.source.speedSnap)
+        engineState.source.speed = snapSpeedRatio (engineState.source.speed);
+    // ROOT: src_root_note relative to the loaded sample's own root.
+    engineState.source.rootShift = juce::jlimit (-kMaxRootShiftSemis, kMaxRootShiftSemis,
+                                                 engineState.source.rootNote - samplerEngine.getPrimarySampleRootNote());
 
     inputGainSmoothed.setTargetValue (
         Decibels::decibelsToGain (apvts.getRawParameterValue (P::INPUT_GAIN)->load()
@@ -696,6 +857,7 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
 
     samplerEngine.setEnvelopeTimesMs (attackMs, decayMs, sustain01, releaseMs);
     samplerEngine.setVelocitySensitivity (apvts.getRawParameterValue (P::VELOCITY_SENSITIVITY)->load());
+    samplerEngine.setSliceCrossfadeMs (apvts.getRawParameterValue (P::SLICE_XFADE)->load());
     samplerEngine.setPolyphony (polyphony);
     samplerEngine.setPlayMode (playMode);
     samplerEngine.setGlideMode (glideMode);
@@ -746,9 +908,12 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
         sp.hostBpm = hostBpm;
         sp.tuneSemis = engineState.source.tune;
         sp.keytrack = engineState.source.keytrack;
+        sp.rootShift = engineState.source.rootShift;
         sp.start = engineState.source.start;
         sp.end = engineState.source.end;
         sp.loopMode = engineState.source.loopMode;
+        sp.loopStart = engineState.source.loopStart;
+        sp.loopEnd = engineState.source.loopEnd;
         sp.reverse = reverse;
         sp.attackMs = attackMs; sp.decayMs = decayMs; sp.sustain = sustain01; sp.releaseMs = releaseMs;
         sp.velocitySensitivity = apvts.getRawParameterValue (P::VELOCITY_SENSITIVITY)->load();
@@ -875,6 +1040,7 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
 
     // --- dispatch events + render voices in sample-accurate segments -----------
     stretchModeThisBlock = stretchMode;
+    sliceThisBlock = engineState.slice;
     int cursor = 0;
     for (const auto meta : timelineMidi)
     {
@@ -932,7 +1098,7 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
                            apvts.getRawParameterValue (P::TEX_GRAIN_DENSITY)->load(),
                            apvts.getRawParameterValue (P::TEX_GRAIN_SPREAD)->load(),
                            apvts.getRawParameterValue (P::TEX_GRAIN_PAN)->load(),
-                           apvts.getRawParameterValue (P::TEX_MOTION)->load(),
+                           apvts.getRawParameterValue (P::TEX_MOTION)->load() * 2.f - 1.f,   // motion is bipolar
                            apvts.getRawParameterValue (P::TEX_DRIFT)->load(),
                            apvts.getRawParameterValue (P::TEX_AIR)->load(),
                            apvts.getRawParameterValue (P::TEX_REVERSE)->load() > 0.5f,
@@ -1097,6 +1263,10 @@ void AviatorKeyzProcessor::processBlock (AudioBuffer<float>& buffer,
         L[i] = l * gOut;
         R[i] = r * gOut;
     }
+
+    // ROLLING SAMPLER: capture the finished output last, so a resample sounds
+    // exactly like what the user just heard.
+    rollingSampler.write (buffer);
 }
 
 // -----------------------------------------------------------------------------
@@ -1191,6 +1361,9 @@ void AviatorKeyzProcessor::getStateInformation (MemoryBlock& destData)
     state.setProperty ("presetName", presetManager->getCurrentPresetName(), nullptr);
     state.setProperty (AviatorKeyz::PresetKey::SAMPLE_ID, presetManager->getCurrentSampleId(), nullptr);
     state.setProperty (AviatorKeyz::PresetKey::ROOT_NOTE, presetManager->getCurrentRootNote(), nullptr);
+    state.setProperty (AviatorKeyz::PresetKey::ROOT_SHIFT,
+                       juce::roundToInt (apvts.getRawParameterValue (AviatorKeyz::ParamID::SRC_ROOT_NOTE)->load())
+                           - presetManager->getCurrentRootNote(), nullptr);
     state.setProperty (AviatorKeyz::PresetKey::SOUND_TYPE,
                        AviatorKeyz::soundTypeToString (presetManager->getCurrentSoundType()), nullptr);
     state.setProperty (AviatorKeyz::PresetKey::ORIGINAL_BPM, presetManager->getCurrentOriginalBpm(), nullptr);
@@ -1229,10 +1402,11 @@ void AviatorKeyzProcessor::setStateInformation (const void* data, int sizeInByte
     const float originalBpm = static_cast<float> (state.getProperty (
         AviatorKeyz::PresetKey::ORIGINAL_BPM, presetManager->getCurrentOriginalBpm()));
 
+    presetManager->setRootShift (static_cast<int> (state.getProperty (AviatorKeyz::PresetKey::ROOT_SHIFT, 0)));
     presetManager->setPresetIdentity (category, name, sampleId, rootNote, soundType, originalBpm);
     AviatorKeyz::applyPlaybackPolicyToApvts (apvts, category, soundType);
     AviatorKeyz::syncOriginalBpmToApvts (apvts, originalBpm > 1.f ? originalBpm : 120.f);
-    AviatorKeyz::syncRootNoteToApvts (apvts, rootNote);
+    AviatorKeyz::syncRootNoteToApvts (apvts, presetManager->getEffectiveRootNote());
 
     loadFactorySample (sampleId, rootNote);
 

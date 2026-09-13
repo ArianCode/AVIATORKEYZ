@@ -176,6 +176,47 @@ namespace AviationIcons
         return p;
     }
 
+    /** Die showing `face` (1-6): rounded square with the pips punched out. */
+    inline juce::Path dice (int face)
+    {
+        juce::Path p;
+        p.addRoundedRectangle (0.06f, 0.06f, 0.88f, 0.88f, 0.2f);
+        p.setUsingNonZeroWinding (false);
+        constexpr float lo = 0.29f, mid = 0.5f, hi = 0.71f, d = 0.16f;
+        auto pip = [&p] (float x, float y) { p.addEllipse (x - d * 0.5f, y - d * 0.5f, d, d); };
+        switch (juce::jlimit (1, 6, face))
+        {
+            case 1:  pip (mid, mid); break;
+            case 2:  pip (lo, lo); pip (hi, hi); break;
+            case 3:  pip (lo, lo); pip (mid, mid); pip (hi, hi); break;
+            case 4:  pip (lo, lo); pip (hi, lo); pip (lo, hi); pip (hi, hi); break;
+            case 5:  pip (lo, lo); pip (hi, lo); pip (mid, mid); pip (lo, hi); pip (hi, hi); break;
+            default: pip (lo, lo); pip (hi, lo); pip (lo, mid); pip (hi, mid); pip (lo, hi); pip (hi, hi); break;
+        }
+        return p;
+    }
+
+    /** Padlock in a fixed 0..1 box (the open shackle lifts inside it, so draw
+        with a plain scale transform rather than scale-to-fit). */
+    inline juce::Path padlock (bool closed)
+    {
+        juce::Path p;
+        p.addRoundedRectangle (0.16f, 0.46f, 0.68f, 0.50f, 0.08f);
+
+        const float top = closed ? 0.30f : 0.20f;
+        juce::Path shackle;
+        shackle.startNewSubPath (0.33f, closed ? 0.48f : top + 0.08f);
+        shackle.lineTo (0.33f, top);
+        shackle.addCentredArc (0.5f, top, 0.17f, 0.17f, 0.0f,
+                               -juce::MathConstants<float>::halfPi, juce::MathConstants<float>::halfPi);
+        shackle.lineTo (0.67f, 0.48f);
+
+        juce::Path stroked;
+        juce::PathStrokeType (0.10f).createStrokedPath (stroked, shackle);
+        p.addPath (stroked);
+        return p;
+    }
+
     // --- placement helpers ---------------------------------------------------
     inline void fill (juce::Graphics& g, const juce::Path& unitPath,
                       juce::Rectangle<float> area, juce::Colour colour)

@@ -1,4 +1,5 @@
 #include "DeckWidgets.h"
+#include "../Aviation/AviationIcons.h"
 
 // =============================================================================
 //  Deck painters
@@ -555,22 +556,33 @@ void DeckChip::setLabel (const juce::String& l)
     }
 }
 
+void DeckChip::setLock (bool shown, bool locked)
+{
+    if (shown != lockShown || locked != lockOn)
+    {
+        lockShown = shown;
+        lockOn = locked;
+        repaint();
+    }
+}
+
 int DeckChip::preferredWidth() const
 {
     const auto f = Deck::mono (8.0f);
     const float w = juce::GlyphArrangement::getStringWidth (f, labelText + " " + valueText);
-    return juce::roundToInt (w) + 20;
+    return juce::roundToInt (w) + 20 + (lockShown ? 18 : 0);
 }
 
-void DeckChip::mouseDown (const juce::MouseEvent&)
+void DeckChip::mouseDown (const juce::MouseEvent& e)
 {
     dragAccum = 0;
     dragged = false;
+    pressedLock = lockShown && lockBounds().expanded (3).contains (e.getPosition());
 }
 
 void DeckChip::mouseDrag (const juce::MouseEvent& e)
 {
-    if (! onDragTicks)
+    if (pressedLock || ! onDragTicks)
         return;
     const int ticks = -e.getDistanceFromDragStartY() / 6;
     if (ticks != dragAccum)
@@ -581,8 +593,14 @@ void DeckChip::mouseDrag (const juce::MouseEvent& e)
     }
 }
 
-void DeckChip::mouseUp (const juce::MouseEvent&)
+void DeckChip::mouseUp (const juce::MouseEvent& e)
 {
+    if (pressedLock)
+    {
+        if (onLockClick && lockBounds().expanded (3).contains (e.getPosition()))
+            onLockClick();
+        return;
+    }
     if (! dragged && onClick)
         onClick();
 }
@@ -601,6 +619,14 @@ void DeckChip::paint (juce::Graphics& g)
 
     g.setFont (Deck::mono (8.0f));
     auto area = getLocalBounds().reduced (9, 0);
+    if (lockShown)
+    {
+        area.removeFromRight (18);
+        const auto lb = lockBounds().toFloat();
+        g.setColour (lockOn ? Aviation::gold() : Aviation::textDim());
+        g.fillPath (AviationIcons::padlock (lockOn),
+                    juce::AffineTransform::scale (lb.getWidth(), lb.getHeight()).translated (lb.getX(), lb.getY()));
+    }
     const int labelW = juce::roundToInt (juce::GlyphArrangement::getStringWidth (Deck::mono (8.0f), labelText));
     g.setColour (Aviation::textDim());
     g.drawText (labelText, area.removeFromLeft (labelW + 4), juce::Justification::centredLeft);

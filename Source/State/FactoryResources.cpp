@@ -80,6 +80,27 @@ const char* findWavResource (const juce::String& sampleId, int& sizeOut)
         if (orig.endsWithIgnoreCase (needle) || orig.containsIgnoreCase (needle))
             return AviatorKeyzBinary::getNamedResource (AviatorKeyzBinary::namedResourceList[i], sizeOut);
     }
+
+    // Re-filed sample: a factory id carries its tab in the prefix
+    // (`factory_<category>_<stem>`), so moving a sound to the tab it actually
+    // belongs in renames it. Sessions and user presets saved before the move
+    // still ask for the old id — match on the stem so they keep resolving.
+    if (! sampleId.startsWith ("factory_"))
+        return nullptr;
+
+    const auto body = sampleId.fromFirstOccurrenceOf ("factory_", false, false);
+    const auto stem = body.fromFirstOccurrenceOf ("_", false, false);
+    if (stem.isEmpty())
+        return nullptr;
+
+    const auto stemNeedle = "_" + stem + ".wav";
+    for (int i = 0; i < AviatorKeyzBinary::namedResourceListSize; ++i)
+    {
+        const juce::String orig (AviatorKeyzBinary::originalFilenames[i]);
+        if (orig.startsWithIgnoreCase ("factory_") && orig.endsWithIgnoreCase (stemNeedle))
+            return AviatorKeyzBinary::getNamedResource (AviatorKeyzBinary::namedResourceList[i], sizeOut);
+    }
+
     return nullptr;
 }
 } // namespace

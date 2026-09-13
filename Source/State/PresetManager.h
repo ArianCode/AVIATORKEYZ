@@ -42,7 +42,9 @@ public:
     juce::StringArray getAllCategories() const;
 
     // Load/save
-    bool loadPreset (const juce::String& category, const juce::String& name);
+    /** keepPerformance: the MFX rack, MANEUVER flip, FX chain, reverse lever,
+        speed and perf macros survive the load, so only the sound changes. */
+    bool loadPreset (const juce::String& category, const juce::String& name, bool keepPerformance = false);
     bool saveUserPreset (const juce::String& category, const juce::String& name);
 
     // Current preset tracking (for header display)
@@ -64,6 +66,13 @@ public:
     /** Keep root note in sync after sample load resolves smpl vs preset. */
     void setCurrentRootNote (int rootNote) noexcept;
 
+    /** User re-root (ROOT chip), in semitones from the sample's own root
+        (getCurrentRootNote). Every root sync writes own root + shift into
+        src_root_note; presets and host state store the shift. */
+    int  getRootShift() const noexcept { return rootShift; }
+    void setRootShift (int semitones) noexcept;
+    int  getEffectiveRootNote() const noexcept { return juce::jlimit (0, 127, currentRootNote + rootShift); }
+
     int  getTotalPresetCount() const;
     int  getCurrentPresetIndex() const;
     bool loadPresetByFlatIndex (int index);
@@ -73,6 +82,9 @@ public:
     int  getCurrentPresetIndexInCategory() const;
     /** Steps across factory categories (CAT prev/next). */
     bool loadAdjacentCategory (int delta);
+    /** Dice: a different preset from the current category (or any category),
+        loaded with keepPerformance. False when there is nothing else to load. */
+    bool loadRandomPreset (bool anyCategory);
 
     /** category, preset name, sampleId, rootNote — message thread only */
     std::function<void (const juce::String& category,
@@ -103,6 +115,7 @@ private:
     juce::String currentCategory;
     juce::String currentSampleId { AviatorKeyz::SampleID::DEFAULT };
     int          currentRootNote { 60 };
+    int          rootShift { 0 };
     float        currentOriginalBpm { 120.f };
     AviatorKeyz::SoundType currentSoundType { AviatorKeyz::SoundType::Phrase };
 

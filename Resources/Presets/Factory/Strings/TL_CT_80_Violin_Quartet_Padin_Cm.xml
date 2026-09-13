@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Preset category="Strings" name="TL_CT_80_Violin_Quartet_Padin_Cm" schemaVersion="1" sampleId="factory_strings_tl_ct_80_violin_quartet_padin_cm" author="AviatorKeyz" rootNote="60" soundType="one_shot">
+<Preset category="Strings" name="TL_CT_80_Violin_Quartet_Padin_Cm" schemaVersion="1" sampleId="factory_strings_tl_ct_80_violin_quartet_padin_cm" rootNote="60" soundType="one_shot" originalBpm="120" author="AviatorKeyz">
   <AviatorKeyzState stateVersion="1">
     <PARAM id="input_gain" value="0.0" />
     <PARAM id="output_gain" value="0.0" />
@@ -13,5 +13,10 @@
     <PARAM id="env_attack" value="5.0" />
     <PARAM id="env_release" value="150.0" />
     <PARAM id="pan" value="0.0" />
-  <PARAM id="src_playback_mode" value="2" /><PARAM id="src_keytrack" value="0" /><PARAM id="src_loop_mode" value="2" /><PARAM id="src_bpm_sync" value="0" /></AviatorKeyzState>
+    <PARAM id="src_root_note" value="60" />
+    <PARAM id="src_playback_mode" value="2" />
+    <PARAM id="src_keytrack" value="1" />
+    <PARAM id="src_loop_mode" value="2" />
+    <PARAM id="src_bpm_sync" value="0" />
+  </AviatorKeyzState>
 </Preset>

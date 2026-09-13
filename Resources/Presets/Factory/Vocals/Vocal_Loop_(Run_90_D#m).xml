@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Preset category="Vocals" name="Vocal Loop (Run 90 D#m)" schemaVersion="1" sampleId="factory_vocals_vocal_loop_run_90_d_m" rootNote="60" soundType="loop" originalBpm="120" author="AviatorKeyz">
+  <AviatorKeyzState stateVersion="1">
+    <PARAM id="input_gain" value="0.0" />
+    <PARAM id="output_gain" value="0.0" />
+    <PARAM id="reverse" value="0" />
+    <PARAM id="glide_time" value="0.0" />
+    <PARAM id="smear" value="0.0" />
+    <PARAM id="tone" value="0.0" />
+    <PARAM id="reverb_amount" value="0.1" />
+    <PARAM id="reverb_size" value="0.5" />
+    <PARAM id="stereo_width" value="1.0" />
+    <PARAM id="env_attack" value="5.0" />
+    <PARAM id="env_release" value="150.0" />
+    <PARAM id="pan" value="0.0" />
+    <PARAM id="src_root_note" value="60" />
+    <PARAM id="src_playback_mode" value="2" />
+    <PARAM id="src_keytrack" value="1" />
+    <PARAM id="src_loop_mode" value="1" />
+    <PARAM id="src_bpm_sync" value="0" />
+  </AviatorKeyzState>
+</Preset>

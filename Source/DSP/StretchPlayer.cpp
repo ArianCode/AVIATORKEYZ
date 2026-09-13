@@ -43,6 +43,7 @@ void StretchPlayer::prepare (double sr, int maxBlockSize)
     maxBlock = juce::jmax (16, maxBlockSize);
 
     impl->stretch.presetDefault (1, (float) sampleRate);
+    tailDecay = (float) std::exp (-1.0 / (0.001 * sampleRate));
     inBuf.assign ((size_t) (maxBlock * kMaxTimeRatioInput + 64), 0.f);
     outBuf.assign ((size_t) maxBlock, 0.f);
 
@@ -70,6 +71,8 @@ void StretchPlayer::reset()
     readPos = 0.0;
     inputAccum = 0.0;
     materialExhausted = false;
+    lastOut = 0.f;
+    retrigTail = 0.f;
     playhead.store (0.f, std::memory_order_relaxed);
 }
 
@@ -163,6 +166,8 @@ void StretchPlayer::noteOn (int midiNote, float velocity) noexcept
     readPos = params.reverse ? (double) endFrame : (double) startFrame;
     inputAccum = 0.0;
     materialExhausted = false;
+    retrigTail = active ? lastOut : 0.f; // previous note decays out under the new one
+    lastOut = 0.f;
     active = true;
 
     // Prime the stretcher with material from the start so the onset is immediate.
@@ -207,6 +212,8 @@ void StretchPlayer::allSoundOff() noexcept
     active = false;
     stage = Stage::idle;
     envLevel = 0.f;
+    lastOut = 0.f;
+    retrigTail = 0.f;
     if (prepared)
         impl->stretch.reset();
 }
@@ -223,6 +230,21 @@ int StretchPlayer::fillInput (float* dst, int numSamples) noexcept
     const bool loops = params.loopMode == LoopMode::Loop;
     const double dir = params.reverse ? -1.0 : 1.0;
 
+    // Sustain loop inside the window (defaults = the whole window), with a
+    // linear crossfade into the pre-roll so the seam doesn't step.
+    int loopStart = startFrame, loopEnd = endFrame;
+    if (loops)
+    {
+        const int ls = juce::jlimit (startFrame, endFrame, (int) (params.loopStart * (float) (frames - 1)));
+        const int le = juce::jlimit (startFrame, endFrame, (int) (params.loopEnd * (float) (frames - 1)));
+        if (le - ls >= 64) { loopStart = ls; loopEnd = le; }
+    }
+    const int loopLen = juce::jmax (1, loopEnd - loopStart);
+    const double srcRate = region->fileSampleRate > 0.0 ? region->fileSampleRate : sampleRate;
+    const int xf = loops ? juce::jmin ((int) (0.01 * srcRate), loopLen / 2,
+                                       params.reverse ? endFrame - loopEnd : loopStart - startFrame)
+                         : 0;
+
     int written = 0;
     for (; written < numSamples; ++written)
     {
@@ -234,7 +256,7 @@ int StretchPlayer::fillInput (float* dst, int numSamples) noexcept
         {
             if (loops)
             {
-                readPos = params.reverse ? (double) endFrame : (double) startFrame;
+                readPos = params.reverse ? (double) loopEnd : (double) loopStart;
                 idx = (int) readPos;
             }
             else
@@ -243,8 +265,24 @@ int StretchPlayer::fillInput (float* dst, int numSamples) noexcept
                 break;
             }
         }
-        dst[written] = data[idx];
+        float s = data[idx];
+        if (xf > 1)
+        {
+            const int toSeam = params.reverse ? idx - loopStart : loopEnd - idx;
+            if (toSeam < xf)
+            {
+                const float t = 1.f - (float) toSeam / (float) xf;
+                const int otherIdx = juce::jlimit (0, frames - 1, params.reverse ? idx + loopLen : idx - loopLen);
+                s = s * (1.f - t) + data[otherIdx] * t;
+            }
+        }
+        dst[written] = s;
         readPos += dir;
+        if (loops)
+        {
+            if (! params.reverse && readPos >= (double) loopEnd)     readPos -= loopLen;
+            else if (params.reverse && readPos <= (double) loopStart) readPos += loopLen;
+        }
     }
     for (int i = written; i < numSamples; ++i)
         dst[i] = 0.f;
@@ -274,7 +312,7 @@ void StretchPlayer::render (juce::AudioBuffer<float>& buffer) noexcept
         enterRelease(); // played through the window: release naturally
 
     const float transpose = params.tuneSemis
-                            + (params.keytrack ? (float) (noteNumber - region->rootNote) : 0.f);
+                            + (params.keytrack ? (float) (noteNumber - (region->rootNote + params.rootShift)) : 0.f);
     impl->stretch.setTransposeSemitones (transpose, 0.f);
 
     float* in[1] = { inBuf.data() };
@@ -285,7 +323,15 @@ void StretchPlayer::render (juce::AudioBuffer<float>& buffer) noexcept
     float* R = buffer.getNumChannels() > 1 ? buffer.getWritePointer (1) : L;
     for (int i = 0; i < n; ++i)
     {
-        const float s = outBuf[(size_t) i] * envLevel * velocityGain;
+        float s = outBuf[(size_t) i] * envLevel * velocityGain;
+        if (retrigTail != 0.f)
+        {
+            s += retrigTail;
+            retrigTail *= tailDecay;
+            if (std::abs (retrigTail) < 1.0e-6f)
+                retrigTail = 0.f;
+        }
+        lastOut = s;
         L[i] += s;
         if (R != L)
             R[i] += s;

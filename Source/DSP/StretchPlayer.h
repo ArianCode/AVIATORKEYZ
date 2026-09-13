@@ -32,9 +32,12 @@ public:
         double hostBpm { 120.0 };
         float  tuneSemis { 0.f };
         bool   keytrack { false };
+        int    rootShift { 0 };          // user re-root, semitones on top of the region root
         float  start { 0.f };            // source window (normalised)
         float  end { 1.f };
         LoopMode loopMode { LoopMode::Gate };
+        float  loopStart { 0.f };        // sustain loop inside the window (normalised)
+        float  loopEnd { 1.f };
         bool   reverse { false };
         float  attackMs { 0.f }, decayMs { 0.f }, sustain { 1.f }, releaseMs { 10.f };
         float  velocitySensitivity { 0.f };
@@ -98,6 +101,13 @@ private:
     std::vector<float> inBuf;
     std::vector<float> outBuf;
     std::atomic<float> playhead { 0.f };
+
+    // Retrigger de-click: noteOn() restarts the stretcher, so the previous
+    // note's last sample decays out (~1 ms) under the new onset instead of
+    // stepping to zero.
+    float  lastOut { 0.f };
+    float  retrigTail { 0.f };
+    float  tailDecay { 0.98f };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (StretchPlayer)
 };

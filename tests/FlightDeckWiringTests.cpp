@@ -200,6 +200,69 @@ public:
             expect (p1 > 0.5f, "reversed note starts near the end: " + juce::String (p1));
             expect (p2 < p1, "and its playhead runs backwards");
         }
+
+        // Zero-crossing pitch of a held note over ~0.5 s, past the attack.
+        auto measureHz = [] (AviatorKeyzProcessor& p, int note)
+        {
+            juce::AudioBuffer<float> buffer (2, kBlock);
+            juce::AudioBuffer<float> capture (1, kBlock * 50);
+            capture.clear();
+            for (int b = 0; b < 55; ++b)
+            {
+                juce::MidiBuffer midi;
+                if (b == 0)
+                    midi.addEvent (juce::MidiMessage::noteOn (1, note, (juce::uint8) 100), 0);
+                buffer.clear();
+                p.processBlock (buffer, midi);
+                if (b >= 5)
+                    capture.copyFrom (0, (b - 5) * kBlock, buffer, 0, 0, kBlock);
+            }
+            int crossings = 0;
+            const auto* d = capture.getReadPointer (0);
+            for (int i = 1; i < capture.getNumSamples(); ++i)
+                if ((d[i - 1] >= 0.f) != (d[i] >= 0.f))
+                    ++crossings;
+            return (float) crossings * 0.5f * (float) kSr / (float) capture.getNumSamples();
+        };
+        auto makeChromatic = [] (Proc& t)
+        {
+            setParam (t.p, AviatorKeyz::ParamID::SRC_PLAYBACK_MODE, 2.f);
+            setParam (t.p, AviatorKeyz::ParamID::SRC_KEYTRACK, 1.f);
+            setParam (t.p, AviatorKeyz::ParamID::SRC_BPM_SYNC, 0.f);
+        };
+
+        beginTest ("ROOT: after raising src_root_note an octave, root + 12 plays the recorded pitch");
+        {
+            Proc own, octaveUp, rerooted;
+            makeChromatic (own);
+            makeChromatic (octaveUp);
+            makeChromatic (rerooted);
+            const int ownRoot = rerooted.p.getPresetManager().getCurrentRootNote();
+            setParam (rerooted.p, AviatorKeyz::ParamID::SRC_ROOT_NOTE, (float) (ownRoot + 12));
+
+            const float recorded = measureHz (own.p, ownRoot);          // own root, recorded pitch
+            const float up = measureHz (octaveUp.p, ownRoot + 12);      // no re-root: an octave up
+            const float moved = measureHz (rerooted.p, ownRoot + 12);   // re-rooted: recorded pitch again
+            expect (recorded > 20.f, "a tone is playing: " + juce::String (recorded));
+            expectWithinAbsoluteError (moved, recorded, recorded * 0.01f,
+                                       "re-rooted key plays like the own root: " + juce::String (moved) + " vs " + juce::String (recorded));
+            expect (up > recorded * 1.5f, "without the re-root the same key is clearly higher: " + juce::String (up));
+        }
+
+        beginTest ("SPEED lock: x0.53 plays as x0.50 when locked, freely when unlocked");
+        {
+            auto hzAt = [&] (float speed, bool locked)
+            {
+                Proc t;
+                makeChromatic (t);
+                setParam (t.p, AviatorKeyz::ParamID::SRC_SPEED_SNAP, locked ? 1.f : 0.f);
+                setParam (t.p, AviatorKeyz::ParamID::SRC_SPEED, speed);
+                return measureHz (t.p, 60);
+            };
+            const float half = hzAt (0.5f, true);
+            expectWithinAbsoluteError (hzAt (0.53f, true), half, half * 0.005f);
+            expect (std::abs (hzAt (0.53f, false) - half) > half * 0.03f, "unlocked 0.53 is not 0.5");
+        }
     }
 };
 

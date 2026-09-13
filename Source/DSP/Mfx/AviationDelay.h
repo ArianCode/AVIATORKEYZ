@@ -110,8 +110,10 @@ namespace Mfx
             std::array<double, kMaxTaps> reversePhase {};
             double timeSm { 0.0 };            // smoothed delay time, samples
             float gapLp { 0.f };              // tape gap-loss one-pole
+            float toneLp { 0.f };             // pitch-path top-end roll-off
             float noiseLp { 0.f };
             float satEnv { 0.f };             // tape asperity follower
+            float noiseGate { 0.f };          // signal presence: keeps hiss out of an idle mix
             float compEnv { 0.f }, expEnv { 0.f }, expGain { 1.f };
             float holdValue { 0.f };
             double holdPhase { 0.0 };

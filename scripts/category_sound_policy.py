@@ -8,21 +8,26 @@ from dataclasses import dataclass
 from enum import IntEnum
 from typing import Optional
 
+# Browser tab order — mirrors getCanonicalCategories() in CategorySoundPolicy.h.
 CANONICAL_CATEGORIES = [
+    "Bass",
     "Leads",
+    "Keys",
     "Brass",
-    "Ensembles",
-    "Strings",
-    "Pads",
-    "Chords",
-    "Synths",
+    "Phrases",
     "Arps",
-    "Vocals",
+    "Synths",
     "Bells",
+    "Strings",
+    "Plucks",
+    "Ensembles",
+    "Pads",
+    "Vocals",
 ]
 
-CHROMATIC_CATEGORIES = {"Leads", "Brass", "Strings", "Synths", "Bells"}
-PHRASE_CATEGORIES = {"Vocals", "Arps", "Pads", "Chords", "Ensembles"}
+# PHRASES is the only stretcher tab; every other tab is a chromatic instrument.
+PHRASE_CATEGORIES = {"Phrases"}
+CHROMATIC_CATEGORIES = {c for c in CANONICAL_CATEGORIES if c not in PHRASE_CATEGORIES}
 
 
 class SoundType(IntEnum):
@@ -45,7 +50,7 @@ class CategoryPolicy:
     name: str
     default_sound_type: SoundType
     default_playback_mode: PlaybackMode
-    keytrack: bool = False
+    keytrack: bool = True
 
 
 def category_slug(category: str) -> str:
@@ -55,20 +60,26 @@ def category_slug(category: str) -> str:
 def get_policy(category: str) -> CategoryPolicy:
     if category in CHROMATIC_CATEGORIES:
         return CategoryPolicy(category, SoundType.ONE_SHOT, PlaybackMode.CHROMATIC_RESAMPLE)
-    return CategoryPolicy(category, SoundType.PHRASE, PlaybackMode.PHRASE_ORIGINAL)
+    # Phrase categories run through the pitch-preserving stretcher.
+    return CategoryPolicy(category, SoundType.PHRASE, PlaybackMode.PHRASE_TIME_STRETCH)
 
 
 def playback_mode_for(category: str, sound_type: SoundType) -> PlaybackMode:
     if sound_type == SoundType.SLICE:
         return PlaybackMode.SLICE_PHRASE
+    # Outside Phrases every tab is a chromatic instrument.
+    if category not in PHRASE_CATEGORIES:
+        return PlaybackMode.CHROMATIC_RESAMPLE
+    # A one-shot filed under Phrases keeps its recorded pitch.
     if sound_type == SoundType.ONE_SHOT:
-        # Ensembles one-shots are single pitched notes and must track MIDI.
-        if category in CHROMATIC_CATEGORIES or category == "Ensembles":
-            return PlaybackMode.CHROMATIC_RESAMPLE
         return PlaybackMode.ONE_SHOT_ORIGINAL
-    if sound_type == SoundType.LOOP:
-        return PlaybackMode.PHRASE_ORIGINAL
-    return PlaybackMode.PHRASE_ORIGINAL
+    # Phrases and loops: STRETCH keeps pitch fixed under speed / BPM sync.
+    return PlaybackMode.PHRASE_TIME_STRETCH
+
+
+def keytrack_for(mode: PlaybackMode) -> bool:
+    """Mirror of CategorySoundPolicy.h keytrackFor(): on everywhere except SLICE."""
+    return mode != PlaybackMode.SLICE_PHRASE
 
 
 def _stem_lower(stem: str) -> str:
@@ -134,8 +145,8 @@ def suggest_category(display_name: str, current: str) -> Optional[str]:
         return "Bells"
     if has_lead and current not in ("Leads", "Synths"):
         return "Leads"
-    if has_chord and has_guitar and current not in ("Chords", "Arps"):
-        return "Chords"
+    if has_chord and has_guitar and current not in ("Phrases", "Arps"):
+        return "Phrases"
     if has_guitar and has_arp and current != "Arps":
         return "Arps"
     return None
@@ -153,11 +164,7 @@ def is_sample_id_compatible(sample_id: str, category: str) -> bool:
 def loop_mode_for(category: str, sound_type: SoundType) -> int:
   if sound_type == SoundType.LOOP:
     return 1
-  if (
-      sound_type == SoundType.ONE_SHOT
-      and category not in CHROMATIC_CATEGORIES
-      and category != "Ensembles"
-  ):
+  if sound_type == SoundType.ONE_SHOT and category in PHRASE_CATEGORIES:
     return 0
   return 2
 
@@ -175,7 +182,7 @@ def playback_params_for(category: str, display_name: str) -> dict[str, float | i
     )
     return {
         "src_playback_mode": int(mode),
-        "src_keytrack": 1 if mode == PlaybackMode.CHROMATIC_RESAMPLE else 0,
+        "src_keytrack": 1 if keytrack_for(mode) else 0,
         "src_loop_mode": loop_mode,
         "src_bpm_sync": bpm_sync,
     }

@@ -12,8 +12,8 @@ PRESETS_DIR = ROOT / "Resources" / "Presets" / "Factory"
 FACTORY_DIR = ROOT / "Resources" / "Factory"
 
 EXPECTED_CATEGORIES = {
-    "Leads", "Brass", "Ensembles", "Strings", "Pads",
-    "Chords", "Synths", "Arps", "Vocals", "Bells",
+    "Bass", "Leads", "Keys", "Brass", "Phrases", "Arps", "Synths",
+    "Bells", "Strings", "Plucks", "Ensembles", "Pads", "Vocals",
 }
 
 REQUIRED_PARAMS = {
@@ -23,6 +23,7 @@ REQUIRED_PARAMS = {
 
 ALLOWED_FACTORY_PARAMS = REQUIRED_PARAMS | {
     "src_playback_mode", "src_keytrack", "src_loop_mode", "src_bpm_sync",
+    "src_root_note",  # Aviation Sounds bank pins the sample root explicitly
 }
 
 PARAM_RANGES = {
@@ -42,6 +43,7 @@ PARAM_RANGES = {
     "src_keytrack":      (0.0, 1.0),
     "src_loop_mode":     (0.0, 2.0),
     "src_bpm_sync":      (0.0, 1.0),
+    "src_root_note":     (0.0, 127.0),
 }
 
 
@@ -195,7 +197,7 @@ class TestPresetParameters(unittest.TestCase):
 
 class TestPresetCategories(unittest.TestCase):
 
-    def test_all_10_expected_categories_present(self):
+    def test_all_expected_categories_present(self):
         cats_in_presets = {r.get("category") for _, r in _PARSED}
         missing = EXPECTED_CATEGORIES - cats_in_presets
         self.assertEqual(missing, set(),

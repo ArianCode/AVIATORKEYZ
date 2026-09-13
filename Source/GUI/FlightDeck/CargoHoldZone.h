@@ -9,7 +9,7 @@ class AviatorKeyzProcessor;
 
 // =============================================================================
 //  CargoHoldZone — user sample import.
-//  Drop a WAV/AIFF (<= 60 s) on the zone or click DROP CARGO to browse. The
+//  Drop an audio file (WAV/AIFF/FLAC/MP3/AAC, <= 60 s) on the zone or click DROP CARGO to browse. The
 //  waveform strip shows the loaded sound (factory or cargo) with draggable
 //  TRIM handles (src_start / src_end) and the live playhead; the control row
 //  drives playback mode, loop, host sync and root note.
@@ -42,6 +42,9 @@ private:
     void loadFile (const juce::File& file);
     void browse();
     void showError (const juce::String& message);
+    /** ROOT chip: re-root by `semitones` from the sample's own root (0 = reset). */
+    void setRootShift (int semitones);
+    bool speedLocked() const;
 
     AviatorKeyzProcessor& processorRef;
     juce::AudioProcessorValueTreeState& apvts;
@@ -50,9 +53,11 @@ private:
     std::unique_ptr<WaveBox> waveBox;
     std::unique_ptr<DeckSegment> modeSeg;
     std::unique_ptr<DeckChip> loopChip, syncChip, rootChip, speedChip, trimChip, feedChip;
+    std::unique_ptr<DeckChip> sliceChip, sliceRndChip, fadeChip;
     std::unique_ptr<juce::FileChooser> chooser;
 
     juce::String errorText;
+    juce::String activeHint; // hovered chip's help, shown in place of the zone tag
     juce::uint32 errorUntilMs { 0 };
     bool dragOver { false };
 

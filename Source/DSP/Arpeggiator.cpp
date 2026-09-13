@@ -256,7 +256,7 @@ void Arpeggiator::emitStep (int samplePos, double stepBeats, double beatsPerSamp
     pos = juce::jmax (samplePos, pos); // never earlier than the grid (can't rewind a block)
     vel = juce::jlimit (0.05f, 1.f, vel);
 
-    const int slice = Arp::sliceIndexForNote (step.baseNote, step.octave);
+    const int slice = Arp::sliceIndexForNote (step.baseNote, step.octave, settings.numSlices);
 
     // If this note still has a pending off (gate == 100%), close it first.
     for (int i = 0; i < numPendingOffs; ++i)

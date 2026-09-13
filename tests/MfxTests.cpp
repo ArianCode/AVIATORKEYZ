@@ -113,6 +113,58 @@ int peakIndex (const juce::AudioBuffer<float>& b, int ch, int from, int to)
     return best;
 }
 
+double rmsRange (const juce::AudioBuffer<float>& b, int ch, double fromSec, double toSec)
+{
+    const int from = juce::jlimit (0, b.getNumSamples(), (int) (fromSec * kSr));
+    const int to   = juce::jlimit (from, b.getNumSamples(), (int) (toSec * kSr));
+    double sum = 0.0;
+    for (int i = from; i < to; ++i)
+        sum += (double) b.getSample (ch, i) * b.getSample (ch, i);
+    return std::sqrt (sum / juce::jmax (1, to - from));
+}
+
+/** RMS of everything above ~8 kHz (two cascaded one-pole high-passes). */
+double hfRms (const juce::AudioBuffer<float>& b, int ch, double fromSec, double toSec, double fc = 8000.0)
+{
+    const int from = juce::jlimit (0, b.getNumSamples(), (int) (fromSec * kSr));
+    const int to   = juce::jlimit (from, b.getNumSamples(), (int) (toSec * kSr));
+    const double a = std::exp (-2.0 * juce::MathConstants<double>::pi * fc / kSr);
+    double y1 = 0, x1 = 0, y2 = 0, x2 = 0, sum = 0;
+    for (int i = from; i < to; ++i)
+    {
+        const double x = b.getSample (ch, i);
+        y1 = a * (y1 + x - x1); x1 = x;
+        y2 = a * (y2 + y1 - x2); x2 = y1;
+        sum += y2 * y2;
+    }
+    return std::sqrt (sum / juce::jmax (1, to - from));
+}
+
+/** Mean |step| exactly at block boundaries / mean |step| inside blocks.
+    Well above 1 means something updates once per block and jumps — audible as a
+    buzz at the block rate (187 Hz at 48 kHz / 256). */
+double blockStepRatio (const juce::AudioBuffer<float>& b, int ch, double fromSec, double toSec, int blockSize)
+{
+    const int from = juce::jlimit (1, b.getNumSamples(), (int) (fromSec * kSr));
+    const int to   = juce::jlimit (from, b.getNumSamples(), (int) (toSec * kSr));
+    double edge = 0.0, interior = 0.0;
+    int edgeN = 0, interiorN = 0;
+    for (int i = from; i < to; ++i)
+    {
+        const double step = std::abs ((double) b.getSample (ch, i) - b.getSample (ch, i - 1));
+        if (i % blockSize == 0) { edge += step; ++edgeN; }
+        else                    { interior += step; ++interiorN; }
+    }
+    if (edgeN == 0 || interiorN == 0 || interior <= 0.0)
+        return 1.0;
+    return (edge / edgeN) / (interior / interiorN);
+}
+
+juce::String dbStr (double linear)
+{
+    return juce::String (20.0 * std::log10 (juce::jmax (1.0e-12, linear)), 1);
+}
+
 /** Energy-weighted RMS time spread in samples (how smeared an impulse response is). */
 double energySpread (const juce::AudioBuffer<float>& b, int ch)
 {
@@ -486,6 +538,61 @@ public:
                                      + " (switch every 40 blocks)");
         }
 
+        beginTest ("Saturator adds harmonics without acting as a volume knob");
+        {
+            const auto& d = Mfx::descriptor (Mfx::Effect::saturator);
+            juce::AudioBuffer<float> in (2, (int) kSr);
+            for (int ch = 0; ch < 2; ++ch)
+                for (int i = 0; i < in.getNumSamples(); ++i)
+                    in.setSample (ch, i, 0.3f * std::sin (juce::MathConstants<float>::twoPi * 220.f * (float) i / (float) kSr));
+
+            auto levelAtDrive = [&] (float drivePct)
+            {
+                Mfx::Values v {};
+                for (int i = 0; i < Mfx::kParamsPerSlot; ++i)
+                    v[(size_t) i] = d.params[(size_t) i].def;
+                v[0] = drivePct;   // Drive
+                v[3] = 0.f;        // Out 0 dB
+                v[4] = 100.f;      // Mix 100 %
+                std::unique_ptr<Mfx::EffectProcessor> fx (MfxRack::makeEffect (Mfx::Effect::saturator));
+                fx->prepare (delaySpec);
+                return rmsRange (renderDelay (*fx, in, v), 0, 0.2, 0.9);
+            };
+
+            const double quiet = levelAtDrive (10.f), loud = levelAtDrive (85.f);
+            const double shiftDb = 20.0 * std::log10 (loud / juce::jmax (1.0e-9, quiet));
+            expect (std::abs (shiftDb) < 4.0,
+                    "drive 10 % -> 85 % shifted level by " + juce::String (shiftDb, 1) + " dB");
+        }
+
+        beginTest ("Grain Cloud actually spawns grains (and adds no noise of its own)");
+        {
+            // 1 s of silence, 1 s of tone, then silence: a working cloud keeps
+            // granulating the captured tone after the input stops.
+            juce::AudioBuffer<float> in (2, (int) (4.0 * kSr));
+            in.clear();
+            for (int ch = 0; ch < 2; ++ch)
+                for (int i = (int) (1.0 * kSr); i < (int) (2.0 * kSr); ++i)
+                    in.setSample (ch, i, 0.5f * std::sin (juce::MathConstants<float>::twoPi * 220.f * (float) i / (float) kSr));
+
+            const auto& d = Mfx::descriptor (Mfx::Effect::grainCloud);
+            Mfx::Values values {};
+            for (int i = 0; i < Mfx::kParamsPerSlot; ++i)
+                values[(size_t) i] = d.params[(size_t) i].def;
+
+            std::unique_ptr<Mfx::EffectProcessor> fx (MfxRack::makeEffect (Mfx::Effect::grainCloud));
+            fx->prepare (delaySpec);
+            const auto out = renderDelay (*fx, in, values);
+
+            expect (rmsRange (out, 0, 0.0, 0.95) < 1.0e-6,
+                    "silent in, silent out: " + dbStr (rmsRange (out, 0, 0.0, 0.95)) + " dB");
+            const double tail = rmsRange (out, 0, 2.2, 3.5);
+            expect (tail > 0.002, "grains keep sounding after the input stops: " + dbStr (tail) + " dB");
+            // grains replay captured tone, so the tail must not be broadband noise
+            expect (hfRms (out, 0, 2.2, 3.5) < 0.25 * tail,
+                    "the tail is tone, not white noise: HF " + dbStr (hfRms (out, 0, 2.2, 3.5)) + " dB");
+        }
+
         // AVIATORKEYZ_DELAY_DEMO_DIR=<dir> renders every factory preset over a short
         // plucked phrase so the modes can be auditioned without a host.
         const auto demoDir = juce::SystemStats::getEnvironmentVariable ("AVIATORKEYZ_DELAY_DEMO_DIR", {});
@@ -545,6 +652,56 @@ public:
                           renderDelay (fx, phrase, values));
             }
             logMessage ("Aviation Delay demos written to " + dir.getFullPathName());
+        }
+
+        // AVIATORKEYZ_DSP_DIAG=1 prints a noise / discontinuity table (not an assertion).
+        if (juce::SystemStats::getEnvironmentVariable ("AVIATORKEYZ_DSP_DIAG", {}).isNotEmpty())
+        {
+            beginTest ("DSP diagnostics: noise floor and block-rate discontinuities");
+
+            // 1 s of true silence, 1 s of tone, then 3 s of silence for the tail
+            juce::AudioBuffer<float> in (2, (int) (5.0 * kSr));
+            in.clear();
+            for (int ch = 0; ch < 2; ++ch)
+                for (int i = (int) (1.0 * kSr); i < (int) (2.0 * kSr); ++i)
+                    in.setSample (ch, i, 0.5f * std::sin (juce::MathConstants<float>::twoPi * 220.f * (float) i / (float) kSr));
+
+            auto row = [&] (const juce::String& label, const juce::AudioBuffer<float>& out)
+            {
+                logMessage (label.paddedRight (' ', 22)
+                            + ("silence " + dbStr (rmsRange (out, 0, 0.0, 0.95))).paddedRight (' ', 16)
+                            + ("tail " + dbStr (rmsRange (out, 0, 3.0, 5.0))).paddedRight (' ', 14)
+                            + ("tailHF>8k " + dbStr (hfRms (out, 0, 3.0, 5.0))).paddedRight (' ', 19)
+                            + "blockStep x" + juce::String (blockStepRatio (out, 0, 1.0, 3.0, kBlock), 2));
+            };
+
+            for (int diffusion : { 0, 30 })
+            {
+                logMessage ("--- Aviation Delay, diffusion " + juce::String (diffusion) + " %, age 40 %, feedback 50 %, mix 100 %");
+                for (int mode = 0; mode < (int) AD::Mode::count; ++mode)
+                {
+                    AD fx;
+                    fx.prepare (delaySpec);
+                    const auto out = renderDelay (fx, in, delayValues ({ { AD::pMode, (float) mode },
+                                                                           { AD::pStyle, (float) (int) AD::Style::stereo },
+                                                                           { AD::pTime, 300.f }, { AD::pFeedback, 50.f },
+                                                                           { AD::pMix, 100.f }, { AD::pDiffusion, (float) diffusion },
+                                                                           { AD::pAge, 40.f }, { AD::pModDepth, 20.f } }));
+                    row (Mfx::valueText (delayDesc.params[AD::pMode], (float) mode), out);
+                }
+            }
+
+            logMessage ("--- other slot effects at their defaults (mix as per descriptor)");
+            for (auto e : { Mfx::Effect::grainCloud, Mfx::Effect::saturator, Mfx::Effect::space })
+            {
+                const auto& d = Mfx::descriptor (e);
+                Mfx::Values values {};
+                for (int i = 0; i < Mfx::kParamsPerSlot; ++i)
+                    values[(size_t) i] = d.params[(size_t) i].def;
+                std::unique_ptr<Mfx::EffectProcessor> fx (MfxRack::makeEffect (e));
+                fx->prepare (delaySpec);
+                row (d.name, renderDelay (*fx, in, values));
+            }
         }
     }
 };

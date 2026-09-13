@@ -42,7 +42,7 @@ The UI should feel like sitting down at a high-end instrument panel: dark, preci
 
 ### Preset categories
 
-Leads · Brass · Ensembles · Strings · Pads · Chords · Synths · Arps · Vocals · Bells
+Leads · Brass · Ensembles · Strings · Pads · Phrases · Synths · Arps · Vocals · Bells
 
 ### Signature controls
 

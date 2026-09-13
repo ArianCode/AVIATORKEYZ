@@ -5,13 +5,11 @@
 #include "CockpitBackground.h"
 #include "EnvelopePanel.h"
 #include "FilterPanel.h"
-#include "LayerMixPanel.h"
 #include "MacroDeck.h"
 #include "MenuLookAndFeel.h"
 #include "PresetHeader.h"
 #include "PresetSelectorOverlay.h"
 #include "StatusBar.h"
-#include "VelocityPanel.h"
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <functional>
@@ -64,8 +62,6 @@ private:
     PresetHeader presetHeader;
     CategoryTabs categoryTabs;
     std::unique_ptr<CenterDashboard> dashboard;
-    std::unique_ptr<VelocityPanel> velocityPanel;
-    std::unique_ptr<LayerMixPanel> layerMixPanel;
     std::unique_ptr<FilterPanel> filterPanel;
     std::unique_ptr<EnvelopePanel> envelopePanel;
     std::unique_ptr<MacroDeck> macroDeck;

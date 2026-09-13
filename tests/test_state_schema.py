@@ -23,7 +23,7 @@ PERFORMANCE_LAYOUT_CPP = ROOT / "Source" / "GUI" / "Advanced" / "PerformancePara
 PROCESSOR_CPP = ROOT / "Source" / "PluginProcessor.cpp"
 PRESETS_DIR = ROOT / "Resources" / "Presets" / "Factory"
 
-EXPECTED_PARAM_COUNT = 268
+EXPECTED_PARAM_COUNT = 272
 CHOP_STEP_COUNT = 16
 CHOP_STEP_SUFFIXES = ("on", "vol", "offset", "rev", "pitch")
 
@@ -163,18 +163,18 @@ class TestStateSchemaH(unittest.TestCase):
             f"found {len(_SCHEMA_SAMPLE_IDS)}: {sorted(_SCHEMA_SAMPLE_IDS)}",
         )
 
-    def test_schema_defines_10_categories(self):
+    def test_schema_defines_13_categories(self):
         self.assertEqual(
             len(_SCHEMA_CATEGORY_NAMES),
-            10,
-            f"Expected 10 categories in StateSchema.h, "
+            13,
+            f"Expected 13 categories in StateSchema.h, "
             f"found {len(_SCHEMA_CATEGORY_NAMES)}: {sorted(_SCHEMA_CATEGORY_NAMES)}",
         )
 
     def test_schema_categories_match_expected(self):
         expected = {
-            "Leads", "Brass", "Ensembles", "Strings", "Pads",
-            "Chords", "Synths", "Arps", "Vocals", "Bells",
+            "Bass", "Leads", "Keys", "Brass", "Phrases", "Arps", "Synths",
+    "Bells", "Strings", "Plucks", "Ensembles", "Pads", "Vocals",
         }
         self.assertEqual(
             _SCHEMA_CATEGORY_NAMES,

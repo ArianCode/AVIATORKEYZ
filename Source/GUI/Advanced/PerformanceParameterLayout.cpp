@@ -24,6 +24,7 @@ void PerformanceParameterLayout::appendParameters (std::vector<std::unique_ptr<R
                                              NR (-24.f, 24.f, 0.01f), 0.f));
     params.push_back (std::make_unique<APF> (ParameterID { ParamID::SRC_SPEED, 1 }, "Src Speed",
                                              NR (0.25f, 4.f, 0.001f, 0.4f), 1.f));
+    params.push_back (std::make_unique<APB> (ParameterID { ParamID::SRC_SPEED_SNAP, 1 }, "Src Speed Lock", true));
     params.push_back (std::make_unique<APB> (ParameterID { ParamID::SRC_REVERSE, 1 }, "Src Reverse", false));
     params.push_back (std::make_unique<APFC> (ParameterID { ParamID::SRC_LOOP_MODE, 1 }, "Loop Mode",
                                               StringArray { "One Shot", "Loop", "Gate" }, 2));
@@ -34,6 +35,24 @@ void PerformanceParameterLayout::appendParameters (std::vector<std::unique_ptr<R
     params.push_back (std::make_unique<APFC> (ParameterID { ParamID::SRC_PLAYBACK_MODE, 1 }, "Playback Mode",
         StringArray { "One Shot", "Phrase", "Chromatic", "Time Stretch", "Slice" }, 2));
     params.push_back (std::make_unique<APB> (ParameterID { ParamID::SRC_KEYTRACK, 1 }, "Keytrack", false));
+    params.push_back (std::make_unique<APF> (ParameterID { ParamID::SRC_LOOP_START, 1 }, "Loop Start",
+                                             NR (0.f, 1.f, 0.001f), 0.f));
+    params.push_back (std::make_unique<APF> (ParameterID { ParamID::SRC_LOOP_END, 1 }, "Loop End",
+                                             NR (0.f, 1.f, 0.001f), 1.f));
+
+    // Slice pads: division (default 16 keeps the original grid), random pad chance,
+    // and one nudge per cut so the user can choose where each slice starts.
+    params.push_back (std::make_unique<APFC> (ParameterID { ParamID::SLICE_DIV, 1 }, "Slices",
+                                              StringArray { "3", "4", "6", "8", "16" }, 4));
+    params.push_back (std::make_unique<APF> (ParameterID { ParamID::SLICE_RANDOM, 1 }, "Slice Random",
+                                             NR (0.f, 1.f, 0.001f), 0.f));
+    // CHOP FADE: fade applied at every chop / slice / flip edge. Dragged from the
+    // waveform corners; clamped at playback to under half the slice.
+    params.push_back (std::make_unique<APF> (ParameterID { ParamID::SLICE_XFADE, 1 }, "Chop Fade",
+                                             NR (0.f, 50.f, 0.1f), 2.f));
+    for (int cut = 0; cut < ParamID::SLICE_CUT_COUNT; ++cut)
+        params.push_back (std::make_unique<APF> (ParameterID { ParamID::sliceCutParamId (cut).toStdString(), 1 },
+                                                 "Slice Cut " + String (cut + 1), NR (-1.f, 1.f, 0.001f), 0.f));
 
     params.push_back (std::make_unique<APB> (ParameterID { ParamID::CHOP_ON, 1 }, "Chop On", false));
     params.push_back (std::make_unique<APF> (ParameterID { ParamID::CHOP_AMOUNT, 1 }, "Chop Amount",

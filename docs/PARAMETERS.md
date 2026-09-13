@@ -159,5 +159,8 @@ Randomiser locks and the reroll undo stack are plugin state (`mfxLocks1/2` prope
 | `flip_trigger_on` | Bool | off / on | off | When on, `flip_trigger_note` is consumed and throws the lever |
 | `flip_trigger_note` | Int | 0–127 | 24 (C0) | |
 | `env_enabled` | Bool | off / on | on | Off = flat envelope (instant attack, full sustain, 10 ms release) |
+| `src_speed_snap` | Bool | off / on | on | SPEED lock: `src_speed` plays on 0.25 steps (×0.25 … ×4), macros included |
 
-`src_playback_mode` = **Time Stretch** (index 3) now routes the sampler part of each note to the Signalsmith stretch voice (`src_speed` = time ratio 0.25–4, pitch preserved; `src_keytrack` = transpose). Index 4 (**Slice**) turns every key into one of 16 slice pads across `src_start…src_end`. Total registered parameters: **322**.
+`src_root_note` is the key that plays the sample at its recorded pitch. Loads set it to the sample's own root (smpl chunk / key detection / preset `rootNote`) plus the user's re-root; that offset is stored as `rootShift` in preset XML and host state.
+
+`src_playback_mode` = **Time Stretch** (index 3) now routes the sampler part of each note to the Signalsmith stretch voice (`src_speed` = time ratio 0.25–4, pitch preserved; `src_keytrack` = transpose). Index 4 (**Slice**) turns every key into one of 16 slice pads across `src_start…src_end`. Total registered parameters: **344**.

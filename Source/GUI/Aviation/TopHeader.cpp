@@ -17,6 +17,7 @@ void TopHeader::resized()
     mainTabArea = { w / 2 - 150 - 120, 0, 240, h };
     perfTabArea = { w / 2 + 150 - 150, 0, 300, h };
 
+    diceArea    = { w - 266, h / 2 - 13, 26, 26 };
     gearArea    = { w - 220, h / 2 - 14, 28, 28 };
     utilityArea = { w - 172, h / 2 - 13, 26, 26 };
     saveArea    = { w - 130, h / 2 - 18, 100, 36 };
@@ -26,6 +27,7 @@ TopHeader::Hit TopHeader::hitAt (juce::Point<int> pos) const
 {
     if (mainTabArea.contains (pos))    return Hit::mainTab;
     if (perfTabArea.contains (pos))    return Hit::perfTab;
+    if (diceArea.expanded (6).contains (pos))    return Hit::dice;
     if (gearArea.expanded (6).contains (pos))    return Hit::gear;
     if (utilityArea.expanded (6).contains (pos)) return Hit::utility;
     if (saveArea.contains (pos))       return Hit::save;
@@ -60,11 +62,25 @@ void TopHeader::mouseDown (const juce::MouseEvent& e)
         case Hit::perfTab:
             if (! performanceSelected) { performanceSelected = true; if (onModeChanged) onModeChanged (true); repaint(); }
             break;
+        case Hit::dice:
+            // a different face every roll, so each click visibly registers
+            diceFace = 1 + (diceFace + juce::Random::getSystemRandom().nextInt (5)) % 6;
+            if (onRandomSoundClicked) onRandomSoundClicked (e.mods.isShiftDown());
+            repaint();
+            break;
         case Hit::gear:    if (onSettingsClicked) onSettingsClicked(); break;
         case Hit::utility: if (onUtilityClicked)  onUtilityClicked();  break;
         case Hit::save:    if (onSaveClicked)     onSaveClicked();     break;
         case Hit::none:    break;
     }
+}
+
+juce::String TopHeader::getTooltip()
+{
+    if (hovered == Hit::dice)
+        return "New sound, same effects: loads a random preset from this category and keeps "
+               "your MFX, Maneuver, FX and speed settings. Shift-click for any category.";
+    return {};
 }
 
 void TopHeader::setPerformanceSelected (bool performance)
@@ -141,6 +157,8 @@ void TopHeader::paint (juce::Graphics& g)
     drawNav (perfTabArea, "PERFORMANCE", performanceSelected, hovered == Hit::perfTab);
 
     // --- Right controls --------------------------------------------------------
+    AviationIcons::fill (g, AviationIcons::dice (diceFace), diceArea.toFloat(),
+                         Aviation::gold().withAlpha (hovered == Hit::dice ? 1.0f : 0.8f));
     AviationIcons::fill (g, AviationIcons::gear(), gearArea.toFloat(),
                          Aviation::gold().withAlpha (hovered == Hit::gear ? 1.0f : 0.8f));
     AviationIcons::fill (g, AviationIcons::ringDot(), utilityArea.toFloat(),

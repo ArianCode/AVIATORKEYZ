@@ -88,7 +88,7 @@ public:
                     "AIR at wet=0.01 should be inaudible when gated by wet at source");
         }
 
-        beginTest ("low wet on silent input after hot capture does not leak grain bed");
+        beginTest ("low wet keeps the grain bed proportional, and it dies once the capture refills");
         {
             TextureEngine engine;
             juce::dsp::ProcessSpec spec { 48000.0, 512, 2 };
@@ -109,14 +109,32 @@ public:
                                 1.f, false, 1.f, 0.f, 120.0);
             }
 
+            // A granular layer is meant to keep granulating what it just heard —
+            // that tail is the effect. What it must not do is drone forever, or
+            // come back louder than the mix asks for. (Grain density used to be
+            // multiplied by the mix, which is why the layer was silent at any
+            // normal setting; the tail is now proportional to the mix instead.)
             juce::AudioBuffer<float> silent (2, 512);
             silent.clear();
             engine.process (silent, true, 0.02f, false,
                             1.f, 1.f, 0, 1.f, 1.f, 0.f, 1.f, 1.f,
                             1.f, false, 1.f, 0.f, 120.0);
 
+            expect (silent.getMagnitude (0, 512) < 0.05f,
+                    "2 % wet stays proportionally quiet: " + juce::String (silent.getMagnitude (0, 512)));
+
+            // The capture is a rolling 4 s window, so silence at the input
+            // overwrites it and the bed has to decay to nothing on its own.
+            for (int block = 0; block < 500; ++block)   // > 5 s at 512 / 48 kHz
+            {
+                silent.clear();
+                engine.process (silent, true, 0.02f, false,
+                                1.f, 1.f, 0, 1.f, 1.f, 0.f, 1.f, 1.f,
+                                1.f, false, 1.f, 0.f, 120.0);
+            }
             expect (silent.getMagnitude (0, 512) < 1.0e-4f,
-                    "Low wet must not replay stale capture as audible grain bed on silent input");
+                    "the grain bed dies once the capture has refilled with silence: "
+                        + juce::String (silent.getMagnitude (0, 512)));
         }
     }
 };

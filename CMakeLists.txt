@@ -189,6 +189,7 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
             Source/GUI/FlightDeck/ManeuverZone.cpp
             Source/GUI/FlightDeck/AtmosphereZone.cpp
             Source/GUI/FlightDeck/CargoHoldZone.cpp
+            Source/GUI/FlightDeck/RollingSamplerStrip.cpp
             Source/GUI/FlightDeck/FlightDeckView.cpp
 
             # GUI — photo-anchored cockpit
@@ -201,8 +202,6 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
             Source/GUI/Aviation/CategoryTabs.cpp
             Source/GUI/Aviation/CockpitBackground.cpp
             Source/GUI/Aviation/CenterDashboard.cpp
-            Source/GUI/Aviation/VelocityPanel.cpp
-            Source/GUI/Aviation/LayerMixPanel.cpp
             Source/GUI/Aviation/FilterPanel.cpp
             Source/GUI/Aviation/EnvelopePanel.cpp
             Source/GUI/Aviation/MacroDeck.cpp
@@ -279,6 +278,10 @@ if(AVIATORKEYZ_BUILD_PLUGIN)
             JUCE_WEB_BROWSER=0
             JUCE_USE_CURL=0
             JUCE_VST3_CAN_REPLACE_VST2=0
+
+            # Cargo accepts compressed audio; JUCE's own MP3 decoder keeps
+            # macOS and Windows decoding identical (CoreAudio/WMF differ).
+            JUCE_USE_MP3AUDIOFORMAT=1
 
             # Disable splash screen (requires JUCE license or GPL)
             JUCE_DISPLAY_SPLASH_SCREEN=0

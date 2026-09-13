@@ -14,9 +14,31 @@ PRESETS = ROOT / "Resources" / "Presets" / "Factory"
 sys.path.insert(0, str(ROOT / "scripts"))
 from category_sound_policy import (  # noqa: E402
     SOUND_TYPE_NAMES,
+    SoundType,
     infer_sound_type,
-    playback_params_for,
+    keytrack_for,
+    loop_mode_for,
+    playback_mode_for,
+    PHRASE_CATEGORIES,
 )
+
+_SOUND_TYPE_FROM_NAME = {v: k for k, v in SOUND_TYPE_NAMES.items()}
+
+
+def playback_params_for_sound_type(category: str, sound_type: SoundType) -> dict[str, float | int]:
+    """The four playback PARAMs the plugin derives from (category, soundType) at load."""
+    mode = playback_mode_for(category, sound_type)
+    bpm_sync = (
+        1
+        if sound_type in (SoundType.LOOP, SoundType.PHRASE) and category in PHRASE_CATEGORIES
+        else 0
+    )
+    return {
+        "src_playback_mode": int(mode),
+        "src_keytrack": 1 if keytrack_for(mode) else 0,
+        "src_loop_mode": loop_mode_for(category, sound_type),
+        "src_bpm_sync": bpm_sync,
+    }
 
 
 def upsert_param(state: ET.Element, param_id: str, value: str | float | int) -> None:
@@ -37,15 +59,21 @@ def patch_file(xml_path: Path) -> bool:
 
     category = root.get("category", xml_path.parent.name)
     name = root.get("name", xml_path.stem)
-    sound_type = SOUND_TYPE_NAMES[infer_sound_type(category, name)]
-    root.set("soundType", sound_type)
+    # An existing soundType is authoritative (curated by hand or by the import
+    # audit); only infer from the stem when a preset has none. This mirrors the
+    # plugin, which reads the attribute at load and infers only if it's absent.
+    existing = root.get("soundType", "").strip().lower()
+    sound_type = _SOUND_TYPE_FROM_NAME.get(existing)
+    if sound_type is None:  # ONE_SHOT is 0 — never use `or` here
+        sound_type = infer_sound_type(category, name)
+    root.set("soundType", SOUND_TYPE_NAMES[sound_type])
 
     state = root.find("AviatorKeyzState")
     if state is None:
         state = ET.SubElement(root, "AviatorKeyzState")
         state.set("stateVersion", "1")
 
-    for key, value in playback_params_for(category, name).items():
+    for key, value in playback_params_for_sound_type(category, sound_type).items():
         upsert_param(state, key, value)
 
     xml_text = ET.tostring(root, encoding="unicode")

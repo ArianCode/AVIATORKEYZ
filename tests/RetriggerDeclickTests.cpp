@@ -170,6 +170,97 @@ public:
             expect (peak > 0.5f, "stolen voice did not reach level");
         }
 
+        beginTest ("Stolen voice's old waveform decays out instead of stepping to zero");
+        {
+            DeclickRig rig;
+            rig.engine.setPolyphony (1);
+
+            std::vector<float> out;
+            rig.engine.noteOn (60, 1.f, false, 0.f);
+            rig.render (out, 500);
+            rig.renderUntilLoud (out, 0.7f); // steal away from a zero crossing
+
+            const size_t boundary = out.size();
+            rig.engine.noteOn (67, 1.f, false, 0.f);
+            rig.render (out, 800);
+
+            const float step = maxStep (out, boundary - 1);
+            expect (step < kSmoothBound, "voice steal discontinuity: " + juce::String (step, 4));
+        }
+
+        beginTest ("CHOP FADE stretches the fade at a slice edge (manual chop repair)");
+        {
+            // Frame 25 is the sine's peak, so this slice starts on a hard step.
+            // With a 10 ms chop fade the onset must take 10 ms to arrive, not
+            // the 1.5 ms built-in minimum.
+            DeclickRig rig;
+            rig.engine.setSliceCrossfadeMs (10.f);
+            rig.engine.setNextNoteSliceWindow (25, 8025);
+
+            std::vector<float> out;
+            out.push_back (0.f);     // silence before the note
+            rig.engine.noteOn (60, 1.f, false, 0.f);
+            rig.render (out, 1200);
+
+            expect (maxStep (out, 1) < kSmoothBound,
+                    "chop onset discontinuity: " + juce::String (maxStep (out, 1), 4));
+
+            // 10 ms at 44.1 kHz is 441 samples, so a quarter of the way in the
+            // ramp is still well below full level; by 600 it has arrived.
+            float earlyPeak = 0.f;
+            for (size_t i = 0; i < 110 && i < out.size(); ++i)
+                earlyPeak = juce::jmax (earlyPeak, std::abs (out[i]));
+            float latePeak = 0.f;
+            for (size_t i = 600; i < out.size(); ++i)
+                latePeak = juce::jmax (latePeak, std::abs (out[i]));
+            expect (earlyPeak < 0.45f, "10 ms fade must still be ramping at 2.5 ms: " + juce::String (earlyPeak, 3));
+            expect (latePeak > 0.7f, "the slice must reach full level after the fade: " + juce::String (latePeak, 3));
+        }
+
+        beginTest ("Slice pad starting mid-waveform fades in (chop onset click)");
+        {
+            DeclickRig rig;
+            // Frame 25 is the sine's positive peak: a hard start would open at 1.0.
+            rig.engine.setNextNoteSliceWindow (25, 8025);
+
+            std::vector<float> out;
+            rig.engine.noteOn (60, 1.f, false, 0.f);
+            rig.render (out, 600);
+
+            for (size_t i = 0; i < 3; ++i)
+                expect (std::abs (out[i]) < 0.1f, "slice onset not faded: " + juce::String (out[i], 3));
+            expect (maxStep (out, 1) < kSmoothBound, "slice onset step: " + juce::String (maxStep (out, 1), 4));
+
+            float peak = 0.f;
+            for (size_t i = 200; i < out.size(); ++i)
+                peak = juce::jmax (peak, std::abs (out[i]));
+            expect (peak > 0.5f, "slice did not reach level");
+        }
+
+        beginTest ("Non-looping sample end fades out even with no envelope release (slice end click)");
+        {
+            DeclickRig rig;
+            // 2025 frames ends the sine on its positive peak; release 0 used to hard-cut there.
+            SampleLibrary::AudioSnapshot shortSnap;
+            SampleLibrary::AudioRegion region;
+            region.data = sineSample;
+            region.numFrames = 2025;
+            region.rootNote = 60;
+            region.fileSampleRate = 44100.0;
+            shortSnap.regions.push_back (region);
+            rig.engine.setSampleSnapshot (&shortSnap);
+            rig.engine.setEnvelopeTimesMs (0.f, 0.f, 1.f, 0.f);
+
+            std::vector<float> out;
+            rig.engine.noteOn (60, 1.f, false, 0.f);
+            rig.render (out, 2600);
+
+            expect (! rig.engine.hasActiveVoices(), "one-shot ran to its end and freed the voice");
+            const float step = maxStep (out, 1);
+            expect (step < kSmoothBound, "sample-end discontinuity: " + juce::String (step, 4));
+            expect (std::abs (out[2024]) < 0.1f, "last sample of the window is faded: " + juce::String (out[2024], 3));
+        }
+
         beginTest ("Rapid alternating retriggers stay bounded and end silent");
         {
             DeclickRig rig;

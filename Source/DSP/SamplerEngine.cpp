@@ -18,6 +18,7 @@ void SamplerEngine::prepare (const juce::dsp::ProcessSpec& spec)
         allSoundOff();
 
     sampleRate = spec.sampleRate;
+    stealTailDecay = static_cast<float> (std::exp (-1.0 / (kStealTailTauMs * 0.001 * sampleRate)));
 
     for (auto& v : voices)
         v.glideEngine.setSampleRate (sampleRate);
@@ -105,8 +106,30 @@ void SamplerEngine::setSourceSettings (const SourceSettings& settings, double ho
     updatePlaybackPolicies();
 
     for (int i = 0; i < maxVoices; ++i)
+    {
         if (voices[i].active)
+        {
             updateVoicePlaybackRates (voices[i]);
+            updateVoiceLoopBounds (voices[i]); // loop handles move while a note holds
+        }
+    }
+}
+
+void SamplerEngine::updateVoiceLoopBounds (Voice& v) noexcept
+{
+    v.loopStartFrame = v.phraseStartFrame;
+    v.loopEndFrame = v.phraseEndFrame;
+    if (v.windowedByStep || v.sampleData == nullptr || v.sampleNumFrames <= 1)
+        return;
+
+    const float last = static_cast<float> (v.sampleNumFrames - 1);
+    const int ls = juce::jlimit (v.phraseStartFrame, v.phraseEndFrame, static_cast<int> (sourceSettings.loopStart * last));
+    const int le = juce::jlimit (v.phraseStartFrame, v.phraseEndFrame, static_cast<int> (sourceSettings.loopEnd * last));
+    if (le - ls >= kMinLoopFrames)
+    {
+        v.loopStartFrame = ls;
+        v.loopEndFrame = le;
+    }
 }
 
 void SamplerEngine::setPlaybackContext (AviatorKeyz::SoundType soundType,
@@ -355,6 +378,8 @@ void SamplerEngine::resetVoiceState (Voice& v, bool wasActive) noexcept
     v.envSegSamplesLeft = 0;
     v.declickGain = 1.f;
     v.declickStep = 0.f;
+    v.lastOut = 0.f;
+    v.stealTail = 0.f;
     v.sampleData = nullptr;
     v.sampleNumFrames = 0;
     v.fileSampleRate = sampleRate;
@@ -362,6 +387,9 @@ void SamplerEngine::resetVoiceState (Voice& v, bool wasActive) noexcept
     v.playbackRates = {};
     v.phraseStartFrame = 0;
     v.phraseEndFrame = 0;
+    v.loopStartFrame = 0;
+    v.loopEndFrame = 0;
+    v.windowedByStep = false;
     v.chopPitchOffsetSemis = 0;
     v.voiceInstanceId = 0;
     v.flipActive = false;
@@ -405,6 +433,9 @@ void SamplerEngine::startVoice (Voice& v,
                                  bool declickFadeIn) noexcept
 {
     const bool wasActive = v.active;
+    // A stolen voice's waveform must not simply vanish: carry its last sample
+    // into the new note as a ~1 ms decaying tail (see renderVoiceSample).
+    const float stealTailSeed = wasActive ? v.lastOut : 0.f;
 
     const bool legatoOverlap = ! wasActive && activeVoiceCount > 0;
     const bool legatoReuse = wasActive;
@@ -416,14 +447,6 @@ void SamplerEngine::startVoice (Voice& v,
     v.reversed = reverse;
     v.phase = 0.f;
     v.chopPitchOffsetSemis = 0;
-
-    // Reusing an audible voice (steal) or replacing a choked mono voice can
-    // otherwise start with a hard onset; ramp the new note in over ~1.5 ms.
-    const bool needsFade = declickFadeIn || wasActive;
-    v.declickGain = needsFade ? 0.f : 1.f;
-    v.declickStep = needsFade
-                        ? 1.f / juce::jmax (1.f, static_cast<float> (kDeclickFadeMs * 0.001f * sampleRate))
-                        : 0.f;
 
     const bool glideTimeOn = glideTimeMs > 1.f;
     const bool useGlide = glideTimeOn
@@ -444,7 +467,7 @@ void SamplerEngine::startVoice (Voice& v,
     {
         v.sampleData      = region->data;
         v.sampleNumFrames = region->numFrames;
-        v.sampleRootNote  = region->rootNote;
+        v.sampleRootNote  = juce::jlimit (0, 127, region->rootNote + sourceSettings.rootShift);
         v.fileSampleRate  = region->fileSampleRate > 0.0 ? region->fileSampleRate : sampleRate;
 
         if (phraseEnabled)
@@ -466,7 +489,8 @@ void SamplerEngine::startVoice (Voice& v,
         // current slice overrides the phrase window from the very first sample
         // instead of waiting for the next block's setChopPlaybackState().
         const bool sliceForThisNote = pendingSliceActive;
-        if (sliceForThisNote || chopState.active)
+        v.windowedByStep = sliceForThisNote || chopState.active;
+        if (v.windowedByStep)
         {
             const int s = sliceForThisNote ? pendingSliceStart : chopState.sliceStartFrame;
             const int e = sliceForThisNote ? pendingSliceEnd : chopState.sliceEndFrame;
@@ -484,6 +508,7 @@ void SamplerEngine::startVoice (Voice& v,
             }
         }
         pendingSliceActive = false;
+        updateVoiceLoopBounds (v);
 
         // Lever already thrown to REV with a slice/beat window: start inside
         // the first window and loop it, like a voice that was flipped live.
@@ -513,10 +538,39 @@ void SamplerEngine::startVoice (Voice& v,
         v.readPos = 0.f;
         v.phraseStartFrame = 0;
         v.phraseEndFrame = 0;
+        v.loopStartFrame = 0;
+        v.loopEndFrame = 0;
+        v.windowedByStep = false;
         v.playbackRates = {};
         v.flipActive = false;
         pendingSliceActive = false;
     }
+
+    // Ramp the note in wherever it would otherwise start with a hard onset: a
+    // reused (stolen) voice, a choked mono retrigger, or any start inside the
+    // sample — slice pads, phrase windows and chop steps all land mid-cycle.
+    // A fresh start at the sample boundary keeps its natural transient.
+    const bool startsInsideSample = v.sampleData != nullptr
+        && (v.reversed ? v.readPos < static_cast<float> (v.sampleNumFrames - 1) - 0.5f
+                       : v.readPos > 0.5f);
+    const bool needsFade = declickFadeIn || wasActive || startsInsideSample;
+    // Chop edges get the user's CHOP FADE on top of the built-in de-click
+    // minimum, so a clicky slice can be fixed by hand from the waveform. Cap it
+    // under half the window, or a long fade would swallow a short slice whole.
+    float fadeMs = kDeclickFadeMs;
+    if (startsInsideSample && sliceCrossfadeMs > kDeclickFadeMs)
+    {
+        const int winFrames = juce::jmax (1, v.phraseEndFrame - v.phraseStartFrame);
+        const float winMs = 1000.f * static_cast<float> (winFrames)
+                            / static_cast<float> (juce::jmax (1.0, v.fileSampleRate));
+        fadeMs = juce::jlimit (kDeclickFadeMs, juce::jmax (kDeclickFadeMs, winMs * 0.45f), sliceCrossfadeMs);
+    }
+    v.declickGain = needsFade ? 0.f : 1.f;
+    v.declickStep = needsFade
+                        ? 1.f / juce::jmax (1.f, static_cast<float> (fadeMs * 0.001f * sampleRate))
+                        : 0.f;
+    v.stealTail = stealTailSeed;
+    v.lastOut = 0.f;
 
     lastStartedVoice = static_cast<int> (&v - voices);
     updateVoicePlaybackRates (v);
@@ -590,6 +644,11 @@ void SamplerEngine::finishAttack (Voice& v) noexcept
         v.envSegSamplesLeft = n;
         v.envLinearStep = (sustainLevel - 1.f) / static_cast<float> (n);
     }
+}
+
+void SamplerEngine::setSliceCrossfadeMs (float ms) noexcept
+{
+    sliceCrossfadeMs = juce::jlimit (0.f, 50.f, std::isfinite (ms) ? ms : 0.f);
 }
 
 void SamplerEngine::enterRelease (Voice& v) noexcept
@@ -673,7 +732,8 @@ void SamplerEngine::updateVoicePlaybackRates (Voice& v) noexcept
     // Varispeed BPM sync: hostBpm / originalBpm.
     // Host slower than the sample → slower read (sample stays aligned to the grid).
     // Never combine with MIDI pitch tracking.
-    // (True pitch-preserving stretch is a future engine.)
+    // (Pitch-preserving sync lives in StretchPlayer — the PhraseTimeStretch
+    // mode never reaches this engine.)
     if (! tracksMidiPitch
         && sourceSettings.bpmSync
         && sourceSettings.originalBpm > 1.f
@@ -748,43 +808,91 @@ float SamplerEngine::renderVoiceSample (Voice& v) noexcept
         const bool loops = v.flipActive
                            || (phraseLoop && (phraseEnabled || sourceSettings.loopMode == LoopMode::Loop));
 
-        int i0 = static_cast<int> (std::floor (v.readPos));
-        const float frac = v.readPos - static_cast<float> (i0);
+        // Sustain loop (LOOP mode): cycle [loopStart, loopEnd] inside the window
+        // while the note holds, crossfading across the seam so the wrap never
+        // steps. Flip and slice/chop windows keep the plain window loop.
+        const bool sustainLoop = loops && ! v.flipActive && ! v.windowedByStep
+                                 && v.loopEndFrame > v.loopStartFrame + 1;
+        const float loopStartF = static_cast<float> (sustainLoop ? v.loopStartFrame : phraseStart);
+        const float loopEndF   = static_cast<float> (sustainLoop ? v.loopEndFrame : phraseEnd);
+        const float loopLen    = loopEndF - loopStartF;
 
-        if (! v.reversed)
+        // Hermite read clamped to the window, in the voice's direction.
+        auto readAt = [&] (float pos) -> float
         {
-            i0 = juce::jlimit (phraseStart, juce::jmax (phraseStart, phraseEnd - 1), i0);
-            AK_ASSERT (i0 >= phraseStart && i0 + 1 <= phraseEnd);
-            const float y0 = v.sampleData[juce::jmax (phraseStart, i0 - 1)];
-            const float y1 = v.sampleData[i0];
-            const float y2 = v.sampleData[juce::jmin (phraseEnd, i0 + 1)];
-            const float y3 = v.sampleData[juce::jmin (phraseEnd, i0 + 2)];
-            osc = AviatorFastMath::hermite4 (y0, y1, y2, y3, frac);
-            v.readPos += inc;
-            if (v.readPos >= static_cast<float> (phraseEnd))
+            int i0 = static_cast<int> (std::floor (pos));
+            const float frac = pos - static_cast<float> (i0);
+            if (! v.reversed)
             {
-                if (loops)
-                    v.readPos = static_cast<float> (phraseStart);
-                else
-                    enterRelease (v);
+                i0 = juce::jlimit (phraseStart, juce::jmax (phraseStart, phraseEnd - 1), i0);
+                AK_ASSERT (i0 >= phraseStart && i0 + 1 <= phraseEnd);
+                const float y0 = v.sampleData[juce::jmax (phraseStart, i0 - 1)];
+                const float y1 = v.sampleData[i0];
+                const float y2 = v.sampleData[juce::jmin (phraseEnd, i0 + 1)];
+                const float y3 = v.sampleData[juce::jmin (phraseEnd, i0 + 2)];
+                return AviatorFastMath::hermite4 (y0, y1, y2, y3, frac);
             }
-        }
-        else
-        {
             i0 = juce::jlimit (phraseStart + 1, phraseEnd, i0);
             AK_ASSERT (i0 >= phraseStart + 1 && i0 <= phraseEnd);
             const float y0 = v.sampleData[juce::jmin (phraseEnd, i0 + 1)];
             const float y1 = v.sampleData[i0];
             const float y2 = v.sampleData[juce::jmax (phraseStart, i0 - 1)];
             const float y3 = v.sampleData[juce::jmax (phraseStart, i0 - 2)];
-            osc = AviatorFastMath::hermite4 (y0, y1, y2, y3, 1.f - frac);
-            v.readPos += inc;
-            if (v.readPos <= static_cast<float> (phraseStart))
+            return AviatorFastMath::hermite4 (y0, y1, y2, y3, 1.f - frac);
+        };
+
+        osc = readAt (v.readPos);
+
+        if (sustainLoop)
+        {
+            // Equal-power crossfade into the material that precedes the wrap
+            // target, limited by the pre-roll available and by half the loop.
+            const float preroll = v.reversed ? static_cast<float> (phraseEnd) - loopEndF
+                                             : loopStartF - static_cast<float> (phraseStart);
+            const float xf = juce::jmin (kLoopXfadeMs * 0.001f * static_cast<float> (v.fileSampleRate),
+                                         loopLen * 0.5f, preroll);
+            const float toSeam = v.reversed ? v.readPos - loopStartF : loopEndF - v.readPos;
+            if (xf > 1.f && toSeam < xf)
             {
-                if (loops)
-                    v.readPos = static_cast<float> (phraseEnd);
-                else
-                    enterRelease (v);
+                const float t = juce::jlimit (0.f, 1.f, 1.f - toSeam / xf);
+                const float other = readAt (v.reversed ? v.readPos + loopLen : v.readPos - loopLen);
+                const float ang = t * juce::MathConstants<float>::halfPi;
+                osc = osc * std::cos (ang) + other * std::sin (ang);
+            }
+        }
+        else if (! loops)
+        {
+            // Look-ahead fade over the end of a non-looping window so a slice,
+            // chop step or trimmed one-shot ends on a ramp even when the amp
+            // envelope can't get there (release at minimum, envelope off).
+            // CHOP FADE lengthens it, capped under half the window.
+            const float remaining = v.reversed ? v.readPos - static_cast<float> (phraseStart)
+                                               : static_cast<float> (phraseEnd) - v.readPos;
+            const float endFadeMs = juce::jmax (kDeclickFadeMs, sliceCrossfadeMs);
+            const float windowFrames = static_cast<float> (juce::jmax (1, phraseEnd - phraseStart));
+            const float span = juce::jmax (1.f,
+                juce::jmin (endFadeMs * 0.001f * static_cast<float> (sampleRate) * std::abs (inc),
+                            windowFrames * 0.45f));
+            osc *= juce::jlimit (0.f, 1.f, remaining / span);
+        }
+
+        v.readPos += inc;
+        if (! v.reversed)
+        {
+            if (v.readPos >= loopEndF)
+            {
+                if (sustainLoop)   v.readPos -= loopLen;
+                else if (loops)    v.readPos = static_cast<float> (phraseStart);
+                else               enterRelease (v);
+            }
+        }
+        else
+        {
+            if (v.readPos <= loopStartF)
+            {
+                if (sustainLoop)   v.readPos += loopLen;
+                else if (loops)    v.readPos = static_cast<float> (phraseEnd);
+                else               enterRelease (v);
             }
         }
     }
@@ -805,6 +913,16 @@ float SamplerEngine::renderVoiceSample (Voice& v) noexcept
         out *= v.declickGain;
         v.declickGain = juce::jmin (1.f, v.declickGain + v.declickStep);
     }
+
+    // The waveform this voice replaced decays out underneath the new note.
+    if (v.stealTail != 0.f)
+    {
+        out += v.stealTail;
+        v.stealTail *= stealTailDecay;
+        if (std::abs (v.stealTail) < 1.0e-6f)
+            v.stealTail = 0.f;
+    }
+    v.lastOut = out;
 
     advanceEnvelope (v);
     return out;

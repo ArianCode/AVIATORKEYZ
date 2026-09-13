@@ -26,9 +26,9 @@ public:
                   float density,
                   float spread,
                   float pan,
-                  float motion,
+                  float motion,      // -1..+1: sweeps the read point through the capture
                   float drift,
-                  float air,
+                  float air,         // ignored (was a white-noise generator)
                   bool grainReverse,
                   float stereoWidth,
                   float grainScan,
@@ -51,9 +51,9 @@ private:
     static constexpr float kMaxBufferSec = 4.f;
 
     void writeCapture (const juce::AudioBuffer<float>& buffer) noexcept;
-    void spawnGrain (float rate01, float size01, int pitchSemis, float spread01, float pan01, bool reverse, float scan01) noexcept;
+    void spawnGrain (float size01, int pitchSemis, float spread01, float pan01, bool reverse, float scan01) noexcept;
     float readBuffer (float pos, int channel) const noexcept;
-    float tempoGrainRateHz (float rate01, double bpm) const noexcept;
+    float grainRateHz (float rate01) const noexcept;
     float grainLengthSamples (float size01) const noexcept;
 
     juce::HeapBlock<float> captureL;
@@ -66,7 +66,8 @@ private:
     Grain grains[kMaxGrains] {};
     double sampleRate { 44100.0 };
     float spawnAccumulator = 0.f;
-    float scanPos = 0.f;
+    float scanDrift = 0.f;        // accumulated MOTION offset, samples
+    float spawnGain = 1.f;        // per-grain gain that keeps loudness flat as the cloud thickens
     float driftPhase = 0.f;
     juce::Random rng;
     bool prepared { false };

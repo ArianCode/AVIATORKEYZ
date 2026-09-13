@@ -75,9 +75,11 @@ inline juce::StringArray allSchemaParamIDs()
         ParamID::PERF_MACRO_3, ParamID::PERF_MACRO_4,
 
         ParamID::SRC_START, ParamID::SRC_END, ParamID::SRC_TUNE, ParamID::SRC_SPEED,
-        ParamID::SRC_REVERSE, ParamID::SRC_LOOP_MODE, ParamID::SRC_BPM_SYNC,
+        ParamID::SRC_SPEED_SNAP, ParamID::SRC_REVERSE, ParamID::SRC_LOOP_MODE, ParamID::SRC_BPM_SYNC,
         ParamID::SRC_ORIGINAL_BPM, ParamID::SRC_ROOT_NOTE,
         ParamID::SRC_PLAYBACK_MODE, ParamID::SRC_KEYTRACK,
+        ParamID::SRC_LOOP_START, ParamID::SRC_LOOP_END,
+        ParamID::SLICE_DIV, ParamID::SLICE_RANDOM, ParamID::SLICE_XFADE,
 
         ParamID::CHOP_ON, ParamID::CHOP_AMOUNT, ParamID::CHOP_RATE, ParamID::CHOP_GATE,
         ParamID::CHOP_SWING, ParamID::CHOP_RANDOM, ParamID::CHOP_REVERSE_CHANCE, ParamID::CHOP_SMOOTH,
@@ -111,6 +113,8 @@ inline juce::StringArray allPerformanceParamIDs()
         ids.add (ParamID::chopStepParamId (step, "rev"));
         ids.add (ParamID::chopStepParamId (step, "pitch"));
     }
+    for (int cut = 0; cut < ParamID::SLICE_CUT_COUNT; ++cut)
+        ids.add (ParamID::sliceCutParamId (cut));
     for (int slot = 0; slot < Mfx::kNumSlots; ++slot)
     {
         ids.add (Mfx::onId (slot));
@@ -129,4 +133,4 @@ inline juce::StringArray allPerformanceParamIDs()
 }
 
 // 266 core/perf + 2 MFX slots x 28
-inline constexpr int kExpectedSchemaParamCount = 268 + Mfx::kNumSlots * Mfx::kIdsPerSlot;
+inline constexpr int kExpectedSchemaParamCount = 289 + Mfx::kNumSlots * Mfx::kIdsPerSlot;

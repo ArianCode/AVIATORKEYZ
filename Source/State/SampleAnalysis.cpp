@@ -218,4 +218,67 @@ int rootNoteForPitchClass (int pitchClass)
         return 60;
     return pitchClass <= 6 ? 60 + pitchClass : 48 + pitchClass;
 }
+
+LoopPoints findSustainLoop (const float* mono, int numFrames, double sampleRate,
+                            float trimStartNorm, float trimEndNorm)
+{
+    LoopPoints lp;
+    if (mono == nullptr || numFrames < 256 || sampleRate <= 0.0)
+        return lp;
+
+    const int last = numFrames - 1;
+    const int ws = juce::jlimit (0, last, (int) (trimStartNorm * (float) last));
+    const int we = juce::jlimit (ws + 1, last, (int) (trimEndNorm * (float) last));
+    const int len = we - ws;
+    if (len < 256)
+        return lp;
+
+    // Search the sustain: past the attack, short of the release tail.
+    const int searchStart = ws + (int) (0.40f * (float) len);
+    const int searchEnd   = ws + (int) (0.95f * (float) len);
+    const int minLoop     = juce::jmax (64, (int) (0.05 * sampleRate)); // 50 ms
+    const int compareLen  = juce::jmin (256, len / 8);
+
+    auto risingZero = [mono] (int i) { return i > 0 && mono[i - 1] <= 0.f && mono[i] > 0.f; };
+    auto norm = [last] (int frame) { return (float) frame / (float) last; };
+
+    int start = -1;
+    for (int i = juce::jmax (1, searchStart); i < searchEnd; ++i)
+        if (risingZero (i)) { start = i; break; }
+
+    lp.found = true;
+    if (start < 0 || start + minLoop + compareLen >= searchEnd)
+    {
+        // No usable crossings (silence, DC, sub-50 ms sustain): loop the sustain
+        // region as-is and let the engine's seam crossfade cover the join.
+        lp.startNorm = norm (searchStart);
+        lp.endNorm = norm (searchEnd);
+        return lp;
+    }
+
+    int best = -1;
+    float bestScore = 1.0e30f;
+    for (int c = start + minLoop; c + compareLen <= searchEnd; ++c)
+    {
+        if (! risingZero (c))
+            continue;
+        float score = 0.f;
+        for (int k = 0; k < compareLen; ++k)
+        {
+            const float d = mono[c + k] - mono[start + k];
+            score += d * d;
+        }
+        // Prefer the longer loop when seams match about as well.
+        score *= 1.f + 0.25f * (1.f - (float) (c - start) / (float) (searchEnd - start));
+        if (score < bestScore)
+        {
+            bestScore = score;
+            best = c;
+        }
+    }
+
+    lp.startNorm = norm (start);
+    lp.endNorm = norm (best > 0 ? best : searchEnd);
+    return lp;
+}
 } // namespace SampleAnalysis

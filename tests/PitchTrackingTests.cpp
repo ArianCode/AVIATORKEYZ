@@ -286,16 +286,19 @@ public:
             engine.allSoundOff();
         }
 
-        beginTest ("Preset switch restores keytrack: phrase then chromatic");
+        beginTest ("Preset switch keeps keytrack on: phrase (STRETCH transpose) then chromatic");
         {
             PitchTestProcessor proc;
             PresetManager pm (proc.apvts);
 
-            expect (pm.loadPreset ("Ensembles", "KSHMR_sok5_135_string_violin_highland_Cm")
-                    || pm.loadPreset ("Arps", "OS_FF_Cm_Arp_Keys"));
-            // Phrase categories force keytrack off via policy.
+            expect (pm.loadPreset ("Phrases", "AU_NTSR_107_synth_pad_loop_love_disconnection_creaky_Cmin")
+                    || pm.loadPreset ("Phrases", "Bubbly Horn"));
+            // PHRASES keytracks too: the stretcher transposes at constant length.
             if (auto* keyParam = proc.apvts.getParameter (AviatorKeyz::ParamID::SRC_KEYTRACK))
-                expect (keyParam->getValue() < 0.5f, "Phrase preset must load with keytrack OFF");
+                expect (keyParam->getValue() > 0.5f, "Phrase preset must load with keytrack ON");
+            if (auto* modeParam = dynamic_cast<juce::AudioParameterChoice*> (
+                    proc.apvts.getParameter (AviatorKeyz::ParamID::SRC_PLAYBACK_MODE)))
+                expectEquals (modeParam->getIndex(), static_cast<int> (SamplePlaybackMode::PhraseTimeStretch));
 
             expect (pm.loadPreset ("Brass", "CSV_brass_happy_stab_held_C"));
             if (auto* keyParam = proc.apvts.getParameter (AviatorKeyz::ParamID::SRC_KEYTRACK))

@@ -135,7 +135,7 @@ public:
 
         beginTest ("gatePolicyFor true one-shot is TriggerToEnd");
         {
-            expect (AviatorKeyz::gatePolicyFor ("Chords",
+            expect (AviatorKeyz::gatePolicyFor ("Phrases",
                                                 AviatorKeyz::SoundType::OneShot,
                                                 SamplePlaybackMode::OneShotOriginal,
                                                 LoopMode::OneShot)
@@ -154,7 +154,7 @@ public:
         {
             expect (AviatorKeyz::loopModeFor ("Vocals", AviatorKeyz::SoundType::Phrase) == LoopMode::Gate);
             expect (AviatorKeyz::loopModeFor ("Strings", AviatorKeyz::SoundType::OneShot) == LoopMode::Gate);
-            expect (AviatorKeyz::loopModeFor ("Chords", AviatorKeyz::SoundType::OneShot) == LoopMode::OneShot);
+            expect (AviatorKeyz::loopModeFor ("Phrases", AviatorKeyz::SoundType::OneShot) == LoopMode::OneShot);
         }
     }
 };
@@ -330,7 +330,7 @@ public:
             settings.bpmSync = false;
             settings.keytrack = false;
             engine.setSourceSettings (settings, 120.0);
-            engine.setPlaybackContext (AviatorKeyz::SoundType::OneShot, AviatorKeyz::Category::CHORDS);
+            engine.setPlaybackContext (AviatorKeyz::SoundType::OneShot, AviatorKeyz::Category::PHRASES);
             expect (engine.getNoteGatePolicy() == NoteGatePolicy::TriggerToEnd);
 
             engine.noteOn (60, 1.f, false, 0.f);

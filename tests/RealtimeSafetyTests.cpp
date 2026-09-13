@@ -21,6 +21,7 @@
 #include "DSP/Performance/MotionEngine.h"
 #include "DSP/ToneShaper.h"
 #include "DSP/SamplerEngine.h"
+#include "DSP/RollingSampler.h"
 #include "DSP/ReverbTail.h"
 #include "State/SampleLibrary.h"
 
@@ -224,6 +225,12 @@ public:
             sampler.noteOn (60, 0.8f, false, 0.f);
             sampler.noteOn (64, 0.8f, false, 0.f);
 
+            // Rolling sampler armed: its ring write runs on the audio thread for
+            // every block once the user hits ARM, so it belongs in this guard.
+            RollingSampler rolling;
+            rolling.prepare (spec.sampleRate, (int) spec.maximumBlockSize);
+            rolling.setArmed (true);
+
             // Reverb cycles algorithm/color and toggles on/off inside the guard so
             // crossfades, core resets and the dry glide are all covered.
             ReverbTail reverb;
@@ -254,6 +261,8 @@ public:
                     reverb.process (buffer, 0.35f, 0.002f * static_cast<float> (block), (block / 50) % 2 == 0, 0.4f,
                                     AviationReverb::algorithmFromIndex (block / 10),
                                     AviationReverb::colorFromIndex (block / 25 % 2));
+
+                    rolling.write (buffer);
                 }
                 allocations = AllocationGuard::count.load();
             }

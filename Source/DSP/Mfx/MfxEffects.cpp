@@ -64,19 +64,25 @@ void GrainCloud::process (juce::AudioBuffer<float>& buffer, const Values& v, con
         return;
     // TextureEngine mixes dry/wet internally by wetMix.
     const float sizeNorm = juce::jlimit (0.f, 1.f, (v[0] - 5.f) / 495.f);
+    // Grains per second come from DENSITY, with SMEAR adding overlap on top.
+    // (Before: a fixed 0.55 landed on ~0.4 grains/second — one grain every few
+    // seconds, so the layer was silent except for the old white-noise "air".)
+    const float density01 = pct (v[1]);
+    const float smear01 = pct (v[8]);
+    const float rate01 = juce::jlimit (0.f, 1.f, density01 * 0.75f + smear01 * 0.25f);
     engine.process (buffer,
                     true,
                     pct (v[10]),                 // mix
                     v[9] > 0.5f,                 // freeze
-                    0.55f,                       // grain rate (tempo-relative, fixed)
+                    rate01,                      // grain rate
                     sizeNorm,                    // size
                     juce::roundToInt (v[4]),     // pitch semis
-                    pct (v[1]),                  // density
+                    density01,                   // density
                     pct (v[3]),                  // spread
                     0.f,                         // pan
                     pct (v[5] * 0.5f + 50.f),    // motion from scan (-100..100 -> 0..1)
                     pct (v[6]),                  // drift
-                    pct (v[8]) * 0.5f,           // air from smear
+                    0.f,                         // air (retired: it was white noise)
                     false,
                     pct (v[7]),                  // width
                     pct (v[2]),                  // scan position
@@ -142,7 +148,13 @@ void Saturator::process (juce::AudioBuffer<float>& buffer, const Values& v, cons
     const float bias = v[1] * 0.01f * 0.6f;
     const float tone = v[2] * 0.01f;                      // -1 dark .. +1 bright
     const float out = juce::Decibels::decibelsToGain (v[3]);
-    const float norm = 1.f / std::tanh (drive);
+    // Level-match around a nominal -10 dBFS signal: a signal at kSatRef comes
+    // out at kSatRef whatever the drive, so DRIVE adds harmonics instead of
+    // volume. (Normalising by 1/tanh(drive) instead pinned full scale to full
+    // scale, which made small signals +9.5 dB at the default and +20 dB at
+    // "Fuzz Edge" — the saturator was mostly a hidden gain stage.)
+    constexpr float kSatRef = 0.3f;
+    const float norm = kSatRef / std::tanh (drive * kSatRef);
     const float lpCoef = onePoleCoef (juce::jmap (tone, -1.f, 1.f, 1200.f, 12000.f), sampleRate);
     const float dcCoef = 0.995f;
 

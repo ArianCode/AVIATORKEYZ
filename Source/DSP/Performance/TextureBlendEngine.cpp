@@ -56,7 +56,7 @@ void TextureBlendEngine::process (juce::AudioBuffer<float>& buffer,
                                settings.density,
                                settings.pitchSpread,
                                0.f,
-                               settings.smear,
+                               settings.smear * 2.f - 1.f,   // motion is bipolar
                                0.f,
                                0.f,
                                false,

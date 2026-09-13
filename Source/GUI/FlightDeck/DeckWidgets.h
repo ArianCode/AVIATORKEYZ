@@ -242,6 +242,14 @@ public:
     /** Vertical-drag handler: delta in "ticks" (positive = up). */
     std::function<void (int)> onDragTicks;
 
+    /** Optional padlock at the right edge, clicked separately from the chip body. */
+    void setLock (bool shown, bool locked);
+    std::function<void()> onLockClick;
+
+    /** Plain-English help the owning zone shows while this chip is hovered. */
+    void setHint (const juce::String& h) { hintText = h; }
+    const juce::String& getHint() const noexcept { return hintText; }
+
     void paint (juce::Graphics& g) override;
     void mouseDown (const juce::MouseEvent& e) override;
     void mouseDrag (const juce::MouseEvent& e) override;
@@ -253,11 +261,14 @@ public:
     static constexpr int kH = 22;
 
 private:
-    juce::String labelText, valueText;
+    juce::Rectangle<int> lockBounds() const { return { getWidth() - 21, (getHeight() - 13) / 2, 13, 13 }; }
+
+    juce::String labelText, valueText, hintText;
     juce::Colour valueCol;
     bool hover { false };
     int dragAccum { 0 };
     bool dragged { false };
+    bool lockShown { false }, lockOn { false }, pressedLock { false };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DeckChip)
 };
