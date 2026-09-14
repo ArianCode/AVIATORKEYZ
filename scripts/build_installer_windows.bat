@@ -98,7 +98,9 @@ for %%P in (
     "%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
     "%ProgramFiles%\Inno Setup 6\ISCC.exe"
 ) do (
-    if exist %%P set ISCC=%%P
+    REM %%P includes quotes from the list above. Store the bare path so
+    REM "!ISCC!" is quoted once. Doubling the quotes makes cmd see ""C:\Program.
+    if exist "%%~P" set "ISCC=%%~P"
 )
 if not defined ISCC (
     where ISCC.exe >nul 2>&1
