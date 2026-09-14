@@ -1,0 +1,248 @@
+name: Windows build
+
+# The Windows VST3 is built here so it does not need a Windows machine. macOS is
+# the primary dev platform (docs/INSTALLER_BUILD_GUIDE.md section 2); this is the
+# Windows half of section 3 run on a hosted runner instead of a local VM.
+#
+# Every push to a configured build branch produces a downloadable x64 VST3.
+# Tags (prototype-*) additionally build the x86 half and the Inno Setup installer.
+# Run it by hand from the Actions tab to pick a different combination.
+
+on:
+  push:
+    branches: [main, 'claude/**', 'codex/windows-build-*']
+    tags: ['prototype-*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      architectures:
+        description: 'x64only (faster) or universal (adds x86-win for FL 11 32-bit)'
+        type: choice
+        options: [x64only, universal]
+        default: x64only
+      link_time_optimisation:
+        description: 'LTO. OFF by default: /LTCG over the embedded factory bank is what stalls the hosted linker'
+        type: choice
+        options: ['OFF', 'ON']
+        default: 'OFF'
+      build_installer:
+        description: 'Also compile Setup.exe with Inno Setup'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vst3:
+    name: VST3 (Release, MSVC)
+    runs-on: windows-latest
+    timeout-minutes: 240
+
+    env:
+      ARCH_MODE: ${{ inputs.architectures || (startsWith(github.ref, 'refs/tags/') && 'universal' || 'x64only') }}
+      AVIATORKEYZ_ENABLE_LTO: ${{ inputs.link_time_optimisation || 'OFF' }}
+      BUILD_INSTALLER: ${{ inputs.build_installer || startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/codex/windows-build-') }}
+
+    steps:
+      # The runner image sets core.autocrlf=true. Checking out with it rewrites
+      # every LF file to CRLF, which `git status --porcelain` then reports as a
+      # modification — the packaging scripts read that as a dirty tree and abort,
+      # and BuildInfo.h would stamp the binary "-dirty". Must precede checkout.
+      - name: Preserve committed line endings
+        run: git config --global core.autocrlf false
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # git describe --tags needs the full history
+
+      # 310 MB of factory WAVs become BinaryData C++ sources, and the MSVC objects
+      # are several times larger again. The image ships with ~20 GB of SDKs this
+      # build never touches; reclaiming them keeps the link stage off a full disk.
+      - name: Reclaim disk space
+        shell: pwsh
+        run: |
+          Get-PSDrive C | Select-Object Used, Free
+          foreach ($dir in @('C:\Android', $env:AGENT_TOOLSDIRECTORY)) {
+            if ($dir -and (Test-Path $dir)) {
+              Write-Host "Removing $dir"
+              Remove-Item -Recurse -Force $dir -ErrorAction SilentlyContinue
+            }
+          }
+          Get-PSDrive C | Select-Object Used, Free
+
+      - name: Build identity
+        shell: pwsh
+        run: |
+          $sha = git rev-parse --short=10 HEAD
+          $desc = git describe --tags --always --dirty
+          "SHORT_SHA=$sha"   | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "GIT_DESC=$desc"   | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Commit:   $sha"
+          Write-Host "Describe: $desc"
+          Write-Host "Arch:     $env:ARCH_MODE   LTO: $env:AVIATORKEYZ_ENABLE_LTO"
+          if ($desc -like '*dirty*') {
+            Write-Error "Checkout is dirty — the recorded SHA would not rebuild this binary."
+            exit 1
+          }
+
+      # windows-latest ships whatever Visual Studio is current — the image is now
+      # windows-2025-vs2026, i.e. VS 2026, where the scripts' documented default
+      # generator "Visual Studio 17 2022" finds no instance of Visual Studio and
+      # configure dies before a single file compiles. Derive the generator from
+      # what is actually installed rather than assuming a version.
+      - name: Detect Visual Studio toolchain
+        shell: pwsh
+        run: |
+          cmake --version
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * `
+                  -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+                  -format json | ConvertFrom-Json
+          if (-not $vs) { Write-Error "No Visual Studio C++ toolchain on this image."; exit 1 }
+          $inst  = $vs[0]
+          $major = [int]($inst.installationVersion.Split('.')[0])
+          Write-Host "Found: $($inst.displayName) — $($inst.installationVersion)"
+          # One mapping drives both. vswhere's productLineVersion reports "18"
+          # rather than "2026", which would put a meaningless compiler name in
+          # VERSION.txt, so take the year from here too.
+          $year = switch ($major) {
+            17      { '2022' }
+            18      { '2026' }
+            default { $null }
+          }
+          if (-not $year) {
+            Write-Error "No CMake generator mapped for Visual Studio major version $major. Add it to this step."
+            exit 1
+          }
+          $gen = "Visual Studio $major $year"
+          Write-Host "Generator: $gen"
+          "AVIATORKEYZ_CMAKE_GENERATOR=$gen"                                | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "AVIATORKEYZ_COMPILER_LABEL=Microsoft Visual Studio $year"        | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "VCVARS=$($inst.installationPath)\VC\Auxiliary\Build\vcvars64.bat" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Verify embedded sound bank
+        shell: pwsh
+        run: |
+          $samples = @(Get-ChildItem Resources/Factory -Filter *.wav)
+          $presets = @(Get-ChildItem Resources/Presets/Factory -Filter *.xml -Recurse)
+          if ($samples.Count -eq 0 -or $presets.Count -eq 0) {
+            throw 'Factory samples or presets are missing.'
+          }
+          foreach ($preset in $presets) {
+            [xml]$xml = Get-Content -LiteralPath $preset.FullName -Raw -Encoding utf8
+            $sampleId = $xml.Preset.sampleId
+            if (-not $sampleId -or -not (Test-Path -LiteralPath "Resources/Factory/$sampleId.wav")) {
+              throw "Missing sample for $($preset.Name): $sampleId"
+            }
+          }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          $manifest = @{
+            source_commit = (git rev-parse HEAD)
+            preset_count = $presets.Count
+            sample_count = $samples.Count
+            files = @($samples + $presets | Sort-Object FullName | ForEach-Object {
+              @{
+                path = [IO.Path]::GetRelativePath($PWD.Path, $_.FullName).Replace('\', '/')
+                bytes = $_.Length
+                sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+              }
+            })
+          }
+          $manifest | ConvertTo-Json -Depth 5 | Set-Content dist/SOUND_BANK_MANIFEST.json -Encoding utf8
+          Write-Host "Verified $($presets.Count) presets and $($samples.Count) embedded samples."
+
+      # Same script the Windows runbook uses locally, so CI and a hand build cannot drift.
+      - name: Build VST3
+        shell: cmd
+        run: |
+          if /I "%ARCH_MODE%"=="x64only" (
+            scripts\build_windows_universal.bat x64only
+          ) else (
+            scripts\build_windows_universal.bat
+          )
+
+      # CMakeLists.txt pins the static CRT so testers need no VC++ Redistributable.
+      # If that ever regresses the plugin fails to load on a clean machine, which is
+      # exactly the failure that is hardest to diagnose remotely — so gate on it.
+      - name: Confirm static CRT
+        shell: cmd
+        run: |
+          call "%VCVARS%" >nul
+          set DLL=build-win-x64\Aviation_artefacts\Release\VST3\Aviation.vst3\Contents\x86_64-win\Aviation.vst3
+          dumpbin /DEPENDENTS "%DLL%" > ci_dependents_x64.txt || exit /b 1
+          type ci_dependents_x64.txt
+          findstr /I /C:"VCRUNTIME140" /C:"MSVCP140" ci_dependents_x64.txt >nul
+          if not errorlevel 1 (
+            echo ERROR: binary links the dynamic CRT - every client machine would need the VC++ Redistributable.
+            exit /b 1
+          )
+          echo Static CRT confirmed.
+          REM findstr sets errorlevel 1 when it matches nothing and echo does not
+          REM clear it, so exit explicitly or the step inherits that stale 1.
+          exit /b 0
+
+      # Run under vcvars so the script's own dumpbin section records dist\dumpbin_dependents_*.txt.
+      - name: Package ZIP
+        shell: cmd
+        run: |
+          call "%VCVARS%" >nul
+          scripts\package_prototype_windows.bat
+
+      - name: Build installer
+        if: env.BUILD_INSTALLER == 'true'
+        shell: cmd
+        run: scripts\build_installer_windows.bat
+
+      - name: Upload VST3 package
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aviation-Windows-${{ env.ARCH_MODE }}-${{ env.SHORT_SHA }}
+          path: |
+            dist/*.zip
+            dist/SHA256SUMS_Windows.txt
+            dist/dumpbin_dependents_*.txt
+            dist/SOUND_BANK_MANIFEST.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload installer
+        if: env.BUILD_INSTALLER == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aviation-Windows-Setup-${{ env.SHORT_SHA }}
+          path: |
+            dist/*_Setup.exe
+            dist/*_Setup.exe.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Summary
+        if: always()
+        shell: pwsh
+        run: |
+          $rows = @(
+            "## Aviation - Windows build",
+            "",
+            "| | |",
+            "|---|---|",
+            "| Commit | $env:SHORT_SHA |",
+            "| Describe | $env:GIT_DESC |",
+            "| Architectures | $env:ARCH_MODE |",
+            "| LTO | $env:AVIATORKEYZ_ENABLE_LTO |",
+            "| Compiler | $env:AVIATORKEYZ_COMPILER_LABEL |",
+            "| Installer | $env:BUILD_INSTALLER |",
+            "",
+            "Download the artifact below, unzip it, and copy VST3\Aviation.vst3 to",
+            "C:\Program Files\Common Files\VST3\ . Then in FL Studio:",
+            "Options > Manage plugins > Find more plugins > Start scan.",
+            "",
+            "Unsigned - SmartScreen warns on first run. See docs/INSTALLER_BUILD_GUIDE.md section 3.6."
+          )
+          $rows -join "`n" | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8

@@ -12,6 +12,14 @@ setlocal
 set BUILD_DIR=build
 set CONFIG=Release
 
+REM Export AVIATORKEYZ_ENABLE_LTO=OFF to skip link-time optimisation when the MSVC
+REM link stage stalls or runs out of memory over the embedded factory bank.
+if not defined AVIATORKEYZ_ENABLE_LTO set AVIATORKEYZ_ENABLE_LTO=ON
+
+REM Export AVIATORKEYZ_CMAKE_GENERATOR to build with a Visual Studio other than
+REM 2022 (the hosted CI runner image ships Visual Studio 2026).
+if not defined AVIATORKEYZ_CMAKE_GENERATOR set AVIATORKEYZ_CMAKE_GENERATOR=Visual Studio 17 2022
+
 if "%1"=="debug" set CONFIG=Debug
 if "%1"=="Debug" set CONFIG=Debug
 if "%1"=="clean" (
@@ -43,8 +51,9 @@ if %errorlevel% equ 0 (
 
 REM --- Configure ---
 echo [1/3] Configuring CMake...
-cmake -S . -B %BUILD_DIR% -G "Visual Studio 17 2022" -A x64 ^
-    -DCMAKE_BUILD_TYPE=%CONFIG%
+cmake -S . -B %BUILD_DIR% -G "%AVIATORKEYZ_CMAKE_GENERATOR%" -A x64 ^
+    -DCMAKE_BUILD_TYPE=%CONFIG% ^
+    -DAVIATORKEYZ_ENABLE_LTO=%AVIATORKEYZ_ENABLE_LTO%
 if %errorlevel% neq 0 (
     echo CMake configuration failed.
     exit /b 1
