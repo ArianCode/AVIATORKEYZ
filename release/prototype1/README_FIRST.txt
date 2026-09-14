@@ -1,6 +1,8 @@
 AVIATION — PROTOTYPE 1 RC1
 ============================
 
+Developed by Arian Gholamipour — @arian._.g
+
 Read DOCS/INSTALL_WINDOWS.txt before installing.
 
 This is a confidential evaluation build — not for redistribution.

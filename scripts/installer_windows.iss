@@ -100,4 +100,4 @@ Type: filesandordirs; Name: "{commoncf32}\VST3\Aviation.vst3"
 Type: filesandordirs; Name: "{commondocs}\Aviation Prototype 1"
 
 [Messages]
-FinishedLabel=Aviation has been installed.%n%nNext: open FL Studio and rescan plugins%n(Options > Manage plugins > Find more plugins > Start scan),%nthen load Aviation on an instrument channel.%n%nConfirm the version in the plugin status bar matches VERSION.txt.
+FinishedLabel=Aviation has been installed.%n%nDeveloped by Arian Gholamipour - @arian._.g%n%nNext: open FL Studio and rescan plugins%n(Options > Manage plugins > Find more plugins > Start scan),%nthen load Aviation on an instrument channel.%n%nConfirm the version in the plugin status bar matches VERSION.txt.

@@ -104,6 +104,8 @@ copy /Y release\prototype1\README_FIRST.txt "%OUT_DIR%\" >nul
 copy /Y release\prototype1\DOCS\INSTALL_WINDOWS.txt "%OUT_DIR%\DOCS\" >nul
 copy /Y release\prototype1\DOCS\KNOWN_ISSUES.txt "%OUT_DIR%\DOCS\" >nul
 copy /Y release\prototype1\DOCS\FEEDBACK_TEMPLATE.txt "%OUT_DIR%\DOCS\" >nul
+copy /Y release\prototype1\DOCS\CREDITS.txt "%OUT_DIR%\DOCS\" >nul
+if errorlevel 1 ( echo ERROR: developer credits could not be packaged. & exit /b 1 )
 copy /Y release\prototype1\TEST\TEST_CHECKLIST.txt "%OUT_DIR%\TEST\" >nul
 if exist release\prototype1\TEST\Prototype_Test.mid (
     copy /Y release\prototype1\TEST\Prototype_Test.mid "%OUT_DIR%\TEST\" >nul
@@ -140,6 +142,7 @@ for /f "tokens=1-3 delims=/ " %%a in ('date /t') do set BUILD_DATE=%%c-%%a-%%b
 echo AVIATION - PROTOTYPE 1 %RC_LABEL%> "%OUT_DIR%\VERSION.txt"
 echo.>> "%OUT_DIR%\VERSION.txt"
 echo Prototype version:     %PROTO_VERSION%>> "%OUT_DIR%\VERSION.txt"
+echo Developer:             Arian Gholamipour ^(@arian._.g^)>> "%OUT_DIR%\VERSION.txt"
 echo Git commit:            %GIT_SHA%>> "%OUT_DIR%\VERSION.txt"
 echo Git describe:          %GIT_DESC%>> "%OUT_DIR%\VERSION.txt"
 echo Built:                 %BUILD_DATE%>> "%OUT_DIR%\VERSION.txt"
