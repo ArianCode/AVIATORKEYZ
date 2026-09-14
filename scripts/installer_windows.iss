@@ -34,6 +34,9 @@
 #ifndef SetupBase
   #define SetupBase "Aviation_Prototype1_" + RcLabel + "_Windows_Setup"
 #endif
+#ifndef Preflight
+  #define Preflight "0"
+#endif
 
 [Setup]
 AppId={{A7E3C1D2-8B4F-4E6A-9C05-AV1AT10NRC01}
@@ -63,7 +66,6 @@ SolidCompression=yes
 WizardStyle=modern
 UninstallDisplayName=Aviation Prototype 1 {#RcLabel}
 UninstallFilesDir={commoncf64}\VST3\Aviation-uninstall
-LicenseFile=
 InfoBeforeFile={#DocsSrc}\DOCS\KNOWN_ISSUES.txt
 
 [Languages]
@@ -81,12 +83,14 @@ Name: "vst3x86"; \
 Type: filesandordirs; Name: "{commoncf64}\VST3\Aviation.vst3"
 Type: filesandordirs; Name: "{commoncf32}\VST3\Aviation.vst3"; Tasks: vst3x86
 
+#if Preflight != "1"
 [Files]
 Source: "{#Vst3Src}\*"; DestDir: "{commoncf64}\VST3\Aviation.vst3"; \
   Flags: ignoreversion recursesubdirs createallsubdirs
 
 Source: "{#Vst3Src}\*"; DestDir: "{commoncf32}\VST3\Aviation.vst3"; \
   Flags: ignoreversion recursesubdirs createallsubdirs; Tasks: vst3x86
+#endif
 
 ; Ship the tester-facing docs next to the plugin so they are findable after install.
 Source: "{#DocsSrc}\DOCS\*.txt";     DestDir: "{commondocs}\Aviation Prototype 1\DOCS"; Flags: ignoreversion

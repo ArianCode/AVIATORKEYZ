@@ -158,6 +158,29 @@ jobs:
           $manifest | ConvertTo-Json -Depth 5 | Set-Content dist/SOUND_BANK_MANIFEST.json -Encoding utf8
           Write-Host "Verified $($presets.Count) presets and $($samples.Count) embedded samples."
 
+      # cmd.exe misreads a .bat checked out as LF (exit 255, no output). Catch that
+      # here, before the 15+ minute compile. Also prove Inno Setup can parse the
+      # script so a broken installer does not waste the build.
+      - name: Check installer script
+        if: env.BUILD_INSTALLER == 'true'
+        shell: pwsh
+        run: |
+          $bad = @()
+          Get-ChildItem scripts -Filter *.bat | ForEach-Object {
+            $bytes = [IO.File]::ReadAllBytes($_.FullName)
+            $text = [Text.Encoding]::UTF8.GetString($bytes)
+            if ($text -notmatch "`r`n") { $bad += $_.Name }
+          }
+          if ($bad.Count) {
+            throw "Windows batch scripts are not CRLF and cmd will misread them: $($bad -join ', ')"
+          }
+          winget install --id JRSoftware.InnoSetup -e --accept-package-agreements --accept-source-agreements --disable-interactivity
+          if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne -1978335189) {
+            throw "Inno Setup install failed with exit $LASTEXITCODE"
+          }
+          cmd /c scripts\build_installer_windows.bat check
+          if ($LASTEXITCODE -ne 0) { throw "Installer check failed with exit $LASTEXITCODE" }
+
       # Same script the Windows runbook uses locally, so CI and a hand build cannot drift.
       - name: Build VST3
         shell: cmd
@@ -190,17 +213,15 @@ jobs:
 
       # Run under vcvars so the script's own dumpbin section records dist\dumpbin_dependents_*.txt.
       - name: Package ZIP
+        id: package
         shell: cmd
         run: |
           call "%VCVARS%" >nul
           scripts\package_prototype_windows.bat
 
-      - name: Build installer
-        if: env.BUILD_INSTALLER == 'true'
-        shell: cmd
-        run: scripts\build_installer_windows.bat
-
+      # Upload before the installer. A failed Setup.exe must not hide the plugin ZIP.
       - name: Upload VST3 package
+        if: always() && steps.package.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: Aviation-Windows-${{ env.ARCH_MODE }}-${{ env.SHORT_SHA }}
@@ -211,6 +232,11 @@ jobs:
             dist/SOUND_BANK_MANIFEST.json
           if-no-files-found: error
           retention-days: 30
+
+      - name: Build installer
+        if: env.BUILD_INSTALLER == 'true'
+        shell: cmd
+        run: scripts\build_installer_windows.bat
 
       - name: Upload installer
         if: env.BUILD_INSTALLER == 'true'

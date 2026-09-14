@@ -1,0 +1,4 @@
+# cmd.exe misreads LF batch files (exit 255, no output). Force CRLF in the
+# working tree even when CI sets core.autocrlf=false.
+*.bat text eol=crlf
+*.cmd text eol=crlf

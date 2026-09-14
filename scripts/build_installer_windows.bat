@@ -1,8 +1,8 @@
 @echo off
 REM =============================================================================
-REM  Aviation — Prototype 1 RC1 Windows installer build
+REM  Aviation - Prototype 1 RC1 Windows installer build
 REM
-REM  Prerequisites (run in this order — packaging clears dist\):
+REM  Prerequisites (run in this order - packaging clears dist\):
 REM    1. scripts\build_windows_universal.bat   (x64 [+ x86] in ONE bundle)
 REM    2. scripts\package_prototype_windows.bat (ZIP + VERSION.txt + SHA256)
 REM    3. Inno Setup 6.3+   ->  winget install JRSoftware.InnoSetup
@@ -12,8 +12,9 @@ REM  Ships the SAME universal bundle the ZIP ships. A 64-bit FL loads
 REM  Contents\x86_64-win; FL 11 32-bit loads Contents\x86-win when present.
 REM
 REM  Usage:
-REM    scripts\build_installer_windows.bat          (LZMA2/max — ship quality)
-REM    scripts\build_installer_windows.bat fast     (fast compression — smoke tests)
+REM    scripts\build_installer_windows.bat          (LZMA2/max - ship quality)
+REM    scripts\build_installer_windows.bat fast     (fast compression - smoke tests)
+REM    scripts\build_installer_windows.bat check    (parse + Inno Setup syntax, no VST3)
 REM
 REM  Output:
 REM    dist\Aviation_Prototype1_<RC>_Windows_Setup.exe
@@ -45,14 +46,23 @@ set SETUP_BASE=Aviation_Prototype1_%RC_LABEL%_Windows_Setup
 set SETUP_EXE=%OUT_DIR%\%SETUP_BASE%.exe
 
 set COMPRESSION=lzma2/max
+set PREFLIGHT=0
 if /I "%1"=="fast" set COMPRESSION=lzma2/fast
+if /I "%1"=="check" (
+    set PREFLIGHT=1
+    set COMPRESSION=lzma2/fast
+)
 
-echo === Aviation Prototype 1 — Windows installer ===
+echo === Aviation Prototype 1 - Windows installer ===
 echo Compression: %COMPRESSION%
 
 REM --- Refuse to build an installer from an unreproducible tree ---------------
-for /f "delims=" %%i in ('git describe --tags --always --dirty 2^>nul') do set GIT_DESC=%%i
-for /f "delims=" %%i in ('git rev-parse --short^=10 HEAD 2^>nul') do set GIT_SHA=%%i
+REM Do not use 2^>nul inside for /f. With LF scripts cmd misreads the caret and
+REM the step exits 255 before any useful output.
+git describe --tags --always --dirty >"%TEMP%\aviation_git_desc.txt" 2>nul
+git rev-parse --short=10 HEAD >"%TEMP%\aviation_git_sha.txt" 2>nul
+set /p GIT_DESC=<"%TEMP%\aviation_git_desc.txt"
+set /p GIT_SHA=<"%TEMP%\aviation_git_sha.txt"
 if not defined GIT_SHA set GIT_SHA=unknown
 if not defined GIT_DESC set GIT_DESC=untagged
 echo !GIT_DESC! | findstr /C:"dirty" >nul
@@ -60,7 +70,9 @@ if !errorlevel! equ 0 (
     echo ERROR: working tree is dirty. Commit and rebuild before packaging an RC.
     exit /b 1
 )
-echo Commit identity: !GIT_DESC!  ^(!GIT_SHA!^)
+echo Commit identity: !GIT_DESC! [!GIT_SHA!]
+
+if "%PREFLIGHT%"=="1" goto locate_iscc
 
 if not exist "%VST3_SRC%" (
     echo ERROR: Release VST3 not found at:
@@ -76,9 +88,10 @@ if not exist "%VST3_SRC%\Contents\x86_64-win\Aviation.vst3" (
 if exist "%VST3_SRC%\Contents\x86-win\Aviation.vst3" (
     echo Bundle architectures: x86_64 + x86 ^(universal^)
 ) else (
-    echo Bundle architectures: x86_64 only — FL 11 32-bit will NOT see this plugin.
+    echo Bundle architectures: x86_64 only - FL 11 32-bit will NOT see this plugin.
 )
 
+:locate_iscc
 REM --- Locate Inno Setup ------------------------------------------------------
 set ISCC=
 for %%P in (
@@ -98,22 +111,35 @@ if not defined ISCC (
 )
 echo Inno Setup: !ISCC!
 
+if "%PREFLIGHT%"=="1" (
+    set VST3_SRC=%TEMP%\aviation_installer_preflight_vst3
+    set OUT_DIR=%TEMP%\aviation_installer_preflight_out
+    set SETUP_BASE=Aviation_Prototype1_%RC_LABEL%_Windows_Setup_preflight
+    if not exist "!VST3_SRC!" mkdir "!VST3_SRC!"
+    echo Preflight: Inno Setup syntax check, no plugin payload.
+)
+
 if not exist "%OUT_DIR%" mkdir "%OUT_DIR%"
+if not exist "!OUT_DIR!" mkdir "!OUT_DIR!"
 
 REM --- Compile ----------------------------------------------------------------
+REM One line on purpose. Caret continuations are what cmd misreads when a .bat
+REM is checked out with LF, and that failure exits 255 before ISCC starts.
 echo.
-echo Compiling installer ^(compressing ~250 MB — this takes several minutes^)...
-!ISCC! ^
-    /DAppVersion=%APP_VERSION% ^
-    /DRcLabel=%RC_LABEL% ^
-    /DSetupBase=%SETUP_BASE% ^
-    /DGitSha=%GIT_SHA% ^
-    /DCompression=%COMPRESSION% ^
-    /DVst3Src="%VST3_SRC%" ^
-    /DDocsSrc="%DOCS_SRC%" ^
-    /DOutDir="%OUT_DIR%" ^
-    "%ROOT%\scripts\installer_windows.iss"
-if !errorlevel! neq 0 (
+if "%PREFLIGHT%"=="1" (
+    echo Compiling installer syntax check...
+    "!ISCC!" /DAppVersion=%APP_VERSION% /DRcLabel=%RC_LABEL% /DSetupBase=!SETUP_BASE! /DGitSha=%GIT_SHA% /DCompression=%COMPRESSION% /DVst3Src="!VST3_SRC!" /DDocsSrc="%DOCS_SRC%" /DOutDir="!OUT_DIR!" /DPreflight=1 "%ROOT%\scripts\installer_windows.iss"
+    if errorlevel 1 (
+        echo Installer compilation failed.
+        exit /b 1
+    )
+    echo Installer script check passed.
+    exit /b 0
+)
+
+echo Compiling installer ^(compressing ~250 MB - this takes several minutes^)...
+"!ISCC!" /DAppVersion=%APP_VERSION% /DRcLabel=%RC_LABEL% /DSetupBase=%SETUP_BASE% /DGitSha=%GIT_SHA% /DCompression=%COMPRESSION% /DVst3Src="%VST3_SRC%" /DDocsSrc="%DOCS_SRC%" /DOutDir="%OUT_DIR%" /DPreflight=0 "%ROOT%\scripts\installer_windows.iss"
+if errorlevel 1 (
     echo Installer compilation failed.
     exit /b 1
 )
@@ -137,7 +163,7 @@ if defined SIGN_PFX (
     signtool verify /pa /v "%SETUP_EXE%"
 ) else (
     echo.
-    echo GATE OPEN: installer is UNSIGNED — Windows SmartScreen will warn the tester.
+    echo GATE OPEN: installer is UNSIGNED - Windows SmartScreen will warn the tester.
     echo            Set SIGN_PFX / SIGN_PFX_PASSWORD to sign it.
 )
 
@@ -156,7 +182,7 @@ echo.
 echo Next:
 echo   1. VST3 validator on %VST3_SRC%
 echo   2. Install on a CLEAN Windows machine ^(no VS, no source, no CMake^)
-echo   3. FL matrix — FL25 first, then FL21+, FL20, FL11 ^(docs\PROTOTYPE1_FL_MATRIX.md^)
+echo   3. FL matrix - FL25 first, then FL21+, FL20, FL11 ^(docs\PROTOTYPE1_FL_MATRIX.md^)
 echo   Do not modify the .exe after the SHA-256 above is recorded.
 
 endlocal
